@@ -1,6 +1,7 @@
 # Regulamin Korzystania z KidCost (wersja testowa)
 
 Data: 2026-06-23
+Docelowy URL publikacji: `https://kidcost.app/terms`
 
 ## 1. Cel aplikacji
 
@@ -12,7 +13,7 @@ KidCost służy do rejestrowania i porządkowania wydatków dotyczących dziecka
 - Nie mozesz wykorzystywac aplikacji do oszustw, fałszywych wpisow czy manipulowania historią rozliczen.
 - Aplikacja nie zastępuje porad prawnych ani mediów rozstrzygających spory.
 
-3. Rola danych rodziny
+## 3. Rola danych rodziny
 
 - Wpisy dotyczące rodziny tworza wspolny rejestr.
 - Zmiany i usuniecia wprowadzane sa z zachowaniem widoczności historii.

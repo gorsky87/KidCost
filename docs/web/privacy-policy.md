@@ -1,56 +1,89 @@
 # Polityka Prywatnosci KidCost
 
 Data: 2026-06-23
+Docelowy URL publikacji: `https://kidcost.app/privacy`
 
-## 1. Jakie dane zbieramy
+## 1. Cel dokumentu
 
-KidCost zbiera dane potrzebne do dzialania podstawowej funkcji dzielenia kosztow.
+KidCost pomaga rodzicom i opiekunom dokumentowac koszty dziecka, rozliczenia i zalaczniki. Ta polityka opisuje, jakie dane sa przetwarzane w testowej wersji aplikacji i kto moze je zobaczyc.
+
+## 2. Jakie dane zbieramy
+
+Zbieramy tylko dane potrzebne do dzialania aplikacji, wsparcia technicznego i poprawy stabilnosci produktu.
 
 ### Dane konta
-- email do logowania i powiazania konta,
-- identyfikator uzytkownika i ustawienia konta.
+
+- adres e-mail do logowania i kontaktu,
+- identyfikator uzytkownika,
+- podstawowe ustawienia konta i zgody techniczne.
 
 ### Dane rodziny i dzieci
+
+- nazwa lub opis rodziny,
 - profil rodzica lub opiekuna,
 - profil dziecka,
-- relacje rodzinne i uprawnienia.
+- relacje rodzinne, role i uprawnienia dostepu.
 
-### Dane finansowe i dowody
-- wpisy kosztow: kwota, data, kategoria, opis, osoba platnik,
-- status kosztu i historia decyzji (np. oczekuje, zaakceptowany, sporny),
-- załączniki (zdjecia/paragony/raporty),
-- metadane zdarzeń: kto i kiedy utworzyl, zmienil lub zaakceptowal wpis.
+### Dane kosztow i rozliczen
 
-### Dla stabilnosci działania aplikacji
-- logi bledow (crash), podstawowe zdarzenia techniczne,
-- dane analityczne opisujące korzystanie z funkcji.
+- wpisy kosztow, w tym kwota, data, kategoria, opis i informacja kto zaplacil,
+- status kosztu i historia decyzji, na przyklad oczekuje, zaakceptowany albo sporny,
+- wpisy wyrownan i komentarze do kosztow,
+- metadane zdarzen, na przyklad kto i kiedy utworzyl, zmienil lub zaakceptowal wpis.
 
-## 2. Kto ma dostep do danych
+### Zalaczniki i dowody
 
-- Domyslnie dane rodziny sa widoczne tylko dla Ciebie i zaproszonych wspol-rodzicow.
-- Dane nie sa sprzedawane i nie sa udostepniane podmiotom trzecim do celow marketingowych.
-- Udostepnienie danych mediatorowi/prawnikowi jest opcjonalne i dzieje sie tylko wtedy, gdy ustawisz takie uprawnienie.
+- zdjecia paragonow, faktur lub innych dowodow dolaczonych do kosztu,
+- wygenerowane eksporty lub raporty, gdy taka funkcja zostanie wlaczona.
 
-## 3. Zabezpieczenie
+### Dane techniczne i telemetryczne
 
-KidCost stosuje standardowe kontrole dostepu i uwierzytelniania, tak aby osoba spoza rodziny nie mogla zobaczyc danych.
+- logi bledow i crash reports potrzebne do diagnozy problemow,
+- podstawowe zdarzenia analityczne opisujace korzystanie z funkcji,
+- dane o wersji aplikacji, urzadzeniu i systemie operacyjnym potrzebne do wsparcia i stabilnosci.
 
-Nie obiecujemy end-to-end encryption, jezeli takie szyfrowanie nie jest formalnie wdrozone dla wszystkich danych.
+Nie wykorzystujemy danych rodzinnych ani danych dzieci do reklam behawioralnych.
 
-## 4. Twoje prawa
+## 3. Kto widzi dane rodziny
 
-- Mozesz poprosic o eksport danych z konta.
-- Mozesz poprosic o poprawienie danych lub sprostowanie bledow.
-- Mozesz poprosic o usuniecie konta i danych, o ile nie koliduje to z obowiazkami prawnymi.
+- Dane rodziny sa domyslnie widoczne tylko dla czlonkow tej samej rodziny, ktorzy maja aktywny dostep do wspolnego konta rodzinnego.
+- Dane nie sa publiczne i nie sa sprzedawane podmiotom trzecim do celow marketingowych.
+- Zespol KidCost moze uzyskac ograniczony dostep techniczny tylko wtedy, gdy jest to potrzebne do wsparcia, bezpieczenstwa albo rozwiazania zgloszonego problemu.
+- Ewentualne udostepnienie raportu mediatorowi, prawnikowi lub innemu specjaliscie jest opcjonalne i wymaga jawnego dzialania po stronie uzytkownika, gdy taka funkcja zostanie uruchomiona.
 
-## 5. Kontakt
+## 4. Jak wykorzystujemy dane
 
-Wszystkie pytania dot. prywatnosci: `privacy@kidcost.app`
+Wykorzystujemy dane, aby:
 
-## 6. Zakres odpowiedzi i ograniczenia
+- umozliwic logowanie i utrzymanie konta,
+- zapisywac koszty, zalaczniki i historie rozliczen,
+- pokazywac saldo i wspolna historie rodziny,
+- reagowac na bledy, naduzycia i zgloszenia supportowe,
+- mierzyc stabilnosc aplikacji i podstawowe uzycie funkcji.
 
-KidCost pomaga dokumentowac koszty i statusy. Ta aplikacja nie udziela porady prawnej ani finansowej.
+## 5. Zabezpieczenia i ograniczenia
 
-## 7. Zmiany polityki
+KidCost stosuje standardowe kontrole dostepu, uwierzytelnianie i zabezpieczenia infrastruktury odpowiednie dla wersji beta i dalszego rozwoju produktu.
 
-Nowa wersja polityki bedzie publikowana z aktualna data na tej stronie.
+Nie obiecujemy pelnego szyfrowania end-to-end, jezeli takie szyfrowanie nie jest formalnie wdrozone dla wszystkich danych i zalacznikow.
+
+## 6. Twoje prawa i wybory
+
+- Mozesz poprosic o eksport danych konta i danych rodziny, do ktorych masz prawo dostepu.
+- Mozesz poprosic o poprawienie nieprawidlowych danych.
+- Mozesz poprosic o usuniecie konta i danych, o ile nie koliduje to z uzasadnionymi obowiazkami prawnymi lub bezpieczenstwem zapisanej historii rozliczen.
+- Mozesz skontaktowac sie z nami w sprawie prywatnosci lub ograniczenia danych przekazywanych w zgloszeniu supportowym.
+
+## 7. Kontakt
+
+Pytania dotyczace prywatnosci: `privacy@kidcost.app`
+
+Wsparcie techniczne: `support@kidcost.app`
+
+## 8. Ograniczenia funkcji aplikacji
+
+KidCost pomaga dokumentowac koszty, rozliczenia i statusy. Aplikacja nie udziela porady prawnej, podatkowej ani finansowej i nie gwarantuje wyniku sporu lub mediacji.
+
+## 9. Zmiany polityki
+
+Nowa wersja polityki bedzie publikowana pod tym samym URL z aktualna data wersji.

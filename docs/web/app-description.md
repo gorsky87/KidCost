@@ -1,29 +1,33 @@
 # KidCost - opis aplikacji
 
-KidCost to lekka aplikacja do wspólnego rozliczania kosztów dziecka przez rodziców.
+Data: 2026-06-23
+Docelowy URL publikacji: `https://kidcost.app/app`
 
-## Czego uzytkownik moze oczekiwac
+## Krotki opis do sklepu
 
-- szybkie dodawanie kosztów z kwota i załącznikiem,
-- przejrzysty podzial platnosc pomiedzy rodzicami,
-- historia statusow i zmian,
-- podsumowanie miesieczne,
-- bezpieczne przechowywanie danych rodzinnych dla potrzeb wspólnego rozliczenia.
+KidCost pomaga rodzicom i opiekunom spokojnie dokumentowac koszty dziecka, zalaczniki i rozliczenia we wspolnej historii rodziny.
 
-## Dlaczego to jest potrzebne
+## Dluzszy opis
 
-Rozliczenia finansowe między rodzicami sa latwe do zlekcezenia na poczatku, ale drogie przy konflikcie. KidCost pomaga trzymac proste fakty:
-- co wydano,
-- kto zaplacil,
-- jaki byl status,
-- czy i jak to rozliczono.
+KidCost porzadkuje wspolne wydatki na dziecko bez zamieniania historii kosztow w narzedzie nacisku. Aplikacja pozwala zapisywac koszty, dodawac dowody, sledzic saldo i wracac do faktow, gdy trzeba wyjasnic rozliczenie albo przygotowac dokumentacje.
 
-## Ton produktowy
+## Najwazniejsze korzysci
 
-Aplikacja pomaga porzadkowac fakty, nie zastepuje ani nie zastawia zaufania.
+- szybkie dodawanie kosztu z kwota, data, kategoria i opisem,
+- mozliwosc dolaczania paragonow i innych dowodow,
+- wspolny widok historii kosztow i zmian w rodzinie,
+- podstawowe saldo pokazujace kto zaplacil i kto komu powinien oddac,
+- miesieczne podsumowanie wydatkow,
+- eksport i raporty jako kierunek dalszego rozwoju produktu,
+- neutralny ton produktu nastawiony na dokumentacje faktow.
 
-## Co aplikacja NIE obiecuje
+## Krotki fragment do metadata lub preview text
 
-- Brak porady prawnej.
-- Brak gwarancji wygranej w sporach.
-- Brak obietnic automatycznych przelewów i pełnej integracji prawnej na tym etapie.
+`Wspolna historia kosztow dziecka, dowodow i rozliczen w jednym miejscu.`
+
+## Czego aplikacja nie obiecuje
+
+- nie udziela porad prawnych, podatkowych ani finansowych,
+- nie gwarantuje wyniku mediacji lub sporu,
+- nie obiecuje pelnego szyfrowania end-to-end, jezeli nie zostanie ono formalnie wdrozone,
+- nie oferuje jeszcze automatycznych przelewow ani pelnej integracji prawnej.
