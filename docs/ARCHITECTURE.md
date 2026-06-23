@@ -34,6 +34,7 @@ KidCost/
     ARCHITECTURE.md
     PLAN.md
     ROADMAP_30_DAYS.md
+    SUBSCRIPTIONS.md
     DATA_MODEL.md
     RELEASE.md
   AGENTS.md
@@ -136,6 +137,14 @@ Odpowiedzialnosc:
 - Crashlytics,
 - analytics,
 - smoke test checklist.
+
+## Decyzje produktowe przekrojowe
+
+Tematy, ktore przecinaja backend, frontend, UX i release, zapisujemy jako osobne dokumenty decyzyjne w `docs/`.
+
+Aktualnie dotyczy to szczegolnie:
+
+- `docs/SUBSCRIPTIONS.md` dla entitlementow, downgrade, fee waiver i zasad dostepu po wygasnieciu Premium.
 
 ## Granice zaleznosci
 

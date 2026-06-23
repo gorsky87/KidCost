@@ -52,6 +52,10 @@ Przed koncem dnia sprawdzamy przynajmniej:
 | TC-015 | Koszty | P1 | blocked | Rodzic wpisuje kwote z przecinkiem, zerem, wartoscia ujemna i bardzo duza kwota. | Formularz akceptuje poprawny format lokalny, blokuje zero/ujemne wartosci i pokazuje zrozumialy blad bez utraty reszty formularza. | Walidacja PL/EU i UX formularza. |
 | TC-016 | Paragony | P2 | blocked | OCR lub podpowiedz z paragonu rozpoznaje kwote inna niz wpisana recznie przez rodzica. | Aplikacja nie nadpisuje danych automatycznie, pokazuje roznice i wymaga swiadomego wyboru uzytkownika. | Scenariusz premium/later, ale wazny dla sporow finansowych. |
 | TC-017 | Release | P1 | blocked | Tester aktualizuje aplikacje z poprzedniej wersji testowej Android/iOS z aktywna sesja i lokalnymi danymi formularza. | Aplikacja startuje bez crasha, sesja jest nadal poprawna albo bezpiecznie wygaszona, a niedokonczony formularz nie wysyla duplikatu kosztu. | Test regresyjny przed TestFlight/Internal Testing. |
+| TC-018 | Subskrypcja | P1 | blocked | Premium wygasa po zakonczeniu okresu rozliczeniowego dla rodziny z istniejacymi kosztami, paragonami i raportami. | Historia kosztow, salda, komentarze i stare zalaczniki pozostaja czytelne, a zablokowane sa tylko nowe funkcje Premium. | Regresja dla issue #42 i #46. |
+| TC-019 | Subskrypcja | P1 | blocked | Rodzina po downgrade ma zajete 400 MB storage i probuje dodac nowy paragon. | Aplikacja nie usuwa starych plikow, pokazuje komunikat o przekroczonym limicie Free i blokuje tylko nowe uploady. | Weryfikuje polityke storage po lapse. |
+| TC-020 | Subskrypcja | P1 | blocked | Jeden rodzic oplaca Premium Family, a drugi rodzic loguje sie i przeglada te same rekordy. | Status platnika nie daje dodatkowej wladzy nad danymi; obie strony maja dostep zgodny z rolami rodziny. | Chroni przed traktowaniem subskrypcji jako narzedzia kontroli. |
+| TC-021 | Support | P2 | blocked | Uzytkownik sklada wniosek o fee waiver bez dolaczania dokumentow wrazliwych. | Formularz wymaga tylko kategorii powodu, krotkiego opisu i zgody na kontakt, a decyzja trafia do recznego review. | Minimalizacja danych wrazliwych. |
 
 ## Log godzinowy
 
@@ -59,6 +63,8 @@ Nowe wpisy dopisujemy od najnowszego do najstarszego.
 
 ### 2026-06-23
 
+- 22:05 CEST: Dodane scenariusze TC-018 - TC-021 dla wygasniecia Premium, limitu storage po downgrade, neutralnosci platnika rodzinnego i recznego fee waiver MVP.
+- Zapisano polityke entitlementow i fee waiver w `docs/SUBSCRIPTIONS.md`; nowe scenariusze maja chronic dostep do historii kosztow po lapse oraz ograniczenie zbierania danych wrazliwych.
 - 21:22 CEST: Po przegladzie planu, roadmapy, researchu i UX najwieksze ryzyka testowe na tym etapie to przejscie z trybu solo do rodziny, spojnosc salda po edycjach, lokalne formaty kwot, prywatnosc/audit trail oraz aktualizacje buildow mobile.
 - Dodane scenariusze TC-013 - TC-017 dla solo mode, salda po korekcie, walidacji kwot, konfliktu OCR z danymi recznymi i aktualizacji aplikacji testowej.
 - Start dziennika testera.
