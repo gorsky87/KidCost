@@ -75,6 +75,10 @@ Przed koncem dnia sprawdzamy przynajmniej:
 | TC-038 | Raporty | P1 | blocked | Rodzic otwiera miesieczny kosztorys dziecka dla jednego miesiaca, wpisuje plan per kategoria i porownuje go z rzeczywistymi kosztami z KidCost. | Raport pokazuje plan, rzeczywiste koszty i roznice per kategoria bez zmiany salda ani zwrotow. | Regresja dla issue #56 i granicy miedzy report view a ledgerem. |
 | TC-039 | Raporty | P1 | blocked | Rodzic dopisuje w sekcji `Zalozenia i swiadczenia` informacje o `800+`, `Dobry Start`, uldze PIT i opiece naprzemiennej, a nastepnie eksportuje raport. | Eksport oddziela zalozenia od faktycznych kosztow, zachowuje disclaimer o braku porady prawnej/podatkowej i nie miesza notatek z obliczeniami. | Regresja dla issue #62 i neutralnego jezyka PL. |
 | TC-040 | Analytics | P1 | blocked | Rodzic wpisuje krotka notatke w polu zalozen i generuje eksport kosztorysu. | Analytics zapisuje tylko flagi uzycia funkcji, bez tresci notatek, PIT contextu ani nazw dziecka. | Ochrona prywatnosci dla raportu PL i danych wrazliwych kontekstowych. |
+| TC-041 | Raporty | P1 | blocked | Rodzina ma dwoje dzieci, a rodzic generuje `Miesieczny kosztorys dziecka` tylko dla jednego dziecka. | Raport, eksport i analytics obejmuja wylacznie wybrane dziecko; koszty drugiego dziecka nie trafiaja do sum, podgladu ani payloadow telemetrycznych. | Prywatnosc i poprawne filtrowanie danych dziecka w raporcie PL. |
+| TC-042 | Saldo | P1 | blocked | Rodzic zmienia plan miesieczny i pole `800+` w raporcie PL po tym, jak dashboard pokazal saldo 50/50. | Saldo, zwroty i statusy kosztow pozostaja bez zmian, a raport pokazuje tylko nowy kontekst planu/zalozen z jasnym help textem. | Regresja granicy `display/export only` kontra ledger. |
+| TC-043 | Support | P2 | blocked | Wniosek fee waiver wygasa, a uzytkownik prosi o usuniecie danych wniosku i opcjonalnego zalacznika doslanego do recznej eskalacji. | System usuwa zalacznik zgodnie z retencja, zachowuje minimalny audyt decyzji bez danych wrazliwych i nie ukrywa historii kosztow rodziny. | Prywatnosc i retencja danych supportowych po waiver. |
+| TC-044 | Release | P1 | blocked | Build wysylany do TestFlight/Google Play Internal Testing ma konfiguracje produkcyjna, ale przypadkowo wskazuje na dev Supabase albo debug analytics. | Smoke test release blokuje wysylke, pokazuje niespojna konfiguracje srodowiska i nie pozwala testowac na danych produkcyjnych z debug telemetryka. | Krytyczne przed mobile release: srodowiska, sekrety i privacy telemetryki. |
 
 ## Log godzinowy
 
@@ -84,6 +88,8 @@ Nowe wpisy dopisujemy od najnowszego do najstarszego.
 
 - 09:10 CEST: Dla issue #56 i #62 doprecyzowano miesieczny kosztorys dziecka dla rynku PL, rozdzielenie `plan vs actual` od ledgera oraz sekcje `Zalozenia i swiadczenia` bez wplywu na saldo.
 - Dodane scenariusze TC-038 - TC-040 dla kosztorysu miesiecznego, PL benefit/tax context w eksporcie oraz analityki bez tresci notatek.
+- 01:30 CEST: Po przegladzie planu, architektury, subskrypcji, release i raportu PL nowe ryzyka testerskie dotycza izolacji danych jednego dziecka w raporcie, braku wplywu planu na saldo, retencji fee waiver oraz konfiguracji buildow mobile.
+- Dodane scenariusze TC-041 - TC-044 dla raportu per dziecko, niezmiennosci ledgera po edycji zalozen, usuwania danych waiver i blokady release przy zlym srodowisku.
 - 00:29 CEST: Po przegladzie planu, release, subskrypcji i nowych notatek UX najwieksze ryzyka testerskie dotycza spokojnych powiadomien, strukturyzowanych sporow, prywatnosci metadanych paragonow oraz neutralnego jezyka w raportach.
 - Dodane scenariusze TC-034 - TC-037 dla digestu/quiet hours, dispute reason flow, czyszczenia EXIF/metadanych zalacznikow i raportow obejmujacych koszty sporne.
 
