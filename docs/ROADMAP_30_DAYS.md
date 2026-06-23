@@ -146,7 +146,8 @@ Cel:
 - podzial kosztow inny niz 50/50,
 - podstawowy kalendarz opieki,
 - powiadomienia,
-- eksport CSV/PDF w wersji podstawowej.
+- eksport CSV/PDF w wersji podstawowej,
+- miesieczny kosztorys dziecka dla PL jako view `plan vs actual` bez zmiany salda.
 
 ### Dzien 30 - beta gotowa do testow
 
@@ -155,7 +156,8 @@ Cel:
 - beta na TestFlight i Google Play Internal Testing,
 - onboarding nadaje sie dla nowych osob,
 - aplikacja ma minimum funkcji potrzebnych do rozmow z pierwszymi uzytkownikami,
-- backlog V1 jest przygotowany na podstawie brakow i feedbacku.
+- backlog V1 jest przygotowany na podstawie brakow i feedbacku,
+- raport miesieczny dla PL moze opcjonalnie pokazywac `Zalozenia i swiadczenia` jako kontekst export-only bez porad prawnych ani podatkowych.
 
 ## Plan dzien po dniu
 

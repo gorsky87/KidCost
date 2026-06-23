@@ -33,6 +33,7 @@ KidCost/
   docs/
     ARCHITECTURE.md
     PLAN.md
+    PL_MONTHLY_REPORTS.md
     ROADMAP_30_DAYS.md
     SUBSCRIPTIONS.md
     DATA_MODEL.md
@@ -145,6 +146,7 @@ Tematy, ktore przecinaja backend, frontend, UX i release, zapisujemy jako osobne
 Aktualnie dotyczy to szczegolnie:
 
 - `docs/SUBSCRIPTIONS.md` dla entitlementow, downgrade, fee waiver i zasad dostepu po wygasnieciu Premium.
+- `docs/PL_MONTHLY_REPORTS.md` dla miesiecznego kosztorysu dziecka, polskich zalozen raportowych oraz granicy miedzy ledgerem a kontekstem uzytkownika.
 
 ## Granice zaleznosci
 

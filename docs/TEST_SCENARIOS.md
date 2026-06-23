@@ -72,6 +72,9 @@ Przed koncem dnia sprawdzamy przynajmniej:
 | TC-035 | Spory | P1 | blocked | Rodzic kwestionuje koszt przez wybor powodu "zla kwota", dopisuje proponowana korekte i zalacza dowod bez wolnego, emocjonalnego komentarza. | Koszt zmienia status na sporny, historia zapisuje powod, proponowana korekte, autora i czas, a saldo pokazuje czy sporny koszt jest wliczony czy pominiety. | Strukturyzacja sporu musi wspierac ledger i neutralny jezyk UI. |
 | TC-036 | Prywatnosc | P1 | blocked | Rodzic dodaje zdjecie paragonu z metadanymi lokalizacji/urzadzenia i pozniej udostepnia raport drugiemu rodzicowi lub mediatorowi. | Aplikacja usuwa albo neutralizuje metadane przed zapisem/udostepnieniem, informuje o tym zrozumiale i nie przenosi EXIF do raportu ani miniatur. | Prywatnosc zalacznikow: paragony moga ujawniac lokalizacje i dane urzadzenia. |
 | TC-037 | Raporty | P2 | blocked | Raport miesieczny zawiera koszty zaakceptowane, sporne i rozliczone oraz strukturyzowane powody sporow. | Raport rozdziela statusy, pokazuje powody sporow faktograficznie, nie sugeruje winy i zachowuje zgodnosc sum z widokiem salda w aplikacji. | Kontrola jezyka i integralnosci danych przed eksportem PDF/CSV. |
+| TC-038 | Raporty | P1 | blocked | Rodzic otwiera miesieczny kosztorys dziecka dla jednego miesiaca, wpisuje plan per kategoria i porownuje go z rzeczywistymi kosztami z KidCost. | Raport pokazuje plan, rzeczywiste koszty i roznice per kategoria bez zmiany salda ani zwrotow. | Regresja dla issue #56 i granicy miedzy report view a ledgerem. |
+| TC-039 | Raporty | P1 | blocked | Rodzic dopisuje w sekcji `Zalozenia i swiadczenia` informacje o `800+`, `Dobry Start`, uldze PIT i opiece naprzemiennej, a nastepnie eksportuje raport. | Eksport oddziela zalozenia od faktycznych kosztow, zachowuje disclaimer o braku porady prawnej/podatkowej i nie miesza notatek z obliczeniami. | Regresja dla issue #62 i neutralnego jezyka PL. |
+| TC-040 | Analytics | P1 | blocked | Rodzic wpisuje krotka notatke w polu zalozen i generuje eksport kosztorysu. | Analytics zapisuje tylko flagi uzycia funkcji, bez tresci notatek, PIT contextu ani nazw dziecka. | Ochrona prywatnosci dla raportu PL i danych wrazliwych kontekstowych. |
 
 ## Log godzinowy
 
@@ -79,6 +82,8 @@ Nowe wpisy dopisujemy od najnowszego do najstarszego.
 
 ### 2026-06-24
 
+- 09:10 CEST: Dla issue #56 i #62 doprecyzowano miesieczny kosztorys dziecka dla rynku PL, rozdzielenie `plan vs actual` od ledgera oraz sekcje `Zalozenia i swiadczenia` bez wplywu na saldo.
+- Dodane scenariusze TC-038 - TC-040 dla kosztorysu miesiecznego, PL benefit/tax context w eksporcie oraz analityki bez tresci notatek.
 - 00:29 CEST: Po przegladzie planu, release, subskrypcji i nowych notatek UX najwieksze ryzyka testerskie dotycza spokojnych powiadomien, strukturyzowanych sporow, prywatnosci metadanych paragonow oraz neutralnego jezyka w raportach.
 - Dodane scenariusze TC-034 - TC-037 dla digestu/quiet hours, dispute reason flow, czyszczenia EXIF/metadanych zalacznikow i raportow obejmujacych koszty sporne.
 
