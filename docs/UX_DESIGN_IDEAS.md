@@ -2,6 +2,48 @@
 
 ## 2026-06-23 - Mobile co-parenting and expense UX patterns
 
+## 2026-06-23 - Pakiet kopi zaufania: onboarding + settings
+
+Gotowe teksty do użycia w pierwszym flow onboardingowym i ustawieniach, aby budować zaufanie bez tonu prawnego i bez obiecywania porad.
+
+### Onboarding step 1/4 - Bezpieczenstwo danych
+
+- **Nagłówek:** "Twoje dane pozostają bezpieczne"
+- **Podtytuł:** "Dane widzi tylko Twoja rodzina i zaproszeni przez Ciebie współrodzice."
+- **Treść:** "Twój email, profil, dane dzieci i wydatki są używane tylko do działania aplikacji KidCost. Nie sprzedajemy danych i nie pokazujemy ich innym użytkownikom."
+- **Akcja:** Przycisk `Dalej`
+
+### Onboarding step 2/4 - Co rejestrujemy
+
+- **Nagłówek:** "Co zapisujemy, żeby było bezsporne"
+- **Treść wypunktowana:**
+  - "Wydatki: kwota, data, kategoria, opis, autor wpisu."
+  - "Status wydatku: oczekuje / zaakceptowane / sporne / rozliczone."
+  - "Załączniki: zdjęcia paragonów, faktur, potwierdzeń."
+  - "Historia zmian: kto co dodał, zmienił lub zaakceptował."
+- **Dodatkowy opis:** "Dzięki temu łatwiej odtworzyć rozmowę o rozliczeniach, nawet po czasie."
+
+### Onboarding step 3/4 - Dostępność danych
+
+- **Nagłówek:** "Kto może zobaczyć dane rodziny"
+- **Treść:** "Gdy zaprosisz współrodzica, dane kosztów i historii widzi on/ona wraz z Tobą. Brak zaproszenia = brak dostępu. Raporty możesz udostępnić tylko wtedy, gdy wyraźnie to zrobisz."
+
+### Ustawienia - sekcja "Prywatność i dane"
+
+- **Etykieta sekcji:** `Prywatność i dane`
+- **Elementy:**
+  - `Privacy policy` -> link do strony polityki prywatności
+  - `Terms of service` -> link do regulaminu
+  - `Eksport danych` -> tworzy plik z wydatkami, statusami, historią i załącznikami
+  - `Kontakt support` -> mail lub formularz pomocowy
+  - `Usuń konto` -> opis: "Usunięcie konta usuwa Twój dostęp i przerywa dalsze przetwarzanie danych."
+
+### Copy gotowy do ustawienia komunikatów o ryzyku prawno-finansowym
+
+- "KidCost porządkuje dane do rozmów o kosztach. Nie jest to porada prawna ani pomoc prawna."
+- "Aplikacja nie ocenia uprawnień opieki ani alimentów i nie zastępuje porady prawnika."
+- "Jeśli sprawa ma charakter sporny, dane z KidCost mogą pomóc w rozmowie i dokumentacji."
+
 ### Sources reviewed
 
 - AppClose product site: reimbursement requests support receipts, request statuses, comments, history, exports, secure payments, non-connected co-parent flows, and trust messaging around timestamps/privacy. Source: https://appclose.com/

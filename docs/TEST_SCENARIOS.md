@@ -52,6 +52,8 @@ Przed koncem dnia sprawdzamy przynajmniej:
 | TC-015 | Koszty | P1 | blocked | Rodzic wpisuje kwote z przecinkiem, zerem, wartoscia ujemna i bardzo duza kwota. | Formularz akceptuje poprawny format lokalny, blokuje zero/ujemne wartosci i pokazuje zrozumialy blad bez utraty reszty formularza. | Walidacja PL/EU i UX formularza. |
 | TC-016 | Paragony | P2 | blocked | OCR lub podpowiedz z paragonu rozpoznaje kwote inna niz wpisana recznie przez rodzica. | Aplikacja nie nadpisuje danych automatycznie, pokazuje roznice i wymaga swiadomego wyboru uzytkownika. | Scenariusz premium/later, ale wazny dla sporow finansowych. |
 | TC-017 | Release | P1 | blocked | Tester aktualizuje aplikacje z poprzedniej wersji testowej Android/iOS z aktywna sesja i lokalnymi danymi formularza. | Aplikacja startuje bez crasha, sesja jest nadal poprawna albo bezpiecznie wygaszona, a niedokonczony formularz nie wysyla duplikatu kosztu. | Test regresyjny przed TestFlight/Internal Testing. |
+| TC-018 | Release | P1 | blocked | Przegląd dokumentow sklepowych dla TestFlight i Play: privacy policy, support i terms. | Strony istnieja pod linkami wskazanymi w `docs/RELEASE.md` i zawieraja kompletne informacje wymagane do testowej publikacji. | Weryfikacja manualna: linki, treść i spójnosc. |
+| TC-019 | UX | P1 | blocked | Ustawienia mają widoczne odnośniki: privacy policy, terms, support, eksport danych oraz jasny komunikat o braku porady prawnej. | Wchodzac do ustawien uzytkownik widzi 1) linki do stron i 2) jasny wpis o zakresie odpowiedzialności i przejrzystych zasadach. | Sprawdzenie gotowych tekstow onboardingowych dla zaufania. |
 
 ## Log godzinowy
 
