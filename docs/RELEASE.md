@@ -44,6 +44,17 @@ Na obecnym etapie nie budujemy jeszcze osobnej aplikacji `apps/web`. Zrodlem tre
 
 Przed pierwszym wyslaniem do TestFlight i Google Play Internal Testing tresci z `docs/web/*.md` nalezy opublikowac pod wskazanymi URL albo skopiowac 1:1 do statycznych stron pod domena `kidcost.app`.
 
+## Feedback beta i znane ograniczenia
+
+Przed udostepnieniem builda testerom przygotowujemy:
+
+- jasny kanal feedbacku przez `support@kidcost.app`,
+- krotki szablon raportu bledu lub sugestii,
+- liste znanych ograniczen bety,
+- zasady triage rozdzielajace blocker bety od tematow V1.
+
+Operacyjny opis procesu jest zapisany w `docs/BETA_FEEDBACK.md`.
+
 ## Weryfikacja przed wysłaniem do sklepów
 
 - [ ] pliki `docs/web/privacy-policy.md`, `docs/web/support.md`, `docs/web/terms-of-service.md`, `docs/web/app-description.md` istnieją i są kompletne
@@ -51,3 +62,4 @@ Przed pierwszym wyslaniem do TestFlight i Google Play Internal Testing tresci z 
 - [ ] treść jasno wyjaśnia, że KidCost pomaga dokumentować koszty i statusy, ale nie udziela porad prawnych
 - [ ] treść jasno wyjaśnia, kto widzi dane rodziny i jakie dane są zbierane
 - [ ] treść nie obiecuje pełnego end-to-end encryption, jeżeli nie jest wdrożone
+- [ ] feedback beta ma gotowy kanal, szablon i liste znanych ograniczen zgodnie z `docs/BETA_FEEDBACK.md`

@@ -10,6 +10,24 @@ Docelowy URL publikacji: `https://kidcost.app/support`
 - Docelowy czas pierwszej odpowiedzi: do 1 dnia roboczego
 - Jeżeli problem dotyczy bledu technicznego, dolacz wersje aplikacji, model telefonu, wersje systemu i kroki potrzebne do odtworzenia problemu.
 
+## Feedback z bety
+
+Jesli testujesz wersje TestFlight albo Google Play Internal Testing, wyslij wiadomosc na `support@kidcost.app` z tematem:
+
+- `KidCost beta - bug - krotki opis`, albo
+- `KidCost beta - feedback - krotki opis`.
+
+W wiadomosci podaj:
+
+- co probowales zrobic,
+- kroki do odtworzenia,
+- czego oczekiwales,
+- co zobaczyles zamiast tego,
+- czy problem blokuje test czy tylko utrudnia korzystanie,
+- wersje aplikacji, model telefonu i wersje systemu.
+
+Jesli dodajesz screen albo nagranie, nie wysylaj pelnych danych dziecka, pelnych kwot ani calych paragonow, jezeli nie sa konieczne do pokazania bledu.
+
 ## W czym pomagamy
 
 - problem z logowaniem albo odzyskaniem dostepu,

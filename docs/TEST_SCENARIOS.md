@@ -79,6 +79,12 @@ Przed koncem dnia sprawdzamy przynajmniej:
 | TC-042 | Saldo | P1 | blocked | Rodzic zmienia plan miesieczny i pole `800+` w raporcie PL po tym, jak dashboard pokazal saldo 50/50. | Saldo, zwroty i statusy kosztow pozostaja bez zmian, a raport pokazuje tylko nowy kontekst planu/zalozen z jasnym help textem. | Regresja granicy `display/export only` kontra ledger. |
 | TC-043 | Support | P2 | blocked | Wniosek fee waiver wygasa, a uzytkownik prosi o usuniecie danych wniosku i opcjonalnego zalacznika doslanego do recznej eskalacji. | System usuwa zalacznik zgodnie z retencja, zachowuje minimalny audyt decyzji bez danych wrazliwych i nie ukrywa historii kosztow rodziny. | Prywatnosc i retencja danych supportowych po waiver. |
 | TC-044 | Release | P1 | blocked | Build wysylany do TestFlight/Google Play Internal Testing ma konfiguracje produkcyjna, ale przypadkowo wskazuje na dev Supabase albo debug analytics. | Smoke test release blokuje wysylke, pokazuje niespojna konfiguracje srodowiska i nie pozwala testowac na danych produkcyjnych z debug telemetryka. | Krytyczne przed mobile release: srodowiska, sekrety i privacy telemetryki. |
+| TC-045 | Accessibility | P1 | blocked | Uzytkownik ustawia duzy tekst systemowy i otwiera add expense, dashboard, expense detail oraz podglad raportu. | Krytyczne kwoty, statusy i glowna akcja pozostaja czytelne, bez clippingu i bez poziomego scrolla. | Regresja dla issue #73 i baseline 200% font scaling. |
+| TC-046 | Accessibility | P1 | blocked | Uzytkownik korzysta z VoiceOver albo TalkBack na dashboardzie, liscie kosztow i formularzu z zalacznikiem. | Czytnik odczytuje kwote, platnika, status, attachment state i skutki glownych akcji bez pustych ikon ani mylacej kolejnosci fokusu. | Sprawdza semantics labels dla flow MVP. |
+| TC-047 | Accessibility | P1 | blocked | Uzytkownik z ograniczonym rozroznianiem kolorow przeglada statusy `draft`, `pending`, `accepted`, `disputed` i kategorie kosztow. | Statusy i kategorie sa rozroznialne przez tekst i dodatkowy sygnal, nie tylko kolor. | Chroni przed nieczytelnymi chipsami finansowymi. |
+| TC-048 | Accessibility | P1 | blocked | Uzytkownik probuje trafic w ikony zalacznika, menu statusu i glowny przycisk zapisu na malym telefonie. | Interaktywne elementy maja bezpieczny target size, sensowny odstep i logiczny focus order. | Weryfikuje 44 pt / 48 dp oraz akcje bez ukrytych gestow. |
+| TC-049 | Support | P1 | blocked | Tester bety zglasza blad przez `support@kidcost.app` wedlug szablonu feedbacku. | Zgloszenie zawiera kontekst, kroki, oczekiwane i rzeczywiste zachowanie oraz wplyw, ale nie wymaga danych wrazliwych dziecka, pelnych kwot ani pelnych paragonow. | Regresja dla issue #72 i procesu privacy-safe supportu. |
+| TC-050 | Release | P1 | blocked | Zespol przygotowuje build beta i publikuje instrukcje dla testerow. | Razem z buildem istnieje lista znanych ograniczen, kanal feedbacku i jasny triage rozdzielajacy blocker, bug, privacy/security, V1 feature i later. | Chroni przed chaotycznym backlogiem po rundzie bety. |
 
 ## Log godzinowy
 
@@ -86,6 +92,8 @@ Nowe wpisy dopisujemy od najnowszego do najstarszego.
 
 ### 2026-06-24
 
+- 12:05 CEST: Dla issue #72 i #73 doprecyzowano baseline accessibility dla flow MVP oraz proces feedbacku z bety, w tym privacy-safe szablon zgloszen i liste znanych ograniczen.
+- Dodane scenariusze TC-045 - TC-050 dla duzego tekstu, czytnikow ekranu, target size, feedbacku beta i triage backlogu V1.
 - 09:10 CEST: Dla issue #56 i #62 doprecyzowano miesieczny kosztorys dziecka dla rynku PL, rozdzielenie `plan vs actual` od ledgera oraz sekcje `Zalozenia i swiadczenia` bez wplywu na saldo.
 - Dodane scenariusze TC-038 - TC-040 dla kosztorysu miesiecznego, PL benefit/tax context w eksporcie oraz analityki bez tresci notatek.
 - 01:30 CEST: Po przegladzie planu, architektury, subskrypcji, release i raportu PL nowe ryzyka testerskie dotycza izolacji danych jednego dziecka w raporcie, braku wplywu planu na saldo, retencji fee waiver oraz konfiguracji buildow mobile.
