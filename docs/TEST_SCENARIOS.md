@@ -47,6 +47,11 @@ Przed koncem dnia sprawdzamy przynajmniej:
 | TC-010 | Statusy | P2 | blocked | Koszt zmienia status z oczekujacego na zaakceptowany. | Status aktualizuje sie w szczegolach, na liscie i w saldzie zgodnie z regule. | Do doprecyzowania reguly salda. |
 | TC-011 | UX | P2 | blocked | Uzytkownik otwiera pusta liste kosztow. | Widzi pusty stan z jasna akcja dodania pierwszego kosztu. | Pierwsze wrazenie w MVP. |
 | TC-012 | Release | P1 | blocked | Aplikacja startuje na czystej instalacji Android/iOS. | Nie ma crasha, pierwszy ekran jest poprawny, sesja nie jest stara. | Test przed kazdym wydaniem. |
+| TC-013 | Rodzina | P1 | blocked | Rodzic zaczyna w trybie solo, dodaje koszty, a pozniej zaprasza drugiego rodzica do rodziny. | Dotychczasowe koszty pozostaja przypisane do tej samej rodziny, drugi rodzic widzi tylko dane po zaakceptowaniu zaproszenia. | Ryzyko migracji danych solo do wspolnej rodziny. |
+| TC-014 | Saldo | P1 | blocked | Rodzic edytuje zaakceptowany koszt 100 zl na 120 zl po tym, jak saldo zostalo juz pokazane na dashboardzie. | Saldo, suma miesiaca i historia kosztu odswiezaja sie spojnie, a zmiana jest widoczna jako audit event. | Wymaga decyzji, czy edycja zaakceptowanego kosztu jest dozwolona. |
+| TC-015 | Koszty | P1 | blocked | Rodzic wpisuje kwote z przecinkiem, zerem, wartoscia ujemna i bardzo duza kwota. | Formularz akceptuje poprawny format lokalny, blokuje zero/ujemne wartosci i pokazuje zrozumialy blad bez utraty reszty formularza. | Walidacja PL/EU i UX formularza. |
+| TC-016 | Paragony | P2 | blocked | OCR lub podpowiedz z paragonu rozpoznaje kwote inna niz wpisana recznie przez rodzica. | Aplikacja nie nadpisuje danych automatycznie, pokazuje roznice i wymaga swiadomego wyboru uzytkownika. | Scenariusz premium/later, ale wazny dla sporow finansowych. |
+| TC-017 | Release | P1 | blocked | Tester aktualizuje aplikacje z poprzedniej wersji testowej Android/iOS z aktywna sesja i lokalnymi danymi formularza. | Aplikacja startuje bez crasha, sesja jest nadal poprawna albo bezpiecznie wygaszona, a niedokonczony formularz nie wysyla duplikatu kosztu. | Test regresyjny przed TestFlight/Internal Testing. |
 
 ## Log godzinowy
 
@@ -54,6 +59,8 @@ Nowe wpisy dopisujemy od najnowszego do najstarszego.
 
 ### 2026-06-23
 
+- 21:22 CEST: Po przegladzie planu, roadmapy, researchu i UX najwieksze ryzyka testowe na tym etapie to przejscie z trybu solo do rodziny, spojnosc salda po edycjach, lokalne formaty kwot, prywatnosc/audit trail oraz aktualizacje buildow mobile.
+- Dodane scenariusze TC-013 - TC-017 dla solo mode, salda po korekcie, walidacji kwot, konfliktu OCR z danymi recznymi i aktualizacji aplikacji testowej.
 - Start dziennika testera.
 - Ustalony rytm: co 1 godzine nowe scenariusze, raz dziennie sesja testowa.
 - Pierwszy backlog zawiera obszary: auth, koszty, paragony, saldo, prywatnosc, statusy, UX i release.
