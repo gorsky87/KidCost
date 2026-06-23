@@ -58,6 +58,11 @@ Przed koncem dnia sprawdzamy przynajmniej:
 | TC-021 | Subskrypcja | P1 | blocked | Rodzina po downgrade ma zajete 400 MB storage i probuje dodac nowy paragon. | Aplikacja nie usuwa starych plikow, pokazuje komunikat o przekroczonym limicie Free i blokuje tylko nowe uploady. | Weryfikuje polityke storage po lapse. |
 | TC-022 | Subskrypcja | P1 | blocked | Jeden rodzic oplaca Premium Family, a drugi rodzic loguje sie i przeglada te same rekordy. | Status platnika nie daje dodatkowej wladzy nad danymi; obie strony maja dostep zgodny z rolami rodziny. | Chroni przed traktowaniem subskrypcji jako narzedzia kontroli. |
 | TC-023 | Support | P2 | blocked | Uzytkownik sklada wniosek o fee waiver bez dolaczania dokumentow wrazliwych. | Formularz wymaga tylko kategorii powodu, krotkiego opisu i zgody na kontakt, a decyzja trafia do recznego review. | Minimalizacja danych wrazliwych. |
+| TC-024 | Rodzina | P1 | blocked | Drugi rodzic otwiera zaproszenie do rodziny po jego wygasnieciu albo po wykorzystaniu tego samego linku na innym koncie. | Aplikacja nie dolacza uzytkownika drugi raz, pokazuje jasny status zaproszenia i nie ujawnia danych rodziny przed akceptacja waznego zaproszenia. | Ryzyko duplikatow czlonkow rodziny i wycieku metadanych przez invite link. |
+| TC-025 | Prywatnosc | P1 | blocked | Uzytkownik z rodziny A probuje pobrac plik paragonu rodziny B przez bezposredni URL lub znany identyfikator zalacznika. | Storage/API zwraca brak dostepu, aplikacja nie pokazuje miniatury ani metadanych paragonu, a zdarzenie mozna wykryc w logach bez zapisu danych wrazliwych. | Doprecyzowanie RLS/Storage dla zalacznikow, nie tylko rekordow kosztow. |
+| TC-026 | Koszty | P1 | blocked | Rodzic wypelnia formularz kosztu z paragonem przy slabej sieci, zapis konczy sie timeoutem, a potem naciska ponowienie. | Draft pozostaje w aplikacji, koszt zapisuje sie maksymalnie raz, a zalacznik ma czytelny status: wyslany, do ponowienia albo zapisany bez paragonu. | Edge case dla offline/poor-network UX i ochrony przed duplikatami salda. |
+| TC-027 | Saldo | P1 | blocked | Rodzina uzywala splitu 70/30 w Premium, Premium wygasa, a rodzic przeglada stare saldo i dodaje nowy zwykly koszt 50/50. | Historyczne saldo 70/30 pozostaje zgodne z pierwotna regula, nowy koszt liczy sie wedlug dostepnych zasad, a edycja niestandardowego splitu jest zablokowana z jasnym komunikatem. | Laczy entitlementy z poprawnoscia rozliczen po lapse. |
+| TC-028 | Release | P2 | blocked | Tester uruchamia build TestFlight/Internal Testing z wlaczonym crash reportingiem i wykonuje rejestracje, dodanie kosztu oraz upload paragonu. | Crash/analytics nie zawieraja kwot, danych dziecka, opisow kosztow ani tresci paragonu; zdarzenia techniczne pozwalaja diagnozowac blad bez danych rodzinnych. | Kontrola prywatnosci telemetryki przed release mobile. |
 
 ## Log godzinowy
 
@@ -65,6 +70,8 @@ Nowe wpisy dopisujemy od najnowszego do najstarszego.
 
 ### 2026-06-23
 
+- 22:24 CEST: Po przegladzie roadmapy, architektury, release, UX i subskrypcji nowe ryzyka testerskie dotycza zaproszen do rodziny, izolacji paragonow w Storage, slabej sieci przy zapisie kosztu, splitow po wygasnieciu Premium oraz prywatnosci telemetryki w buildach testowych.
+- Dodane scenariusze TC-024 - TC-028 dla wygaslych/ponownie uzytych zaproszen, bezposredniego dostepu do zalacznikow innej rodziny, idempotentnego zapisu kosztu z draftem, historycznych splitow po lapse i release telemetryki bez danych rodzinnych.
 - 22:05 CEST: Dodane scenariusze TC-020 - TC-023 dla wygasniecia Premium, limitu storage po downgrade, neutralnosci platnika rodzinnego i recznego fee waiver MVP.
 - Zapisano polityke entitlementow i fee waiver w `docs/SUBSCRIPTIONS.md`; nowe scenariusze maja chronic dostep do historii kosztow po lapse oraz ograniczenie zbierania danych wrazliwych.
 - 21:22 CEST: Po przegladzie planu, roadmapy, researchu i UX najwieksze ryzyka testowe na tym etapie to przejscie z trybu solo do rodziny, spojnosc salda po edycjach, lokalne formaty kwot, prywatnosc/audit trail oraz aktualizacje buildow mobile.
