@@ -144,6 +144,7 @@ Tematy, ktore przecinaja backend, frontend, UX i release, zapisujemy jako osobne
 
 Aktualnie dotyczy to szczegolnie:
 
+- `docs/DATA_MODEL.md` dla minimalnego modelu danych, enumow i kontraktow day-3 MVP.
 - `docs/SUBSCRIPTIONS.md` dla entitlementow, downgrade, fee waiver i zasad dostepu po wygasnieciu Premium.
 
 ## Granice zaleznosci

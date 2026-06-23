@@ -5,7 +5,7 @@ Guidance for AI agents working in this repository.
 ## Project Context
 
 - Repository name: `KidCost`.
-- The project structure and technology stack are not established yet.
+- The repository is currently documentation-first, but the planned stack is a monorepo with Flutter mobile, Supabase backend/data, and minimal web docs pages.
 - Before making changes, inspect the current files and follow the patterns already present in the repository.
 
 ## Working Rules
