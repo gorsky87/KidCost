@@ -68,10 +68,19 @@ Przed koncem dnia sprawdzamy przynajmniej:
 | TC-031 | Subskrypcja | P1 | blocked | Rodzic rozpoczyna anulowanie Premium po wygenerowaniu raportu i z istniejacymi paragonami ponad limitem Free. | Flow jasno pokazuje, co pozostanie dostepne, oferuje eksport danych i fee waiver bez utrudniania anulowania ani ukrywania historii. | Etyczny downgrade/cancellation i ochrona zaufania. |
 | TC-032 | Offline | P1 | blocked | Uzytkownik offline dodaje dwa koszty, edytuje jeden draft, zamyka aplikacje i wraca online po ponownym uruchomieniu. | Kolejka synchronizacji zachowuje kolejnosc operacji, nie duplikuje kosztow, pokazuje konflikty czytelnie i nie gubi paragonow oczekujacych na upload. | Krytyczne dla mobile i slabej sieci. |
 | TC-033 | Prywatnosc | P2 | blocked | Rodzic usuwa konto albo traci czlonkostwo w rodzinie, gdy jego historyczne koszty sa czescia salda drugiego rodzica. | Aplikacja nie ujawnia danych ponad uprawnienia, zachowuje integralnosc historii finansowej rodziny i pokazuje jasny komunikat o skutkach usuniecia dostepu. | Wymaga decyzji produktowo-prawnej przed implementacja usuwania konta. |
+| TC-034 | Powiadomienia | P1 | blocked | Rodzina ma wlaczony dzienny digest i quiet hours, a drugi rodzic dodaje koszt, komentarz oraz oznacza zalegle wyrownanie jako pilne. | Zwykle zdarzenia trafiaja do digestu bez pushy w quiet hours, pilne zdarzenie ma jasna regule wyjatku, a ekran powiadomien pokazuje co i kiedy zostalo wyslane. | Ryzyko eskalacji konfliktu przez nadmiar alertow i niejasne opoznienia. |
+| TC-035 | Spory | P1 | blocked | Rodzic kwestionuje koszt przez wybor powodu "zla kwota", dopisuje proponowana korekte i zalacza dowod bez wolnego, emocjonalnego komentarza. | Koszt zmienia status na sporny, historia zapisuje powod, proponowana korekte, autora i czas, a saldo pokazuje czy sporny koszt jest wliczony czy pominiety. | Strukturyzacja sporu musi wspierac ledger i neutralny jezyk UI. |
+| TC-036 | Prywatnosc | P1 | blocked | Rodzic dodaje zdjecie paragonu z metadanymi lokalizacji/urzadzenia i pozniej udostepnia raport drugiemu rodzicowi lub mediatorowi. | Aplikacja usuwa albo neutralizuje metadane przed zapisem/udostepnieniem, informuje o tym zrozumiale i nie przenosi EXIF do raportu ani miniatur. | Prywatnosc zalacznikow: paragony moga ujawniac lokalizacje i dane urzadzenia. |
+| TC-037 | Raporty | P2 | blocked | Raport miesieczny zawiera koszty zaakceptowane, sporne i rozliczone oraz strukturyzowane powody sporow. | Raport rozdziela statusy, pokazuje powody sporow faktograficznie, nie sugeruje winy i zachowuje zgodnosc sum z widokiem salda w aplikacji. | Kontrola jezyka i integralnosci danych przed eksportem PDF/CSV. |
 
 ## Log godzinowy
 
 Nowe wpisy dopisujemy od najnowszego do najstarszego.
+
+### 2026-06-24
+
+- 00:29 CEST: Po przegladzie planu, release, subskrypcji i nowych notatek UX najwieksze ryzyka testerskie dotycza spokojnych powiadomien, strukturyzowanych sporow, prywatnosci metadanych paragonow oraz neutralnego jezyka w raportach.
+- Dodane scenariusze TC-034 - TC-037 dla digestu/quiet hours, dispute reason flow, czyszczenia EXIF/metadanych zalacznikow i raportow obejmujacych koszty sporne.
 
 ### 2026-06-23
 
