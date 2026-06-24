@@ -1,0 +1,39 @@
+{
+  "issue": 28,
+  "demoData": [
+    "Dziecko",
+    "Rodzic A",
+    "Rodzic B",
+    "demo@kidcost.app"
+  ],
+  "exports": [
+    {
+      "platform": "ios",
+      "width": 1290,
+      "height": 2796,
+      "files": [
+        "01-dashboard.png",
+        "02-add-expense.png",
+        "03-expenses.png",
+        "04-reports.png"
+      ]
+    },
+    {
+      "platform": "android",
+      "width": 1080,
+      "height": 1920,
+      "files": [
+        "01-dashboard.png",
+        "02-add-expense.png",
+        "03-expenses.png",
+        "04-reports.png"
+      ]
+    }
+  ],
+  "copy": [
+    "Widzisz, kto komu ile oddaje",
+    "Dodaj koszt w minute",
+    "Paragony i historia w jednym miejscu",
+    "Spokojne rozliczenia rodzicow"
+  ]
+}

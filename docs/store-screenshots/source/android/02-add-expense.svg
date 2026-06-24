@@ -1,0 +1,80 @@
+<svg width="1080" height="1920" viewBox="0 0 1080 1920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1080" height="1920" fill="#FAFAF7"/>
+  <circle cx="950" cy="112" r="270.0" fill="#E7ECE7" opacity="0.42"/>
+
+  <g transform="translate(70.0 77.0) scale(0.5469)">
+    <rect x="12" y="12" width="104" height="104" rx="28" fill="#0F766E"/>
+    <path d="M39 34C39 30.686 41.686 28 45 28H83C86.314 28 89 30.686 89 34V94C89 97.314 86.314 100 83 100H45C41.686 100 39 97.314 39 94V34Z" fill="#FAFAF7"/>
+    <path d="M51 43H77" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+    <path d="M51 58H70" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+    <path d="M51 73H77" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+    <path d="M51 88H66" stroke="#C76F3D" stroke-width="6" stroke-linecap="round"/>
+    <path d="M45 30L78 64L45 98" stroke="#0F766E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M78 64L91 51" stroke="#C76F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="162.0" y="142.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="800" text-anchor="start" letter-spacing="0">KidCost</text>
+  <text x="540.0" y="302.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="800" text-anchor="middle" letter-spacing="0">Dodaj koszt w minute</text>
+  <text x="540.0" y="367.0" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="500" text-anchor="middle" letter-spacing="0">Kwota, kategoria, data i zalacznik w jednym miejscu.</text>
+
+  <rect x="160.0" y="460.0" width="760.0" height="1340.0" rx="72.0" fill="#172326" opacity="0.1"/>
+  <rect x="172.0" y="472.0" width="736.0" height="1316.0" rx="64.0" fill="#FFFFFF"/>
+  <rect x="208.0" y="488.0" width="664.0" height="34.0" rx="17.0" fill="#172326" opacity="0.08"/>
+  <text x="202.0" y="572.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" text-anchor="start" letter-spacing="0">Dodaj</text>
+
+
+  <rect x="202.0" y="620.0" width="676.0" height="96.0" rx="16.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <circle cx="236.0" cy="668.0" r="16" fill="#0F766E" opacity="0.18"/>
+  <text x="270.0" y="654.0" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="600" text-anchor="start" letter-spacing="0">Kwota</text>
+  <text x="270.0" y="688.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" text-anchor="start" letter-spacing="0">120,00 zl</text>
+
+  <rect x="202.0" y="740.0" width="676.0" height="96.0" rx="16.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <circle cx="236.0" cy="788.0" r="16" fill="#375E97" opacity="0.18"/>
+  <text x="270.0" y="774.0" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="600" text-anchor="start" letter-spacing="0">Data kosztu</text>
+  <text x="270.0" y="808.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" text-anchor="start" letter-spacing="0">2026-06-22</text>
+
+  <rect x="202.0" y="860.0" width="676.0" height="96.0" rx="16.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <circle cx="236.0" cy="908.0" r="16" fill="#C76F3D" opacity="0.18"/>
+  <text x="270.0" y="894.0" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="600" text-anchor="start" letter-spacing="0">Dziecko</text>
+  <text x="270.0" y="928.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" text-anchor="start" letter-spacing="0">Dziecko</text>
+  <text x="202.0" y="985.0" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="600" text-anchor="start" letter-spacing="0">Kategoria</text>
+
+  <rect x="202.0" y="1000.0" width="326.0" height="58.0" rx="29.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <text x="365.0" y="1038.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" text-anchor="middle" letter-spacing="0">Jedzenie</text>
+  <rect x="552.0" y="1000.0" width="326.0" height="58.0" rx="29.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <text x="715.0" y="1038.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" text-anchor="middle" letter-spacing="0">Ubrania</text>
+  <rect x="202.0" y="1078.0" width="326.0" height="58.0" rx="29.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <text x="365.0" y="1116.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" text-anchor="middle" letter-spacing="0">Szkola</text>
+  <rect x="552.0" y="1078.0" width="326.0" height="58.0" rx="29.0" fill="#E5F5F2" stroke="#0F766E" stroke-width="3"/>
+  <text x="715.0" y="1116.0" fill="#0F766E" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" text-anchor="middle" letter-spacing="0">Lekarze</text>
+  <rect x="202.0" y="1156.0" width="326.0" height="58.0" rx="29.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <text x="365.0" y="1194.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" text-anchor="middle" letter-spacing="0">Zajecia</text>
+  <rect x="552.0" y="1156.0" width="326.0" height="58.0" rx="29.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <text x="715.0" y="1194.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" text-anchor="middle" letter-spacing="0">Transport</text>
+
+  <rect x="202.0" y="1265.0" width="676.0" height="96.0" rx="16.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <circle cx="236.0" cy="1313.0" r="16" fill="#B42318" opacity="0.18"/>
+  <text x="270.0" y="1299.0" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="600" text-anchor="start" letter-spacing="0">Opis</text>
+  <text x="270.0" y="1333.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" text-anchor="start" letter-spacing="0">Wizyta kontrolna</text>
+  <rect x="202.0" y="1400.0" width="676.0" height="82.0" rx="16.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <text x="230.0" y="1453.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" text-anchor="start" letter-spacing="0">Dodaj paragon lub PDF</text>
+  <rect x="202.0" y="1510.0" width="676.0" height="88.0" rx="22.0" fill="#0F766E"/>
+  <text x="540.0" y="1567.0" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="27" font-weight="700" text-anchor="middle" letter-spacing="0">Zapisz koszt</text>
+  <line x1="202.0" y1="1645.0" x2="878.0" y2="1645.0" stroke="#E7ECE7" stroke-width="3"/>
+  <g>
+    <rect x="227.0" y="1671.0" width="34.0" height="8.0" rx="4.0" fill="#879194" opacity="0"/>
+  <circle cx="244.0" cy="1696.0" r="13" fill="none" stroke="#879194" stroke-width="5"/>
+<text x="244.0" y="1739.0" fill="#879194" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" text-anchor="middle" letter-spacing="0">Start</text>
+    <rect x="362.2" y="1671.0" width="34.0" height="8.0" rx="4.0" fill="#879194" opacity="0"/>
+  <circle cx="379.2" cy="1696.0" r="13" fill="none" stroke="#879194" stroke-width="5"/>
+<text x="379.2" y="1739.0" fill="#879194" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" text-anchor="middle" letter-spacing="0">Koszty</text>
+    <rect x="497.4" y="1671.0" width="34.0" height="8.0" rx="4.0" fill="#0F766E" opacity="0.22"/>
+  <circle cx="514.4" cy="1696.0" r="13" fill="none" stroke="#0F766E" stroke-width="5"/>
+<text x="514.4" y="1739.0" fill="#0F766E" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="600" text-anchor="middle" letter-spacing="0">Dodaj</text>
+    <rect x="632.6" y="1671.0" width="34.0" height="8.0" rx="4.0" fill="#879194" opacity="0"/>
+  <circle cx="649.6" cy="1696.0" r="13" fill="none" stroke="#879194" stroke-width="5"/>
+<text x="649.6" y="1739.0" fill="#879194" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" text-anchor="middle" letter-spacing="0">Opieka</text>
+    <rect x="767.8" y="1671.0" width="34.0" height="8.0" rx="4.0" fill="#879194" opacity="0"/>
+  <circle cx="784.8" cy="1696.0" r="13" fill="none" stroke="#879194" stroke-width="5"/>
+<text x="784.8" y="1739.0" fill="#879194" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" text-anchor="middle" letter-spacing="0">Raporty</text>
+  </g>
+</svg>
