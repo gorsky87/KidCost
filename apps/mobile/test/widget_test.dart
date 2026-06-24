@@ -143,8 +143,29 @@ void main() {
       find.text('Kod nie ujawnia kosztow ani danych dziecka.'),
       findsOneWidget,
     );
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -500),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Prywatnosc i zaufanie'), findsWidgets);
+    expect(
+      find.text(
+        'Dane rodziny widza tylko osoby z aktywnym dostepem do tej rodziny.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Historia zmian'), findsOneWidget);
+    expect(
+      find.text(
+        'KidCost pomaga dokumentowac koszty, ale nie zastepuje porady prawnej.',
+      ),
+      findsOneWidget,
+    );
 
-    await tester.tap(find.text('Zakoncz'));
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, 500));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Zakoncz'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rodzina'));
     await tester.pumpAndSettle();
@@ -172,8 +193,18 @@ void main() {
 
     await tester.tap(find.text('Ustawienia'));
     await tester.pumpAndSettle();
+    expect(find.text('Eksport danych'), findsOneWidget);
+    expect(find.text('Polityka prywatnosci'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Regulamin'), 120);
+    expect(find.text('Regulamin'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Kontakt support'), 120);
+    expect(find.text('Kontakt support'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Brak porad prawnych'), 120);
+    expect(find.text('Brak porad prawnych'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('parent@example.com'), 120);
     expect(find.text('parent@example.com'), findsOneWidget);
 
+    await tester.scrollUntilVisible(find.text('Wyloguj'), 120);
     await tester.tap(find.text('Wyloguj'));
     await tester.pumpAndSettle();
 
