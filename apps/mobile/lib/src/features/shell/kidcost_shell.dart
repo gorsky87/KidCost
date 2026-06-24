@@ -6,6 +6,7 @@ import '../custody/custody_models.dart';
 import '../expenses/attachment_storage.dart';
 import '../expenses/expense_models.dart';
 import '../onboarding/onboarding_profile.dart';
+import '../premium/premium_discovery.dart';
 import '../../telemetry/app_telemetry.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/custody_calendar_screen.dart';
@@ -53,6 +54,7 @@ class KidCostShell extends StatefulWidget {
 class _KidCostShellState extends State<KidCostShell> {
   int _selectedIndex = 0;
   ExpenseTemplate? _pendingTemplate;
+  final Set<PremiumDiscoveryPoint> _dismissedPremiumHints = {};
 
   @override
   void initState() {
@@ -84,7 +86,13 @@ class _KidCostShellState extends State<KidCostShell> {
       label: 'Koszty',
       icon: Icons.receipt_long_outlined,
       selectedIcon: Icons.receipt_long,
-      screen: ExpensesScreen(expenses: widget.expenses),
+      screen: ExpensesScreen(
+        expenses: widget.expenses,
+        showExpenseHistoryPremiumHint: !_isPremiumHintDismissed(
+          PremiumDiscoveryPoint.expenseHistory,
+        ),
+        onPremiumHintDismissed: _dismissPremiumHint,
+      ),
     ),
     _Destination(
       label: 'Dodaj',
@@ -96,6 +104,10 @@ class _KidCostShellState extends State<KidCostShell> {
         userEmail: widget.userEmail,
         attachmentStorage: widget.attachmentStorage,
         initialTemplate: _pendingTemplate,
+        showReceiptOcrPremiumHint: !_isPremiumHintDismissed(
+          PremiumDiscoveryPoint.receiptOcr,
+        ),
+        onPremiumHintDismissed: _dismissPremiumHint,
         onExpenseSaved: (expense) {
           widget.onExpenseSaved(expense);
           setState(() => _pendingTemplate = null);
@@ -134,7 +146,13 @@ class _KidCostShellState extends State<KidCostShell> {
       label: 'Raporty',
       icon: Icons.summarize_outlined,
       selectedIcon: Icons.summarize,
-      screen: ReportsScreen(expenses: widget.expenses),
+      screen: ReportsScreen(
+        expenses: widget.expenses,
+        showReportExportPremiumHint: !_isPremiumHintDismissed(
+          PremiumDiscoveryPoint.reportExport,
+        ),
+        onPremiumHintDismissed: _dismissPremiumHint,
+      ),
     ),
     _Destination(
       label: 'Rodzina',
@@ -149,6 +167,10 @@ class _KidCostShellState extends State<KidCostShell> {
       screen: SettingsScreen(
         userEmail: widget.userEmail,
         isDemoSession: widget.isDemoSession,
+        showAccountPlanPremiumHint: !_isPremiumHintDismissed(
+          PremiumDiscoveryPoint.accountPlan,
+        ),
+        onPremiumHintDismissed: _dismissPremiumHint,
         onSignOut: widget.onSignOut,
       ),
     ),
@@ -200,6 +222,14 @@ class _KidCostShellState extends State<KidCostShell> {
         ),
       );
     }
+  }
+
+  bool _isPremiumHintDismissed(PremiumDiscoveryPoint point) {
+    return _dismissedPremiumHints.contains(point);
+  }
+
+  void _dismissPremiumHint(PremiumDiscoveryPoint point) {
+    setState(() => _dismissedPremiumHints.add(point));
   }
 }
 

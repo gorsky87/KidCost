@@ -8,6 +8,7 @@ import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_visuals.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
+import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
@@ -391,6 +392,60 @@ void main() {
     );
   });
 
+  testWidgets('premium discovery stays calm and dismissible', (
+    WidgetTester tester,
+  ) async {
+    final dismissed = <PremiumDiscoveryPoint>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            showReportExportPremiumHint: true,
+            onPremiumHintDismissed: dismissed.add,
+            expenses: [testExpense(id: '1', title: 'Obiad')],
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Raport gotowy do rozmowy'), 180);
+    expect(find.text('Raport gotowy do rozmowy'), findsOneWidget);
+    expect(find.textContaining('podstawowy CSV zostaja'), findsOneWidget);
+    expect(find.text('CSV: kidcost-report-2026-06.csv'), findsOneWidget);
+
+    await tester.ensureVisible(find.byTooltip('Ukryj na teraz'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Ukryj na teraz'));
+    await tester.pumpAndSettle();
+
+    expect(dismissed, [PremiumDiscoveryPoint.reportExport]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsScreen(
+            userEmail: 'parent@example.com',
+            isDemoSession: true,
+            showAccountPlanPremiumHint: true,
+            onPremiumHintDismissed: dismissed.add,
+            onSignOut: () async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Premium bez presji'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Zakres MVP i przyszlego Premium'),
+      120,
+    );
+    expect(find.text('MVP/basic'), findsOneWidget);
+    expect(find.text('Kandydaci Premium'), findsOneWidget);
+    expect(find.textContaining('Koszty, saldo, zalaczniki'), findsOneWidget);
+  });
+
   testWidgets('add expense validates amount and date', (
     WidgetTester tester,
   ) async {
@@ -596,6 +651,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('rachunek.pdf'), findsOneWidget);
     expect(find.text('Gotowy do wyslania'), findsOneWidget);
+    expect(find.text('Szybsze przepisywanie paragonow'), findsOneWidget);
+    expect(find.textContaining('reczne pola zostaja'), findsOneWidget);
     expect(find.text('Typ dowodu'), findsOneWidget);
     expect(
       find.textContaining('To pomaga uporzadkowac dokumenty'),
@@ -776,6 +833,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: ExpensesScreen(
+            showExpenseHistoryPremiumHint: true,
             expenses: [
               testExpense(
                 id: '1',
@@ -825,6 +883,11 @@ void main() {
     expect(find.text('Edytuj koszt'), findsOneWidget);
     expect(find.text('Oznacz jako sporne'), findsOneWidget);
     expect(find.text('Historia statusu'), findsOneWidget);
+    expect(find.text('Pelniejsza historia kosztu'), findsOneWidget);
+    expect(
+      find.textContaining('Status kosztu i podstawowe szczegoly'),
+      findsOneWidget,
+    );
 
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();

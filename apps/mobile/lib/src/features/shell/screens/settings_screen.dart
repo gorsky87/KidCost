@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../../premium/premium_discovery.dart';
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.userEmail,
     required this.isDemoSession,
     required this.onSignOut,
+    this.showAccountPlanPremiumHint = false,
+    this.onPremiumHintDismissed,
     super.key,
   });
 
   final String userEmail;
   final bool isDemoSession;
   final Future<void> Function() onSignOut;
+  final bool showAccountPlanPremiumHint;
+  final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -75,6 +81,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
+        const Divider(),
+        if (widget.showAccountPlanPremiumHint) ...[
+          PremiumDiscoveryCard(
+            point: PremiumDiscoveryPoint.accountPlan,
+            onDismiss: () => widget.onPremiumHintDismissed?.call(
+              PremiumDiscoveryPoint.accountPlan,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        const _PlanComparisonCard(),
         const Divider(),
         const ListTile(
           leading: Icon(Icons.security_outlined),
@@ -170,5 +187,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _PlanComparisonCard extends StatelessWidget {
+  const _PlanComparisonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.compare_arrows_outlined),
+              title: Text('Zakres MVP i przyszlego Premium'),
+              subtitle: Text(
+                'Bez cen i bez blokowania podstawowych przeplywow.',
+              ),
+            ),
+            _PlanRow(
+              title: 'MVP/basic',
+              body:
+                  'Dodawanie kosztow, saldo, zalaczniki, statusy i podstawowy CSV.',
+            ),
+            _PlanRow(
+              title: 'Kandydaci Premium',
+              body: 'OCR, PDF, pakiety dowodow, wiekszy storage i historia.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanRow extends StatelessWidget {
+  const _PlanRow({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.check_circle_outline),
+      title: Text(title),
+      subtitle: Text(body),
+    );
   }
 }
