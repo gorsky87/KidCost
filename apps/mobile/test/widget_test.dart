@@ -451,6 +451,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Raport miesieczny'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Eksport'), 180);
     expect(find.text('Eksport'), findsOneWidget);
   });
 
@@ -658,6 +659,12 @@ void main() {
                 amountCents: 9900,
                 expenseDate: '2026-05-20',
               ),
+              testExpense(
+                id: '4',
+                title: 'Rozliczony obiad',
+                amountCents: 2000,
+                status: ExpenseStatus.settled,
+              ),
             ],
           ),
         ),
@@ -665,19 +672,37 @@ void main() {
     );
 
     expect(find.text('Raport miesieczny'), findsOneWidget);
-    expect(find.text('Suma kosztow'), findsOneWidget);
-    expect(find.text('180,00 zl'), findsWidgets);
-    expect(find.text('Koszty sporne'), findsOneWidget);
+    expect(find.text('Do wyrownania'), findsOneWidget);
+    expect(
+      find.textContaining('Drugi rodzic oddaje Tobie 40,00 zl'),
+      findsOneWidget,
+    );
+    expect(find.text('Zaplacone razem'), findsOneWidget);
+    expect(find.text('200,00 zl'), findsWidgets);
+    expect(find.text('Zaplaciles Ty'), findsOneWidget);
+    expect(find.text('140,00 zl'), findsWidgets);
+    expect(find.text('Zaplacil drugi rodzic'), findsOneWidget);
     expect(find.text('60,00 zl'), findsWidgets);
-    expect(find.text('Koszty nierozliczone'), findsOneWidget);
-    expect(find.text('120,00 zl'), findsWidgets);
-    expect(find.text('Suma per rodzic'), findsOneWidget);
+    expect(find.text('Twoj udzial'), findsOneWidget);
+    expect(find.text('100,00 zl'), findsWidgets);
+    expect(find.text('Roznica'), findsOneWidget);
+    expect(
+      find.text('Zaplaciles o 40,00 zl wiecej niz Twoj udzial.'),
+      findsOneWidget,
+    );
+    expect(find.text('Wymaga wyjasnienia'), findsOneWidget);
+    expect(find.text('Do akceptacji'), findsOneWidget);
+    expect(find.text('Rozliczone'), findsOneWidget);
+    expect(find.text('20,00 zl'), findsWidgets);
+    await tester.scrollUntilVisible(find.text('Zaplacone przez rodzicow'), 180);
+    expect(find.text('Zaplacone przez rodzicow'), findsOneWidget);
     expect(find.text('parent@example.com'), findsOneWidget);
     expect(find.text('Drugi rodzic'), findsOneWidget);
-    expect(find.text('Suma per dziecko'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Koszty dzieci'), 180);
+    expect(find.text('Koszty dzieci'), findsOneWidget);
     expect(find.text('Antek'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Suma per kategoria'), 180);
-    expect(find.text('Suma per kategoria'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Kategorie kosztow'), 180);
+    expect(find.text('Kategorie kosztow'), findsOneWidget);
     expect(find.text('Jedzenie'), findsOneWidget);
     expect(find.text('Lekarze i leki'), findsOneWidget);
     expect(find.text('Majowy koszt'), findsNothing);
@@ -717,8 +742,16 @@ void main() {
       ),
     );
 
+    await tester.scrollUntilVisible(
+      find.text('Brak kosztow w tym miesiacu'),
+      180,
+    );
     expect(find.text('Brak kosztow w tym miesiacu'), findsOneWidget);
     expect(find.text('0,00 zl'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('CSV: kidcost-report-2026-06.csv'),
+      180,
+    );
     expect(find.text('CSV: kidcost-report-2026-06.csv'), findsOneWidget);
     expect(find.text('PDF wymaga generatora'), findsOneWidget);
   });
