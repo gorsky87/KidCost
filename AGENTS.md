@@ -34,19 +34,20 @@ Guidance for AI agents working in this repository.
 
 ## Commands
 
-No project-specific commands are defined yet.
+```sh
+# Install Flutter mobile dependencies
+cd apps/mobile && flutter pub get
 
-When the stack is added, document the canonical commands here, for example:
+# Run Flutter tests
+cd apps/mobile && flutter test
+
+# Start the Flutter mobile app
+cd apps/mobile && flutter run
+```
+
+Supabase CLI is not committed as a project dependency yet. Once installed locally, verify migrations from a clean database with:
 
 ```sh
-# Install dependencies
-
-# Run tests
-
-# Run linting
-
-# Start local development server
-
 # Reset local Supabase database after migrations exist
 supabase db reset
 
