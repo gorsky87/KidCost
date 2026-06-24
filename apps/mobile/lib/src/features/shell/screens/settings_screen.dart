@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../premium/premium_discovery.dart';
+import '../../premium/premium_paywall_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -92,7 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 8),
         ],
-        const _PlanComparisonCard(),
+        _PlanComparisonCard(onPreviewPaywall: _showPremiumPaywallPreview),
         const Divider(),
         const ListTile(
           leading: Icon(Icons.security_outlined),
@@ -189,10 +190,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
+
+  void _showPremiumPaywallPreview() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.9,
+          child: PremiumPaywallScreen(
+            onStartTrial: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Trial zostanie podpiety po wyborze billing SDK.',
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _PlanComparisonCard extends StatelessWidget {
-  const _PlanComparisonCard();
+  const _PlanComparisonCard({required this.onPreviewPaywall});
+
+  final VoidCallback onPreviewPaywall;
 
   @override
   Widget build(BuildContext context) {
@@ -222,6 +249,14 @@ class _PlanComparisonCard extends StatelessWidget {
             _PlanRow(
               title: 'Platnik rodzinny',
               body: domain.familyBillingPolicy.summary,
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: onPreviewPaywall,
+                icon: const Icon(Icons.workspace_premium_outlined),
+                label: const Text('Podglad Premium i trial'),
+              ),
             ),
           ],
         ),

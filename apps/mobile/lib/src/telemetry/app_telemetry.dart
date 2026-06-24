@@ -6,7 +6,13 @@ enum TelemetryEvent {
   expenseCreated('expense_created'),
   receiptAttached('receipt_attached'),
   balanceViewed('balance_viewed'),
-  reportViewed('report_viewed');
+  reportViewed('report_viewed'),
+  premiumPaywallViewed('premium_paywall_viewed'),
+  premiumTrialStarted('premium_trial_started'),
+  premiumTrialCancelled('premium_trial_cancelled'),
+  premiumUpgraded('premium_upgraded'),
+  premiumDowngraded('premium_downgraded'),
+  premiumFeatureIntent('premium_feature_intent');
 
   const TelemetryEvent(this.name);
 
@@ -67,6 +73,11 @@ const _allowedParameterKeys = {
   'has_attachment',
   'content_type',
   'invitation_skipped',
+  'feature',
+  'plan_context',
+  'reason_code',
+  'surface',
+  'trigger',
 };
 
 bool _looksSensitive(String value) {
