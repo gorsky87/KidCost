@@ -13,6 +13,7 @@ import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_scree
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/settings_screen.dart';
+import 'package:kidcost_mobile/src/telemetry/app_telemetry.dart';
 import 'package:kidcost_mobile/src/theme/kidcost_theme.dart';
 
 void main() {
@@ -77,6 +78,63 @@ void main() {
       expect(status.iconAssetPath, endsWith('.svg'));
       expect(status.label, isNotEmpty);
     }
+  });
+
+  testWidgets('telemetry sanitizer removes PII and precise amounts', (_) async {
+    final sanitized = sanitizeTelemetryParameters({
+      'screen': 'dashboard',
+      'category_id': 'school',
+      'email': 'parent@example.com',
+      'child_name': 'Antek',
+      'amount': '42.99',
+      'content_type': 'application/pdf',
+      'release_channel': 'beta',
+    });
+
+    expect(sanitized, {
+      'screen': 'dashboard',
+      'category_id': 'school',
+      'content_type': 'application/pdf',
+      'release_channel': 'beta',
+    });
+  });
+
+  testWidgets('signup and onboarding emit safe telemetry events', (
+    WidgetTester tester,
+  ) async {
+    final telemetry = RecordingTelemetry();
+
+    await tester.pumpWidget(
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: InMemoryAttachmentStorage(),
+        telemetry: telemetry,
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Nie masz konta? Utworz konto'));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).first, 'new@example.com');
+    await tester.enterText(find.byType(TextField).last, 'secret1');
+    await tester.tap(find.byIcon(Icons.person_add));
+    await tester.pumpAndSettle();
+    await completeOnboarding(tester, childName: 'Ola');
+
+    expect(telemetry.eventNames, contains('signup_started'));
+    expect(telemetry.eventNames, contains('signup_completed'));
+    expect(telemetry.eventNames, contains('family_created'));
+    expect(telemetry.eventNames, contains('child_added'));
+    expect(
+      telemetry.events.any((event) => event.parameters.values.contains('Ola')),
+      isFalse,
+    );
+    expect(
+      telemetry.events.any(
+        (event) => event.parameters.values.contains('new@example.com'),
+      ),
+      isFalse,
+    );
   });
 
   testWidgets('opens the KidCost shell after email sign in', (
@@ -961,4 +1019,30 @@ OnboardingProfile testProfile() {
     childName: 'Antek',
     invitationSkipped: true,
   );
+}
+
+class RecordingTelemetry extends AppTelemetry {
+  final events = <RecordedTelemetryEvent>[];
+
+  List<String> get eventNames => [for (final event in events) event.event.name];
+
+  @override
+  Future<void> track(
+    TelemetryEvent event, {
+    Map<String, Object?> parameters = const {},
+  }) async {
+    events.add(
+      RecordedTelemetryEvent(event, sanitizeTelemetryParameters(parameters)),
+    );
+  }
+
+  @override
+  void recordError(Object error, StackTrace stackTrace, {String? reason}) {}
+}
+
+class RecordedTelemetryEvent {
+  const RecordedTelemetryEvent(this.event, this.parameters);
+
+  final TelemetryEvent event;
+  final Map<String, Object> parameters;
 }

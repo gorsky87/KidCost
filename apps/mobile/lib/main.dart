@@ -3,6 +3,7 @@ import 'package:kidcost_mobile/src/app.dart';
 import 'package:kidcost_mobile/src/config/app_config.dart';
 import 'package:kidcost_mobile/src/features/auth/auth_repository.dart';
 import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
+import 'package:kidcost_mobile/src/telemetry/app_telemetry.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
@@ -15,6 +16,7 @@ Future<void> main() async {
     KidCostApp(
       authRepository: dependencies.authRepository,
       attachmentStorage: dependencies.attachmentStorage,
+      telemetry: dependencies.telemetry,
       config: config,
     ),
   );
@@ -25,6 +27,7 @@ Future<_AppDependencies> _buildAppDependencies(AppConfig config) async {
     return _AppDependencies(
       authRepository: InMemoryAuthRepository(),
       attachmentStorage: InMemoryAttachmentStorage(),
+      telemetry: NoopTelemetry(),
     );
   }
 
@@ -36,6 +39,7 @@ Future<_AppDependencies> _buildAppDependencies(AppConfig config) async {
   return _AppDependencies(
     authRepository: SupabaseAuthRepository(client),
     attachmentStorage: SupabaseAttachmentStorage(client),
+    telemetry: NoopTelemetry(),
   );
 }
 
@@ -43,8 +47,10 @@ class _AppDependencies {
   const _AppDependencies({
     required this.authRepository,
     required this.attachmentStorage,
+    required this.telemetry,
   });
 
   final AuthRepository authRepository;
   final AttachmentStorage attachmentStorage;
+  final AppTelemetry telemetry;
 }

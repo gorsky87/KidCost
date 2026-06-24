@@ -11,6 +11,7 @@ Ten dokument zbiera minimalne decyzje, dostepy, aktywa i checklisty potrzebne do
 - Nazwa aplikacji w sklepach: `KidCost`
 - Pierwszy release: beta przez Google Play Internal Testing i Apple TestFlight, bez publicznej publikacji w App Store ani Google Play Production.
 - Supabase dla pierwszego release: osobny projekt `prod` albo `beta-prod`, nie lokalny ani wspolny `dev`.
+- Observability MVP: aplikacja ma wspolny interfejs telemetryczny, allowliste parametrow i flagi builda; Firebase Analytics/Crashlytics wlaczamy dopiero po dodaniu prawdziwego projektu Firebase i plikow platformowych poza repo.
 - Platnosci/subskrypcje: poza zakresem pierwszego release.
 
 Uzasadnienie Supabase: nawet testerzy wewnetrzni moga wpisac dane rodzinne, finansowe i zalaczniki. Srodowisko pierwszej bety powinno miec stabilne migracje, RLS, prywatny Storage i kopie zapasowe, a nie byc resetowanym razem z pracami developerskimi.
@@ -153,6 +154,68 @@ Te URL musza byc publicznie dostepne przed wyslaniem builda do testerow zewnetrz
 
 ## Checklisty buildow
 
+### Konfiguracja builda i observability
+
+Minimalne parametry builda przekazywane przez `--dart-define`:
+
+```sh
+--dart-define=KIDCOST_RELEASE_CHANNEL=demo
+--dart-define=KIDCOST_BUILD_NAME=1.0.0
+--dart-define=KIDCOST_BUILD_NUMBER=1
+--dart-define=KIDCOST_ANALYTICS_ENABLED=false
+--dart-define=KIDCOST_CRASH_REPORTING_ENABLED=false
+```
+
+Dla bety ustawiamy `KIDCOST_RELEASE_CHANNEL=beta`, podbijamy `KIDCOST_BUILD_NAME` i `KIDCOST_BUILD_NUMBER`, a `KIDCOST_ANALYTICS_ENABLED=true` oraz `KIDCOST_CRASH_REPORTING_ENABLED=true` dopiero wtedy, gdy build ma komplet konfiguracji Firebase dla Androida i iOS.
+
+Eventy MVP:
+
+- `signup_started`
+- `signup_completed`
+- `family_created`
+- `child_added`
+- `expense_created`
+- `receipt_attached`
+- `balance_viewed`
+- `report_viewed`
+
+Parametry eventow musza przechodzic przez allowliste w aplikacji. Nie wysylamy e-maili, imion dzieci, opisow kosztow, nazw plikow, pelnych kwot ani innych danych rodzinnych. Dozwolone sa tylko techniczne i agregowalne wartosci typu `release_channel`, `build_name`, `build_number`, `is_demo`, `screen`, `category_id`, `status`, `has_attachment`, `content_type`, `invitation_skipped`.
+
+Crashlytics/analytics beta wymaga przed wyslaniem builda:
+
+- projektu Firebase dla bety,
+- Android `google-services.json` dodanego do lokalnego/CI secret setup, nie jako sekret w repo,
+- iOS `GoogleService-Info.plist` dodanego do lokalnego/CI secret setup, nie jako sekret w repo,
+- SDK Analytics/Crashlytics podlaczonego do mobilnej aplikacji,
+- testowego crasha widocznego w panelu Crashlytics,
+- potwierdzenia, ze eventy MVP pojawiaja sie bez PII i pelnych kwot.
+
+### Smoke test Android
+
+- [ ] clean install builda beta na emulatorze albo urzadzeniu,
+- [ ] start aplikacji bez crasha,
+- [ ] rejestracja testowego konta,
+- [ ] utworzenie rodziny i dodanie dziecka,
+- [ ] dodanie kosztu bez zalacznika,
+- [ ] dodanie kosztu z zalacznikiem paragon/PDF,
+- [ ] wejscie w Start i Raporty,
+- [ ] wylogowanie i ponowne logowanie,
+- [ ] potwierdzenie eventow MVP w analytics bez PII,
+- [ ] potwierdzenie test crasha w Crashlytics.
+
+### Smoke test iOS
+
+- [ ] clean install builda beta przez TestFlight albo lokalny archive,
+- [ ] start aplikacji bez crasha,
+- [ ] rejestracja testowego konta,
+- [ ] utworzenie rodziny i dodanie dziecka,
+- [ ] dodanie kosztu bez zalacznika,
+- [ ] dodanie kosztu z zalacznikiem paragon/PDF,
+- [ ] wejscie w Start i Raporty,
+- [ ] wylogowanie i ponowne logowanie,
+- [ ] potwierdzenie eventow MVP w analytics bez PII,
+- [ ] potwierdzenie test crasha w Crashlytics.
+
 ### Debug
 
 - [ ] aplikacja uruchamia sie lokalnie na Android emulator,
@@ -165,7 +228,10 @@ Te URL musza byc publicznie dostepne przed wyslaniem builda do testerow zewnetrz
 
 - [ ] build korzysta z projektu Supabase beta/prod,
 - [ ] RLS i prywatny Storage sa wlaczone,
+- [ ] `KIDCOST_RELEASE_CHANNEL=beta`, version/build sa podbite,
 - [ ] Crashlytics/analytics wskazuja na projekt beta,
+- [ ] eventy MVP nie zawieraja danych osobowych ani pelnych kwot,
+- [ ] test crash jest widoczny w Crashlytics,
 - [ ] feature flags nie wlaczaja platnosci ani niegotowych eksportow,
 - [ ] znane ograniczenia sa widoczne w notatce dla testerow.
 
@@ -175,6 +241,8 @@ Te URL musza byc publicznie dostepne przed wyslaniem builda do testerow zewnetrz
 - [ ] iOS archive podpisany profilem dystrybucyjnym,
 - [ ] version name / marketing version ustawione,
 - [ ] build number / version code zwiekszone,
+- [ ] `KIDCOST_RELEASE_CHANNEL=public`, version/build sa podbite,
+- [ ] analytics i crash reporting sa wlaczone tylko z poprawna konfiguracja Firebase,
 - [ ] privacy/support URL dzialaja publicznie,
 - [ ] testowe konto review/tester ma instrukcje logowania,
 - [ ] nie ma `.env`, service role key, keystore, provisioning profiles ani certyfikatow w Git.

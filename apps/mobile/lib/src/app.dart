@@ -11,18 +11,21 @@ import 'features/expenses/expense_models.dart';
 import 'features/onboarding/family_onboarding_screen.dart';
 import 'features/onboarding/onboarding_profile.dart';
 import 'features/shell/kidcost_shell.dart';
+import 'telemetry/app_telemetry.dart';
 import 'theme/kidcost_theme.dart';
 
 class KidCostApp extends StatefulWidget {
   const KidCostApp({
     required this.authRepository,
     required this.attachmentStorage,
+    AppTelemetry? telemetry,
     this.config,
     super.key,
-  });
+  }) : telemetry = telemetry ?? const NoopTelemetry();
 
   final AuthRepository authRepository;
   final AttachmentStorage attachmentStorage;
+  final AppTelemetry telemetry;
   final AppConfig? config;
 
   @override
@@ -60,6 +63,7 @@ class _KidCostAppState extends State<KidCostApp> {
   void dispose() {
     _authSubscription?.cancel();
     widget.authRepository.dispose();
+    widget.telemetry.dispose();
     super.dispose();
   }
 
@@ -85,6 +89,25 @@ class _KidCostAppState extends State<KidCostApp> {
         return FamilyOnboardingScreen(
           userEmail: session.email,
           onComplete: (profile) {
+            unawaited(
+              widget.telemetry.track(
+                TelemetryEvent.familyCreated,
+                parameters: {
+                  'is_demo': session.isDemo,
+                  'release_channel': _config.releaseChannel,
+                  'invitation_skipped': profile.invitationSkipped,
+                },
+              ),
+            );
+            unawaited(
+              widget.telemetry.track(
+                TelemetryEvent.childAdded,
+                parameters: {
+                  'is_demo': session.isDemo,
+                  'release_channel': _config.releaseChannel,
+                },
+              ),
+            );
             setState(() => _onboardingProfile = profile);
           },
         );
@@ -98,12 +121,35 @@ class _KidCostAppState extends State<KidCostApp> {
         expenses: _expenses,
         custodyDays: _custodyDays,
         onExpenseSaved: (expense) {
+          unawaited(
+            widget.telemetry.track(
+              TelemetryEvent.expenseCreated,
+              parameters: {
+                'category_id': expense.category.id,
+                'status': expense.status.name,
+                'has_attachment': expense.attachment != null,
+                'release_channel': _config.releaseChannel,
+              },
+            ),
+          );
+          if (expense.attachment != null) {
+            unawaited(
+              widget.telemetry.track(
+                TelemetryEvent.receiptAttached,
+                parameters: {
+                  'content_type': expense.attachment!.contentType,
+                  'release_channel': _config.releaseChannel,
+                },
+              ),
+            );
+          }
           setState(() => _expenses = [..._expenses, expense]);
         },
         onCustodyDaysChanged: (custodyDays) {
           setState(() => _custodyDays = custodyDays);
         },
         onSignOut: _signOut,
+        telemetry: widget.telemetry,
       );
     }
 
@@ -131,7 +177,12 @@ class _KidCostAppState extends State<KidCostApp> {
         _isLoading = false;
         _startupMessage = error.userMessage;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      widget.telemetry.recordError(
+        error,
+        stackTrace,
+        reason: 'restore_session_failed',
+      );
       if (!mounted) return;
       setState(() {
         _session = null;
@@ -182,9 +233,24 @@ class _KidCostAppState extends State<KidCostApp> {
     required String email,
     required String password,
   }) async {
+    unawaited(
+      widget.telemetry.track(
+        TelemetryEvent.signupStarted,
+        parameters: {'release_channel': _config.releaseChannel},
+      ),
+    );
     final session = await widget.authRepository.signUp(
       email: email,
       password: password,
+    );
+    unawaited(
+      widget.telemetry.track(
+        TelemetryEvent.signupCompleted,
+        parameters: {
+          'is_demo': session.isDemo,
+          'release_channel': _config.releaseChannel,
+        },
+      ),
     );
     if (mounted) {
       setState(() => _session = session);

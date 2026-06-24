@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../custody/custody_models.dart';
 import '../expenses/attachment_storage.dart';
 import '../expenses/expense_models.dart';
 import '../onboarding/onboarding_profile.dart';
+import '../../telemetry/app_telemetry.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/custody_calendar_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -23,6 +26,7 @@ class KidCostShell extends StatefulWidget {
     required this.onExpenseSaved,
     required this.onCustodyDaysChanged,
     required this.onSignOut,
+    required this.telemetry,
     super.key,
   });
 
@@ -35,6 +39,7 @@ class KidCostShell extends StatefulWidget {
   final ValueChanged<ExpenseEntry> onExpenseSaved;
   final ValueChanged<List<CustodyDay>> onCustodyDaysChanged;
   final Future<void> Function() onSignOut;
+  final AppTelemetry telemetry;
 
   @override
   State<KidCostShell> createState() => _KidCostShellState();
@@ -42,6 +47,12 @@ class KidCostShell extends StatefulWidget {
 
 class _KidCostShellState extends State<KidCostShell> {
   int _selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _trackDestination(0);
+  }
 
   List<_Destination> get _destinations => [
     _Destination(
@@ -126,6 +137,7 @@ class _KidCostShellState extends State<KidCostShell> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
           setState(() => _selectedIndex = index);
+          _trackDestination(index);
         },
         destinations: [
           for (final item in _destinations)
@@ -137,6 +149,26 @@ class _KidCostShellState extends State<KidCostShell> {
         ],
       ),
     );
+  }
+
+  void _trackDestination(int index) {
+    final item = _destinations[index];
+    if (item.label == 'Start') {
+      unawaited(
+        widget.telemetry.track(
+          TelemetryEvent.balanceViewed,
+          parameters: {'screen': 'dashboard'},
+        ),
+      );
+    }
+    if (item.label == 'Raporty') {
+      unawaited(
+        widget.telemetry.track(
+          TelemetryEvent.reportViewed,
+          parameters: {'screen': 'reports'},
+        ),
+      );
+    }
   }
 }
 
