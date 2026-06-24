@@ -74,3 +74,25 @@ Run usage credit tests:
 cd packages/domain
 dart test test/usage_credits_test.dart
 ```
+
+## Professional referral kit
+
+`professional_referral_kit.dart` defines the MVP contract for mediator,
+lawyer, and parent-support referral materials:
+
+- landing page sections, brochure outline, workflows, and trust boundaries
+- referral tracking fields for partner codes, UTM values, invite source, role,
+  and optional professional name
+- analytics properties that avoid family, child, expense, receipt, and dispute
+  details
+- copy guardrails that reject legal-advice, court-certification, and
+  endorsement claims
+- explicit MVP rule that no professional dashboard or broad family data access
+  is required
+
+Run referral kit tests:
+
+```sh
+cd packages/domain
+dart test test/professional_referral_kit_test.dart
+```
