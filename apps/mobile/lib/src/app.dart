@@ -5,15 +5,23 @@ import 'package:flutter/material.dart';
 import 'config/app_config.dart';
 import 'features/auth/auth_repository.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/expenses/attachment_storage.dart';
+import 'features/expenses/expense_models.dart';
 import 'features/onboarding/family_onboarding_screen.dart';
 import 'features/onboarding/onboarding_profile.dart';
 import 'features/shell/kidcost_shell.dart';
 import 'theme/kidcost_theme.dart';
 
 class KidCostApp extends StatefulWidget {
-  const KidCostApp({required this.authRepository, this.config, super.key});
+  const KidCostApp({
+    required this.authRepository,
+    required this.attachmentStorage,
+    this.config,
+    super.key,
+  });
 
   final AuthRepository authRepository;
+  final AttachmentStorage attachmentStorage;
   final AppConfig? config;
 
   @override
@@ -25,6 +33,7 @@ class _KidCostAppState extends State<KidCostApp> {
   StreamSubscription<AuthSession?>? _authSubscription;
   AuthSession? _session;
   OnboardingProfile? _onboardingProfile;
+  List<ExpenseEntry> _expenses = const [];
   bool _isLoading = true;
   String? _startupMessage;
 
@@ -83,6 +92,11 @@ class _KidCostAppState extends State<KidCostApp> {
         userEmail: session.email,
         isDemoSession: session.isDemo,
         onboardingProfile: profile,
+        attachmentStorage: widget.attachmentStorage,
+        expenses: _expenses,
+        onExpenseSaved: (expense) {
+          setState(() => _expenses = [..._expenses, expense]);
+        },
         onSignOut: _signOut,
       );
     }
@@ -131,6 +145,7 @@ class _KidCostAppState extends State<KidCostApp> {
       setState(() {
         _session = null;
         _onboardingProfile = null;
+        _expenses = const [];
         _isLoading = false;
       });
     } on AuthFailure catch (error) {

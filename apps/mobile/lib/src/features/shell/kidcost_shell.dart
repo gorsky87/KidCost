@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../expenses/attachment_storage.dart';
+import '../expenses/expense_models.dart';
 import '../onboarding/onboarding_profile.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/dashboard_screen.dart';
@@ -12,6 +14,9 @@ class KidCostShell extends StatefulWidget {
     required this.userEmail,
     required this.isDemoSession,
     required this.onboardingProfile,
+    required this.attachmentStorage,
+    required this.expenses,
+    required this.onExpenseSaved,
     required this.onSignOut,
     super.key,
   });
@@ -19,6 +24,9 @@ class KidCostShell extends StatefulWidget {
   final String userEmail;
   final bool isDemoSession;
   final OnboardingProfile onboardingProfile;
+  final AttachmentStorage attachmentStorage;
+  final List<ExpenseEntry> expenses;
+  final ValueChanged<ExpenseEntry> onExpenseSaved;
   final Future<void> Function() onSignOut;
 
   @override
@@ -28,24 +36,32 @@ class KidCostShell extends StatefulWidget {
 class _KidCostShellState extends State<KidCostShell> {
   int _selectedIndex = 0;
 
-  late final List<_Destination> _destinations = [
+  List<_Destination> get _destinations => [
     _Destination(
       label: 'Start',
       icon: Icons.dashboard_outlined,
       selectedIcon: Icons.dashboard,
-      screen: DashboardScreen(profile: widget.onboardingProfile),
+      screen: DashboardScreen(
+        profile: widget.onboardingProfile,
+        expenses: widget.expenses,
+      ),
     ),
     _Destination(
       label: 'Koszty',
       icon: Icons.receipt_long_outlined,
       selectedIcon: Icons.receipt_long,
-      screen: ExpensesScreen(),
+      screen: ExpensesScreen(expenses: widget.expenses),
     ),
     _Destination(
       label: 'Dodaj',
       icon: Icons.add_circle_outline,
       selectedIcon: Icons.add_circle,
-      screen: AddExpenseScreen(),
+      screen: AddExpenseScreen(
+        profile: widget.onboardingProfile,
+        userEmail: widget.userEmail,
+        attachmentStorage: widget.attachmentStorage,
+        onExpenseSaved: widget.onExpenseSaved,
+      ),
     ),
     _Destination(
       label: 'Rodzina',
