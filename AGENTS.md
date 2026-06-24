@@ -46,6 +46,9 @@ When the stack is added, document the canonical commands here, for example:
 # Run linting
 
 # Start local development server
+
+# Reset local Supabase database after migrations exist
+supabase db reset
 ```
 
 ## Testing
