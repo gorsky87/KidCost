@@ -530,7 +530,24 @@ void main() {
     await tester.tap(find.text('PDF'));
     await tester.pumpAndSettle();
     expect(find.text('rachunek.pdf'), findsOneWidget);
+    expect(find.text('Gotowy do wyslania'), findsOneWidget);
+    expect(find.text('Podejrzyj'), findsOneWidget);
+    expect(find.text('Zamien'), findsOneWidget);
+    expect(find.text('Usun'), findsOneWidget);
+    expect(find.text('Dodaj kolejny'), findsOneWidget);
+    expect(find.text('Zapisz bez paragonu'), findsOneWidget);
+    expect(find.textContaining('caly paragon'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Podejrzyj'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Podejrzyj'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('application/pdf'), findsWidgets);
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Zapisz koszt'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Koszty'));
@@ -538,6 +555,60 @@ void main() {
 
     expect(find.text('Faktura'), findsOneWidget);
     expect(find.textContaining('Zalacznik: rachunek.pdf'), findsOneWidget);
+  });
+
+  testWidgets('attachment upload failure keeps the expense saved', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: FailingAttachmentStorage(),
+      ),
+    );
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).first, 'parent@example.com');
+    await tester.enterText(find.byType(TextField).last, 'secret1');
+    await tester.tap(find.byIcon(Icons.login));
+    await tester.pumpAndSettle();
+    await completeOnboarding(tester);
+
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), '40');
+    await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
+    await tester.enterText(find.byType(TextField).at(2), 'Faktura');
+    await tester.ensureVisible(find.text('Dodaj paragon lub PDF'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dodaj paragon lub PDF'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('PDF'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Koszt zapisany, ale zalacznik wymaga ponowienia.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Ostatni koszt zostal zapisany'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Koszty'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Faktura'), findsOneWidget);
+    expect(find.textContaining('Zalacznik: blad uploadu'), findsOneWidget);
+
+    await tester.tap(find.text('Faktura'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zalacznik wymaga ponowienia'), findsOneWidget);
+    expect(find.textContaining('Koszt zostal zapisany.'), findsOneWidget);
   });
 
   testWidgets('expenses list exposes loading and error states', (
@@ -1122,4 +1193,14 @@ class RecordedTelemetryEvent {
 
   final TelemetryEvent event;
   final Map<String, Object> parameters;
+}
+
+class FailingAttachmentStorage implements AttachmentStorage {
+  @override
+  Future<AttachmentUploadResult> upload({
+    required String expenseId,
+    required AttachmentDraft attachment,
+  }) async {
+    throw StateError('upload failed');
+  }
 }
