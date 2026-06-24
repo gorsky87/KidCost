@@ -331,6 +331,14 @@ void main() {
                 category: expenseCategories[3],
                 status: ExpenseStatus.accepted,
               ),
+              testExpense(
+                id: '3',
+                title: 'Rozliczone zajecia',
+                amountCents: 7000,
+                expenseDate: '2026-04-11',
+                category: expenseCategories[4],
+                status: ExpenseStatus.settled,
+              ),
             ],
           ),
         ),
@@ -339,6 +347,7 @@ void main() {
 
     expect(find.text('Obiad'), findsOneWidget);
     expect(find.text('Lekarz'), findsOneWidget);
+    expect(find.text('Rozliczony'), findsOneWidget);
 
     await tester.tap(find.text('Pokaz filtry i sortowanie'));
     await tester.pumpAndSettle();
@@ -358,7 +367,7 @@ void main() {
     expect(find.text('Lekarz'), findsOneWidget);
   });
 
-  testWidgets('expense details show attachment preview and edit lock', (
+  testWidgets('expense details show status actions and history placeholder', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -382,6 +391,11 @@ void main() {
                 category: expenseCategories[3],
                 status: ExpenseStatus.disputed,
               ),
+              testExpense(
+                id: '3',
+                title: 'Rozliczony obiad',
+                status: ExpenseStatus.settled,
+              ),
             ],
           ),
         ),
@@ -394,6 +408,8 @@ void main() {
     expect(find.text('Szczegoly kosztu'), findsOneWidget);
     expect(find.text('Podglad PDF: rachunek.pdf'), findsOneWidget);
     expect(find.text('Edytuj koszt'), findsOneWidget);
+    expect(find.text('Oznacz jako sporne'), findsOneWidget);
+    expect(find.text('Historia statusu'), findsOneWidget);
 
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
@@ -401,7 +417,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Brak zalacznika'), findsOneWidget);
-    expect(find.text('Edycja zablokowana przez status'), findsOneWidget);
+    expect(find.text('Wymaga wyjasnienia'), findsWidgets);
+    expect(find.text('Potwierdz po wyjasnieniu'), findsOneWidget);
+
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rozliczony obiad'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rozliczony'), findsWidgets);
+    expect(find.text('Brak dostepnych akcji w tym statusie.'), findsWidgets);
   });
 
   testWidgets('dashboard shows empty state and CTA opens add expense', (

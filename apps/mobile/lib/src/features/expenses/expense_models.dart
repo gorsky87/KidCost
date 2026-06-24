@@ -86,17 +86,71 @@ class ExpenseAttachment {
 
 enum AttachmentStatus { uploaded, failed }
 
-enum ExpenseStatus { pending, accepted, disputed }
+enum ExpenseStatus { pending, accepted, disputed, settled }
 
 extension ExpenseStatusDetails on ExpenseStatus {
   String get label {
     switch (this) {
       case ExpenseStatus.pending:
-        return 'Do rozliczenia';
+        return 'Do akceptacji';
       case ExpenseStatus.accepted:
         return 'Zaakceptowany';
       case ExpenseStatus.disputed:
-        return 'Spor';
+        return 'Wymaga wyjasnienia';
+      case ExpenseStatus.settled:
+        return 'Rozliczony';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case ExpenseStatus.pending:
+        return 'Czeka na spokojna reakcje drugiego rodzica.';
+      case ExpenseStatus.accepted:
+        return 'Drugi rodzic potwierdzil koszt.';
+      case ExpenseStatus.disputed:
+        return 'Koszt zostal oznaczony do wyjasnienia z komentarzem.';
+      case ExpenseStatus.settled:
+        return 'Koszt zostal juz wyrownany lub ujety w rozliczeniu.';
+    }
+  }
+
+  String get historyPlaceholder {
+    switch (this) {
+      case ExpenseStatus.pending:
+        return 'Dodano koszt. Historia reakcji pojawi sie po pierwszej akcji.';
+      case ExpenseStatus.accepted:
+        return 'Koszt zaakceptowany. Pelna historia bedzie dostepna po podpieciu backendu.';
+      case ExpenseStatus.disputed:
+        return 'Koszt wymaga wyjasnienia. W beta zapisujemy krotki komentarz przy zmianie statusu.';
+      case ExpenseStatus.settled:
+        return 'Koszt rozliczony. W przyszlosci pokazemy tu powiazane wyrownanie.';
+    }
+  }
+
+  List<String> get authorActions {
+    switch (this) {
+      case ExpenseStatus.pending:
+        return const ['Edytuj koszt'];
+      case ExpenseStatus.accepted:
+        return const ['Oznacz jako rozliczone'];
+      case ExpenseStatus.disputed:
+        return const ['Dodaj korekte po wyjasnieniu'];
+      case ExpenseStatus.settled:
+        return const [];
+    }
+  }
+
+  List<String> get counterpartyActions {
+    switch (this) {
+      case ExpenseStatus.pending:
+        return const ['Zaakceptuj koszt', 'Oznacz jako sporne'];
+      case ExpenseStatus.accepted:
+        return const ['Oznacz jako rozliczone'];
+      case ExpenseStatus.disputed:
+        return const ['Potwierdz po wyjasnieniu'];
+      case ExpenseStatus.settled:
+        return const [];
     }
   }
 
@@ -106,6 +160,7 @@ extension ExpenseStatusDetails on ExpenseStatus {
         return true;
       case ExpenseStatus.accepted:
       case ExpenseStatus.disputed:
+      case ExpenseStatus.settled:
         return false;
     }
   }
