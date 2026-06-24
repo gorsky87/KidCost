@@ -20,3 +20,32 @@ Run tests:
 cd packages/domain
 dart test/balance_test.dart
 ```
+
+## Expense status workflow
+
+`ExpenseStatus` defines the MVP workflow for shared expense reactions:
+
+- `pending` starts after an expense is submitted.
+- `accepted` means the counterparty accepted the expense.
+- `disputed` means the counterparty questioned the expense and must leave a short comment.
+- `settled` means an accepted expense has been paid back or included in a settlement.
+
+Allowed transitions:
+
+| From | To | Actor | Notes |
+| --- | --- | --- | --- |
+| `pending` | `accepted` | counterparty | Author cannot accept their own expense. |
+| `pending` | `disputed` | counterparty | Requires a non-empty comment. |
+| `disputed` | `accepted` | counterparty | Use after the dispute is clarified or corrected. |
+| `accepted` | `settled` | author, counterparty, or system | Settlement history should be recorded separately. |
+
+`settled` is terminal in the MVP workflow. Core financial fields are editable
+only while an expense is `pending`; later changes should be represented as a
+correction plus an `ExpenseStatusEvent`, not as a silent overwrite.
+
+Run workflow tests:
+
+```sh
+cd packages/domain
+dart test/expense_status_test.dart
+```
