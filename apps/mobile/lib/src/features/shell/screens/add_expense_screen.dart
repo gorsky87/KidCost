@@ -7,6 +7,7 @@ import '../../expenses/attachment_storage.dart';
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
 import '../../onboarding/onboarding_profile.dart';
+import '../../premium/premium_discovery.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({
@@ -15,6 +16,8 @@ class AddExpenseScreen extends StatefulWidget {
     required this.attachmentStorage,
     required this.onExpenseSaved,
     this.initialTemplate,
+    this.showReceiptOcrPremiumHint = false,
+    this.onPremiumHintDismissed,
     super.key,
   });
 
@@ -23,6 +26,8 @@ class AddExpenseScreen extends StatefulWidget {
   final AttachmentStorage attachmentStorage;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
   final ExpenseTemplate? initialTemplate;
+  final bool showReceiptOcrPremiumHint;
+  final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -208,6 +213,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             _AttachmentReviewTray(
               attachment: _attachmentDraft!,
               status: _attachmentStatus,
+              showReceiptOcrPremiumHint: widget.showReceiptOcrPremiumHint,
               onPreview: _previewAttachment,
               onReplace: _chooseAttachment,
               onRemove: _removeAttachment,
@@ -225,6 +231,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               onBuyerNamePresentChanged: (value) {
                 setState(() => _buyerNamePresent = value);
               },
+              onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+                PremiumDiscoveryPoint.receiptOcr,
+              ),
             ),
           ] else ...[
             const SizedBox(height: 8),
@@ -587,6 +596,7 @@ class _AttachmentReviewTray extends StatelessWidget {
   const _AttachmentReviewTray({
     required this.attachment,
     required this.status,
+    required this.showReceiptOcrPremiumHint,
     required this.onPreview,
     required this.onReplace,
     required this.onRemove,
@@ -600,10 +610,12 @@ class _AttachmentReviewTray extends StatelessWidget {
     required this.buyerNamePresent,
     required this.onEvidenceTypeChanged,
     required this.onBuyerNamePresentChanged,
+    required this.onPremiumHintDismissed,
   });
 
   final AttachmentDraft attachment;
   final _AttachmentReviewStatus status;
+  final bool showReceiptOcrPremiumHint;
   final VoidCallback onPreview;
   final VoidCallback onReplace;
   final VoidCallback onRemove;
@@ -617,6 +629,7 @@ class _AttachmentReviewTray extends StatelessWidget {
   final bool? buyerNamePresent;
   final ValueChanged<EvidenceType?> onEvidenceTypeChanged;
   final ValueChanged<bool?> onBuyerNamePresentChanged;
+  final VoidCallback onPremiumHintDismissed;
 
   @override
   Widget build(BuildContext context) {
@@ -659,6 +672,14 @@ class _AttachmentReviewTray extends StatelessWidget {
               icon: Icons.tips_and_updates_outlined,
               text: status.guidanceText,
             ),
+            if (showReceiptOcrPremiumHint) ...[
+              const SizedBox(height: 12),
+              PremiumDiscoveryCard(
+                point: PremiumDiscoveryPoint.receiptOcr,
+                onDismiss: onPremiumHintDismissed,
+                compact: true,
+              ),
+            ],
             const SizedBox(height: 12),
             const Divider(height: 1),
             const SizedBox(height: 12),

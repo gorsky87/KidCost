@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 
 import '../../expenses/expense_models.dart';
+import '../../premium/premium_discovery.dart';
 
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({required this.expenses, this.currentDate, super.key});
+  const ReportsScreen({
+    required this.expenses,
+    this.currentDate,
+    this.showReportExportPremiumHint = false,
+    this.onPremiumHintDismissed,
+    super.key,
+  });
 
   final List<ExpenseEntry> expenses;
   final DateTime? currentDate;
+  final bool showReportExportPremiumHint;
+  final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
@@ -64,7 +73,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
           _ExpenseStatusCard(report: report),
         ],
         const SizedBox(height: 12),
-        _ExportCard(report: report),
+        _ExportCard(
+          report: report,
+          showPremiumHint: widget.showReportExportPremiumHint,
+          onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+            PremiumDiscoveryPoint.reportExport,
+          ),
+        ),
       ],
     );
   }
@@ -402,9 +417,15 @@ class _EmptyReportCard extends StatelessWidget {
 }
 
 class _ExportCard extends StatelessWidget {
-  const _ExportCard({required this.report});
+  const _ExportCard({
+    required this.report,
+    required this.showPremiumHint,
+    required this.onPremiumHintDismissed,
+  });
 
   final MonthlyExpenseReport report;
+  final bool showPremiumHint;
+  final VoidCallback onPremiumHintDismissed;
 
   @override
   Widget build(BuildContext context) {
@@ -421,6 +442,13 @@ class _ExportCard extends StatelessWidget {
               icon: const Icon(Icons.table_view_outlined),
               label: Text('CSV: ${report.fileName}'),
             ),
+            if (showPremiumHint) ...[
+              const SizedBox(height: 8),
+              PremiumDiscoveryCard(
+                point: PremiumDiscoveryPoint.reportExport,
+                onDismiss: onPremiumHintDismissed,
+              ),
+            ],
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: null,

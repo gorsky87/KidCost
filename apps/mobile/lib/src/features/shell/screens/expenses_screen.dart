@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
+import '../../premium/premium_discovery.dart';
 
 enum _ExpenseSort { newest, oldest, highestAmount, lowestAmount }
 
@@ -10,12 +11,16 @@ class ExpensesScreen extends StatefulWidget {
     required this.expenses,
     this.isLoading = false,
     this.errorMessage,
+    this.showExpenseHistoryPremiumHint = false,
+    this.onPremiumHintDismissed,
     super.key,
   });
 
   final List<ExpenseEntry> expenses;
   final bool isLoading;
   final String? errorMessage;
+  final bool showExpenseHistoryPremiumHint;
+  final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
   State<ExpensesScreen> createState() => _ExpensesScreenState();
@@ -92,7 +97,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           )
         else
           for (final expense in filteredExpenses)
-            _ExpenseCard(expense: expense),
+            _ExpenseCard(
+              expense: expense,
+              showExpenseHistoryPremiumHint:
+                  widget.showExpenseHistoryPremiumHint,
+              onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+                PremiumDiscoveryPoint.expenseHistory,
+              ),
+            ),
       ],
     );
   }
@@ -318,9 +330,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 }
 
 class _ExpenseCard extends StatelessWidget {
-  const _ExpenseCard({required this.expense});
+  const _ExpenseCard({
+    required this.expense,
+    required this.showExpenseHistoryPremiumHint,
+    required this.onPremiumHintDismissed,
+  });
 
   final ExpenseEntry expense;
+  final bool showExpenseHistoryPremiumHint;
+  final VoidCallback onPremiumHintDismissed;
 
   @override
   Widget build(BuildContext context) {
@@ -423,6 +441,13 @@ class _ExpenseCard extends StatelessWidget {
                   _StatusActionsSection(status: expense.status),
                   const SizedBox(height: 16),
                   _StatusHistoryPlaceholder(status: expense.status),
+                  if (showExpenseHistoryPremiumHint) ...[
+                    const SizedBox(height: 12),
+                    PremiumDiscoveryCard(
+                      point: PremiumDiscoveryPoint.expenseHistory,
+                      onDismiss: onPremiumHintDismissed,
+                    ),
+                  ],
                 ],
               ),
             ),
