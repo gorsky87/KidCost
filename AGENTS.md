@@ -43,6 +43,9 @@ cd apps/mobile && flutter test
 
 # Start the Flutter mobile app
 cd apps/mobile && flutter run
+
+# Run domain package tests
+cd packages/domain && dart run test/balance_test.dart
 ```
 
 Supabase CLI is not committed as a project dependency yet. Once installed locally, verify migrations from a clean database with:
@@ -50,9 +53,6 @@ Supabase CLI is not committed as a project dependency yet. Once installed locall
 ```sh
 # Reset local Supabase database after migrations exist
 supabase db reset
-
-# Run domain package tests
-cd packages/domain && dart test/balance_test.dart
 ```
 
 ## Testing
