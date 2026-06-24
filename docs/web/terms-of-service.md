@@ -1,32 +1,77 @@
-# Regulamin Korzystania z KidCost (wersja testowa)
+# Regulamin Korzystania z KidCost (wersja beta)
 
-Data: 2026-06-23
-Docelowy URL publikacji: `https://kidcost.app/terms`
+Data: 2026-06-24
+Docelowy URL publikacji: `https://kidcost.app/terms/`
 
-## 1. Cel aplikacji
+Ten regulamin opisuje zasady korzystania z wersji beta KidCost. Tekst jest przygotowany prostym jezykiem na potrzeby TestFlight i Google Play Internal Testing. Nie jest to finalny regulamin platnych subskrypcji ani marketplace billing.
 
-KidCost służy do rejestrowania i porządkowania wydatków dotyczących dziecka w relacjach współrodzicowskich. Aplikacja pomaga przechowywać wydatki, statusy i historię rozliczeń.
+## 1. Cel KidCost
 
-## 2. Zasady korzystania
+KidCost pomaga rodzicom i opiekunom porzadkowac koszty dziecka, statusy akceptacji, zalaczniki, dowody platnosci i rozliczenia. Aplikacja jest narzedziem organizacyjnym do wspolnego rejestru rodzinnego.
 
-- Uzytkownik używa aplikacji odpowiedzialnie i zgodnie z prawem.
-- Nie mozesz wykorzystywac aplikacji do oszustw, fałszywych wpisow czy manipulowania historią rozliczen.
-- Aplikacja nie zastępuje porad prawnych ani mediów rozstrzygających spory.
+KidCost nie jest kancelaria prawna, biurem podatkowym, doradca finansowym, mediatorem ani sadem. Aplikacja nie udziela porad prawnych, podatkowych ani finansowych i nie ocenia, czy dany wydatek albo zalacznik wystarczy w postepowaniu sadowym, mediacyjnym lub administracyjnym.
 
-## 3. Rola danych rodziny
+## 2. Konto i rodzina
 
-- Wpisy dotyczące rodziny tworza wspolny rejestr.
-- Zmiany i usuniecia wprowadzane sa z zachowaniem widoczności historii.
+- Korzystasz z konta w Supabase Auth powiazanego z Twoim adresem e-mail.
+- Dane rodziny sa widoczne dla aktywnych czlonkow tej rodziny zgodnie z rola w aplikacji.
+- Zaproszenie drugiego rodzica albo opiekuna powinno trafiac tylko do osoby, ktora ma prawo widziec dane danej rodziny.
+- Odpowiadasz za ochrone dostepu do swojego konta, urzadzenia i skrzynki e-mail.
 
-## 4. Odpowiedzialność
+## 3. Wpisy, koszty i rozliczenia
 
-- KidCost nie udziela porad prawnych ani interpretacji przepisów.
-- Aplikacja nie gwarantuje wyniku w postepowaniu sadowym ani mediacyjnym.
+- Dodawaj tylko koszty, statusy i rozliczenia, ktore chcesz zapisac we wspolnym rejestrze rodziny.
+- Nie dodawaj falszywych wpisow, cudzych danych ani tresci majacych wprowadzic druga osobe w blad.
+- Statusy takie jak `pending`, `accepted`, `disputed` i `settled` pomagaja uporzadkowac przeplyw pracy, ale nie rozstrzygaja sporu prawnego.
+- Raporty i eksporty pokazuja dane z aplikacji; nie sa opinia prawna, podatkowa ani certyfikatem kompletnej dokumentacji.
 
-## 5. Kontakt
+## 4. Zalaczniki i dowody
 
-- E-mail support: `support@kidcost.app`
+KidCost moze przechowywac paragony, faktury, PDF, potwierdzenia przelewu, potwierdzenia BLIK, dowody platnosci i inne zalaczniki zwiazane z kosztami dziecka.
 
-## 6. Zmiany regulaminu
+Dodawaj tylko pliki, do ktorych masz prawo i ktore sa potrzebne do rodzinnego rozliczenia. Nie dodawaj:
 
-Wszelkie zmiany beda publikowane na tej stronie z nową datą.
+- pelnych numerow kart platniczych,
+- hasel, tokenow, kodow jednorazowych albo kluczy prywatnych,
+- dokumentow tozsamosci, jezeli nie sa niezbedne,
+- danych osob spoza rodziny bez podstawy do ich przetwarzania,
+- tresci obraźliwych, nielegalnych albo naruszajacych prywatnosc dziecka.
+
+Zalacznik w KidCost porzadkuje dokumentacje. Nie oznacza, ze plik jest prawnie wystarczajacy, autentyczny albo zaakceptowany przez druga osobe.
+
+## 5. Dane dziecka i prywatnosc
+
+Dane dziecka i dane finansowe traktujemy jako wrazliwe. Uzywaj aplikacji tak, aby minimalizowac zakres danych: wpisuj tylko informacje potrzebne do kosztu, rozliczenia albo raportu.
+
+Zasady przetwarzania danych opisuje osobna polityka prywatnosci: `https://kidcost.app/privacy/`.
+
+## 6. Beta i ograniczenia
+
+Wersja beta moze zawierac bledy, niepelne funkcje i zmiany w interfejsie. Przed pierwszym uzyciem z prawdziwymi danymi sprawdz, czy rozumiesz, kto ma dostep do rodziny i jakie informacje dodajesz.
+
+Nie obiecujemy nieprzerwanego dzialania, pelnej zgodnosci z przyszlymi funkcjami ani zachowania wszystkich funkcji w niezmienionej formie po becie.
+
+## 7. Niedozwolone uzycie
+
+Nie wolno uzywac KidCost do:
+
+- podszywania sie pod inna osobe,
+- nekajacej komunikacji albo wywierania presji na wspolrodzicu,
+- wgrywania zlosliwych plikow,
+- naruszania prywatnosci dziecka albo osob trzecich,
+- obchodzenia zabezpieczen, limitow albo kontroli dostepu,
+- dzialan niezgodnych z prawem.
+
+Mozemy ograniczyc dostep do wersji beta, jezeli konto narusza te zasady albo zagrozi bezpieczenstwu danych innych rodzin.
+
+## 8. Kontakt i wsparcie
+
+Wsparcie techniczne: `support@kidcost.app`
+
+Pytania dotyczace prywatnosci: `privacy@kidcost.app`
+
+Nie wysylaj w zgloszeniu supportowym pelnych danych dziecka, pelnych numerow kart, hasel ani tokenow. Wystarczy opis problemu, ekran lub nazwa funkcji i adres e-mail konta.
+
+## 9. Zmiany regulaminu
+
+Regulamin moze sie zmieniac w trakcie bety. Aktualna wersja bedzie publikowana pod `https://kidcost.app/terms/` z data aktualizacji.

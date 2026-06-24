@@ -6,7 +6,7 @@
     <title>Regulamin KidCost</title>
     <meta
       name="description"
-      content="Minimalny regulamin KidCost dla wersji testowej."
+      content="Regulamin KidCost dla wersji beta."
     />
     <link rel="stylesheet" href="../styles.css" />
   </head>
@@ -27,35 +27,65 @@
     </header>
     <main class="shell">
       <section class="hero">
-        <p class="eyebrow">Wersja testowa</p>
+        <p class="eyebrow">Wersja beta</p>
         <h1>Regulamin korzystania z KidCost</h1>
         <p class="lead">
           KidCost sluzy do rejestrowania i porzadkowania wydatkow dotyczacych
-          dziecka w relacjach wspolrodzicowskich.
+          dziecka w relacjach wspolrodzicowskich. Data: 2026-06-24.
         </p>
       </section>
 
-      <h2>Cel aplikacji</h2>
-      <p>Aplikacja pomaga przechowywac wydatki, statusy i historie rozliczen.</p>
+      <h2>Cel KidCost</h2>
+      <p>Aplikacja pomaga przechowywac wydatki, statusy, zalaczniki, dowody platnosci i historie rozliczen.</p>
+      <p>KidCost nie jest kancelaria prawna, biurem podatkowym, doradca finansowym, mediatorem ani sadem. Aplikacja nie udziela porad prawnych, podatkowych ani finansowych i nie ocenia, czy dany wydatek albo zalacznik wystarczy w postepowaniu sadowym, mediacyjnym lub administracyjnym.</p>
 
-      <h2>Zasady korzystania</h2>
+      <h2>Konto i rodzina</h2>
       <ul>
-        <li>Uzytkownik uzywa aplikacji odpowiedzialnie i zgodnie z prawem.</li>
-        <li>Nie mozesz wykorzystywac aplikacji do oszustw, falszywych wpisow czy manipulowania historia rozliczen.</li>
-        <li>Aplikacja nie zastepuje porad prawnych ani mediow rozstrzygajacych spory.</li>
+        <li>Korzystasz z konta w Supabase Auth powiazanego z Twoim adresem e-mail.</li>
+        <li>Dane rodziny sa widoczne dla aktywnych czlonkow tej rodziny zgodnie z rola w aplikacji.</li>
+        <li>Zaproszenie drugiego rodzica albo opiekuna powinno trafiac tylko do osoby, ktora ma prawo widziec dane danej rodziny.</li>
+        <li>Odpowiadasz za ochrone dostepu do swojego konta, urzadzenia i skrzynki e-mail.</li>
       </ul>
 
-      <h2>Rola danych rodziny</h2>
+      <h2>Wpisy, koszty i rozliczenia</h2>
       <ul>
-        <li>Wpisy dotyczace rodziny tworza wspolny rejestr.</li>
-        <li>Zmiany i usuniecia wprowadzane sa z zachowaniem widocznosci historii.</li>
+        <li>Dodawaj tylko koszty, statusy i rozliczenia, ktore chcesz zapisac we wspolnym rejestrze rodziny.</li>
+        <li>Nie dodawaj falszywych wpisow, cudzych danych ani tresci majacych wprowadzic druga osobe w blad.</li>
+        <li>Statusy takie jak pending, accepted, disputed i settled pomagaja uporzadkowac przeplyw pracy, ale nie rozstrzygaja sporu prawnego.</li>
+        <li>Raporty i eksporty pokazuja dane z aplikacji; nie sa opinia prawna, podatkowa ani certyfikatem kompletnej dokumentacji.</li>
       </ul>
 
-      <h2>Odpowiedzialnosc</h2>
-      <p>KidCost nie udziela porad prawnych ani interpretacji przepisow. Aplikacja nie gwarantuje wyniku w postepowaniu sadowym ani mediacyjnym.</p>
+      <h2>Zalaczniki i dowody</h2>
+      <p>KidCost moze przechowywac paragony, faktury, PDF, potwierdzenia przelewu, potwierdzenia BLIK, dowody platnosci i inne zalaczniki zwiazane z kosztami dziecka.</p>
+      <p>Dodawaj tylko pliki, do ktorych masz prawo i ktore sa potrzebne do rodzinnego rozliczenia. Nie dodawaj pelnych numerow kart platniczych, hasel, tokenow, kodow jednorazowych, kluczy prywatnych, niepotrzebnych dokumentow tozsamosci, danych osob spoza rodziny bez podstawy ani tresci obrazliwych, nielegalnych albo naruszajacych prywatnosc dziecka.</p>
+      <p>Zalacznik w KidCost porzadkuje dokumentacje. Nie oznacza, ze plik jest prawnie wystarczajacy, autentyczny albo zaakceptowany przez druga osobe.</p>
+
+      <h2>Dane dziecka i prywatnosc</h2>
+      <p>Dane dziecka i dane finansowe traktujemy jako wrazliwe. Uzywaj aplikacji tak, aby minimalizowac zakres danych: wpisuj tylko informacje potrzebne do kosztu, rozliczenia albo raportu.</p>
+      <p>Zasady przetwarzania danych opisuje osobna <a href="../privacy/">polityka prywatnosci</a>.</p>
+
+      <h2>Beta i ograniczenia</h2>
+      <p>Wersja beta moze zawierac bledy, niepelne funkcje i zmiany w interfejsie. Przed pierwszym uzyciem z prawdziwymi danymi sprawdz, czy rozumiesz, kto ma dostep do rodziny i jakie informacje dodajesz.</p>
+      <p>Nie obiecujemy nieprzerwanego dzialania, pelnej zgodnosci z przyszlymi funkcjami ani zachowania wszystkich funkcji w niezmienionej formie po becie.</p>
+
+      <h2>Niedozwolone uzycie</h2>
+      <ul>
+        <li>Podszywanie sie pod inna osobe.</li>
+        <li>Nekajaca komunikacja albo wywieranie presji na wspolrodzicu.</li>
+        <li>Wgrywanie zlosliwych plikow.</li>
+        <li>Naruszanie prywatnosci dziecka albo osob trzecich.</li>
+        <li>Obchodzenie zabezpieczen, limitow albo kontroli dostepu.</li>
+        <li>Dzialania niezgodne z prawem.</li>
+      </ul>
+      <p>Mozemy ograniczyc dostep do wersji beta, jezeli konto narusza te zasady albo zagrozi bezpieczenstwu danych innych rodzin.</p>
 
       <h2>Kontakt</h2>
       <p>E-mail support: <a href="mailto:support@kidcost.app">support@kidcost.app</a></p>
+      <p>E-mail prywatnosci: <a href="mailto:privacy@kidcost.app">privacy@kidcost.app</a></p>
+      <p>Nie wysylaj w zgloszeniu supportowym pelnych danych dziecka, pelnych numerow kart, hasel ani tokenow. Wystarczy opis problemu, ekran lub nazwa funkcji i adres e-mail konta.</p>
+
+      <h2>Zmiany regulaminu</h2>
+      <p>Regulamin moze sie zmieniac w trakcie bety. Aktualna wersja bedzie publikowana pod https://kidcost.app/terms/ z data aktualizacji.</p>
     </main>
     <footer class="footer">
       <div class="shell">Docelowy URL: https://kidcost.app/terms/</div>
