@@ -83,6 +83,12 @@ values (
   (select id from rls_ids where name = 'user_a')
 );
 
+insert into storage.objects (bucket_id, name)
+values (
+  'expense-attachments',
+  'families/' || (select id from rls_ids where name = 'family_a') || '/expenses/' || (select id from rls_ids where name = 'expense_a') || '/receipt.pdf'
+);
+
 insert into public.expense_attachments (id, expense_id, storage_path, file_type, uploaded_by)
 values (
   (select id from rls_ids where name = 'attachment_a'),

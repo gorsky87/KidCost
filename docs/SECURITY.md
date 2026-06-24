@@ -307,7 +307,7 @@ families/<family_id>/expenses/<expense_id>/<attachment_id>.<ext>
 Minimalne ograniczenia uploadu:
 
 - bucket prywatny, bez publicznych URL-i,
-- typy plikow: `image/jpeg`, `image/png`, `image/heic`, `application/pdf`,
+- typy plikow: `image/jpeg`, `image/png`, `application/pdf`,
 - maksymalny rozmiar pojedynczego pliku: 10 MB w MVP,
 - maksymalnie 5 zalacznikow na koszt w MVP,
 - upload tylko przez aktywnego `owner` albo `parent` rodziny,
