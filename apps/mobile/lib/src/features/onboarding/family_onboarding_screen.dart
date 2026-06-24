@@ -366,7 +366,44 @@ class _InviteStep extends StatelessWidget {
         const SizedBox(height: 16),
         FilledButton(onPressed: onFinish, child: const Text('Zakoncz')),
         TextButton(onPressed: onSkip, child: const Text('Pomin zaproszenie')),
+        const SizedBox(height: 12),
+        const _TrustNote(),
       ],
+    );
+  }
+}
+
+class _TrustNote extends StatelessWidget {
+  const _TrustNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: Icon(Icons.privacy_tip_outlined),
+            title: Text('Prywatnosc i zaufanie'),
+            subtitle: Text(
+              'Dane rodziny widza tylko osoby z aktywnym dostepem do tej rodziny.',
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.history_outlined),
+            title: Text('Historia zmian'),
+            subtitle: Text(
+              'Koszty i statusy beda mialy historie, zeby bylo widac kto i kiedy zmienil wpis.',
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.balance_outlined),
+            title: Text('Porzadkujemy fakty'),
+            subtitle: Text(
+              'KidCost pomaga dokumentowac koszty, ale nie zastepuje porady prawnej.',
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
