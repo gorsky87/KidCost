@@ -672,6 +672,13 @@ class _AttachmentReviewTray extends StatelessWidget {
               icon: Icons.tips_and_updates_outlined,
               text: status.guidanceText,
             ),
+            if (status == _AttachmentReviewStatus.ready) ...[
+              const SizedBox(height: 8),
+              _AttachmentSaveNotice(
+                icon: Icons.privacy_tip_outlined,
+                text: _attachmentPrivacyText(attachment.contentType),
+              ),
+            ],
             if (showReceiptOcrPremiumHint) ...[
               const SizedBox(height: 12),
               PremiumDiscoveryCard(
@@ -811,6 +818,16 @@ String _buyerNameStateLabel(bool? value) {
     return 'Nie zaznaczono';
   }
   return value ? 'Tak' : 'Nie';
+}
+
+String _attachmentPrivacyText(String contentType) {
+  if (contentType.startsWith('image/')) {
+    return 'Zdjecie zapiszemy bez metadanych lokalizacji i opisow technicznych.';
+  }
+  if (contentType == 'application/pdf') {
+    return 'PDF zapisujemy jako zalacznik; czyszczenie metadanych PDF jest poza MVP.';
+  }
+  return 'Zalacznik zapiszemy tylko w obslugiwanym formacie.';
 }
 
 class _AttachmentThumbnail extends StatelessWidget {
