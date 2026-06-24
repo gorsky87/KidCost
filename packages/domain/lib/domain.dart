@@ -4,6 +4,7 @@ export 'src/fee_waiver_policy.dart';
 export 'src/expense_status.dart';
 export 'src/paywall_policy.dart';
 export 'src/professional_access.dart';
+export 'src/safe_referral_policy.dart';
 export 'src/shared_expense_agreement.dart';
 export 'src/settlement_allocation.dart';
 export 'src/subscription_lifecycle.dart';
