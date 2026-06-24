@@ -443,7 +443,10 @@ void main() {
     );
     expect(find.text('MVP/basic'), findsOneWidget);
     expect(find.text('Kandydaci Premium'), findsOneWidget);
-    expect(find.textContaining('Koszty, saldo, zalaczniki'), findsOneWidget);
+    expect(find.text('Downgrade'), findsOneWidget);
+    expect(find.text('Platnik rodzinny'), findsOneWidget);
+    expect(find.textContaining('zalaczniki do limitu'), findsOneWidget);
+    expect(find.textContaining('platnosc nie daje wylacznej'), findsOneWidget);
   });
 
   testWidgets('add expense validates amount and date', (
