@@ -1568,6 +1568,9 @@ void main() {
     expect(find.text('Zwroty i zaleglosci'), findsOneWidget);
     expect(find.text('Czesciowo zaplacone'), findsOneWidget);
     expect(find.text('Otwarta kwota w tym raporcie'), findsOneWidget);
+    expect(find.text('Dowod platnosci dolaczony'), findsOneWidget);
+    expect(find.text('Stany zalacznika'), findsOneWidget);
+    expect(find.text('Bez certyfikacji prawnej'), findsOneWidget);
     expect(find.text('Zaplacone razem'), findsOneWidget);
     expect(find.text('200,00 zl'), findsWidgets);
     expect(find.text('Zaplaciles Ty'), findsOneWidget);

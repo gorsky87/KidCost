@@ -314,6 +314,20 @@ class _SettlementStatusCard extends StatelessWidget {
               label: 'Otwarta kwota w tym raporcie',
               body: formatCents(openAmount),
             ),
+            const _SettlementStateRow(
+              label: domain.paymentProofReportMarker,
+              body:
+                  'Raport oznacza zwroty z potwierdzeniem przelewu, BLIK, gotowki, czeku, PayPal albo PDF.',
+            ),
+            const _SettlementStateRow(
+              label: 'Stany zalacznika',
+              body:
+                  'Dodaj, podejrzyj, zamien albo usun dowod; nieudany upload zostaje widoczny do ponowienia.',
+            ),
+            const _SettlementStateRow(
+              label: 'Bez certyfikacji prawnej',
+              body: domain.paymentProofPrivacyCopy,
+            ),
           ],
         ),
       ),
