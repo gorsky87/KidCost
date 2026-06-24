@@ -451,6 +451,50 @@ void main() {
     );
   });
 
+  testWidgets('recurring template prefills a manually confirmed expense', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+
+    await tester.tap(find.text('Szablony'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Brak szablonow'), findsOneWidget);
+    await tester.tap(find.text('Dodaj szablon'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), 'Przedszkole');
+    await tester.enterText(find.byType(TextField).at(1), '650');
+    await tester.enterText(find.byType(TextField).at(2), '2026-07-01');
+    await tester.enterText(find.byType(TextField).at(3), 'Czesne lipiec');
+    await tester.ensureVisible(find.text('Zapisz szablon'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz szablon'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Przedszkole'), findsOneWidget);
+    expect(find.text('650,00 zl'), findsOneWidget);
+
+    await tester.tap(find.text('Utworz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Koszt z szablonu: Przedszkole'), findsOneWidget);
+    expect(find.text('650,00'), findsOneWidget);
+    expect(find.text('2026-07-01'), findsOneWidget);
+    expect(find.text('Czesne lipiec'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Koszty'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Czesne lipiec'), findsOneWidget);
+    expect(find.textContaining('Szablon: Przedszkole'), findsOneWidget);
+  });
+
   testWidgets('solo mode saves private manual co-parent expenses', (
     WidgetTester tester,
   ) async {

@@ -10,6 +10,7 @@ import '../../telemetry/app_telemetry.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/custody_calendar_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/expense_templates_screen.dart';
 import 'screens/expenses_screen.dart';
 import 'screens/family_screen.dart';
 import 'screens/reports_screen.dart';
@@ -22,8 +23,10 @@ class KidCostShell extends StatefulWidget {
     required this.onboardingProfile,
     required this.attachmentStorage,
     required this.expenses,
+    required this.expenseTemplates,
     required this.custodyDays,
     required this.onExpenseSaved,
+    required this.onExpenseTemplateSaved,
     required this.onCustodyDaysChanged,
     required this.onSignOut,
     required this.telemetry,
@@ -35,8 +38,10 @@ class KidCostShell extends StatefulWidget {
   final OnboardingProfile onboardingProfile;
   final AttachmentStorage attachmentStorage;
   final List<ExpenseEntry> expenses;
+  final List<ExpenseTemplate> expenseTemplates;
   final List<CustodyDay> custodyDays;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
+  final ValueChanged<ExpenseTemplate> onExpenseTemplateSaved;
   final ValueChanged<List<CustodyDay>> onCustodyDaysChanged;
   final Future<void> Function() onSignOut;
   final AppTelemetry telemetry;
@@ -47,6 +52,7 @@ class KidCostShell extends StatefulWidget {
 
 class _KidCostShellState extends State<KidCostShell> {
   int _selectedIndex = 0;
+  ExpenseTemplate? _pendingTemplate;
 
   @override
   void initState() {
@@ -67,10 +73,10 @@ class _KidCostShellState extends State<KidCostShell> {
           setState(() => _selectedIndex = 2);
         },
         onOpenReports: () {
-          setState(() => _selectedIndex = 4);
+          setState(() => _selectedIndex = 5);
         },
         onOpenFamily: () {
-          setState(() => _selectedIndex = 5);
+          setState(() => _selectedIndex = 6);
         },
       ),
     ),
@@ -85,10 +91,32 @@ class _KidCostShellState extends State<KidCostShell> {
       icon: Icons.add_circle_outline,
       selectedIcon: Icons.add_circle,
       screen: AddExpenseScreen(
+        key: ValueKey(_pendingTemplate?.id ?? 'blank-expense-form'),
         profile: widget.onboardingProfile,
         userEmail: widget.userEmail,
         attachmentStorage: widget.attachmentStorage,
-        onExpenseSaved: widget.onExpenseSaved,
+        initialTemplate: _pendingTemplate,
+        onExpenseSaved: (expense) {
+          widget.onExpenseSaved(expense);
+          setState(() => _pendingTemplate = null);
+        },
+      ),
+    ),
+    _Destination(
+      label: 'Szablony',
+      icon: Icons.event_repeat_outlined,
+      selectedIcon: Icons.event_repeat,
+      screen: ExpenseTemplatesScreen(
+        profile: widget.onboardingProfile,
+        userEmail: widget.userEmail,
+        templates: widget.expenseTemplates,
+        onTemplateSaved: widget.onExpenseTemplateSaved,
+        onCreateExpenseFromTemplate: (template) {
+          setState(() {
+            _pendingTemplate = template;
+            _selectedIndex = 2;
+          });
+        },
       ),
     ),
     _Destination(

@@ -38,6 +38,7 @@ class _KidCostAppState extends State<KidCostApp> {
   AuthSession? _session;
   OnboardingProfile? _onboardingProfile;
   List<ExpenseEntry> _expenses = const [];
+  List<ExpenseTemplate> _expenseTemplates = const [];
   List<CustodyDay> _custodyDays = const [];
   bool _isLoading = true;
   String? _startupMessage;
@@ -119,6 +120,7 @@ class _KidCostAppState extends State<KidCostApp> {
         onboardingProfile: profile,
         attachmentStorage: widget.attachmentStorage,
         expenses: _expenses,
+        expenseTemplates: _expenseTemplates,
         custodyDays: _custodyDays,
         onExpenseSaved: (expense) {
           unawaited(
@@ -144,6 +146,20 @@ class _KidCostAppState extends State<KidCostApp> {
             );
           }
           setState(() => _expenses = [..._expenses, expense]);
+        },
+        onExpenseTemplateSaved: (template) {
+          final existingIndex = _expenseTemplates.indexWhere(
+            (item) => item.id == template.id,
+          );
+          if (existingIndex == -1) {
+            setState(
+              () => _expenseTemplates = [..._expenseTemplates, template],
+            );
+            return;
+          }
+          final updatedTemplates = [..._expenseTemplates];
+          updatedTemplates[existingIndex] = template;
+          setState(() => _expenseTemplates = updatedTemplates);
         },
         onCustodyDaysChanged: (custodyDays) {
           setState(() => _custodyDays = custodyDays);
@@ -203,6 +219,7 @@ class _KidCostAppState extends State<KidCostApp> {
         _session = null;
         _onboardingProfile = null;
         _expenses = const [];
+        _expenseTemplates = const [];
         _custodyDays = const [];
         _isLoading = false;
       });
