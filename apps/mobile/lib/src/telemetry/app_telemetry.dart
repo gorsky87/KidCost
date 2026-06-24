@@ -4,6 +4,7 @@ enum TelemetryEvent {
   familyCreated('family_created'),
   childAdded('child_added'),
   expenseCreated('expense_created'),
+  quickExpenseStarted('quick_expense_started'),
   expenseStatusChanged('expense_status_changed'),
   receiptAttached('receipt_attached'),
   balanceViewed('balance_viewed'),

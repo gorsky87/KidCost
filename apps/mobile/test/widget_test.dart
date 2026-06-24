@@ -91,6 +91,7 @@ void main() {
               custodyDays: const [],
               currentDate: DateTime.utc(2026, 6, 24),
               onAddExpense: () {},
+              onQuickReceiptDraft: () {},
               onOpenExpenses: () {},
               onOpenReports: () {},
               onOpenFamily: () {},
@@ -1362,6 +1363,7 @@ void main() {
               ),
             ],
             onAddExpense: () {},
+            onQuickReceiptDraft: () {},
             onOpenExpenses: () => openedExpenses = true,
             onOpenReports: () {},
             onOpenFamily: () {},
@@ -1392,6 +1394,36 @@ void main() {
     expect(openedExpenses, isTrue);
   });
 
+  testWidgets('dashboard quick capture starts private receipt draft', (
+    WidgetTester tester,
+  ) async {
+    var receiptDraftStarted = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardScreen(
+            profile: testProfile(),
+            currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: const [],
+            expenses: const [],
+            onAddExpense: () {},
+            onQuickReceiptDraft: () => receiptDraftStarted = true,
+            onOpenExpenses: () {},
+            onOpenReports: () {},
+            onOpenFamily: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Szybkie dodanie'), findsOneWidget);
+    expect(find.textContaining('Nic nie trafia do rozliczen'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Szkic z paragonu'));
+    expect(receiptDraftStarted, isTrue);
+  });
+
   testWidgets('dashboard attention queue empty state has one useful action', (
     WidgetTester tester,
   ) async {
@@ -1413,6 +1445,7 @@ void main() {
               ),
             ],
             onAddExpense: () {},
+            onQuickReceiptDraft: () {},
             onOpenExpenses: () => openedExpenses = true,
             onOpenReports: () {},
             onOpenFamily: () {},
@@ -1440,7 +1473,9 @@ void main() {
   ) async {
     await pumpSignedInOnboardedApp(tester);
 
-    await tester.tap(find.text('Raport miesiaca'));
+    final reportsCta = find.widgetWithText(OutlinedButton, 'Raport miesiaca');
+    await tester.scrollUntilVisible(reportsCta, 120);
+    await tester.tapAt(tester.getTopLeft(reportsCta) + const Offset(24, 12));
     await tester.pumpAndSettle();
 
     expect(find.text('Raport miesieczny'), findsOneWidget);
@@ -1684,6 +1719,7 @@ void main() {
               ),
             ],
             onAddExpense: () {},
+            onQuickReceiptDraft: () {},
             onOpenExpenses: () {},
             onOpenReports: () {},
             onOpenFamily: () {},
@@ -1738,6 +1774,7 @@ void main() {
               ),
             ],
             onAddExpense: () {},
+            onQuickReceiptDraft: () {},
             onOpenExpenses: () {},
             onOpenReports: () {},
             onOpenFamily: () {},

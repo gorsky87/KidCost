@@ -10,6 +10,7 @@ class DashboardScreen extends StatelessWidget {
     required this.expenses,
     required this.custodyDays,
     required this.onAddExpense,
+    required this.onQuickReceiptDraft,
     required this.onOpenExpenses,
     required this.onOpenReports,
     required this.onOpenFamily,
@@ -21,6 +22,7 @@ class DashboardScreen extends StatelessWidget {
   final List<ExpenseEntry> expenses;
   final List<CustodyDay> custodyDays;
   final VoidCallback onAddExpense;
+  final VoidCallback onQuickReceiptDraft;
   final VoidCallback onOpenExpenses;
   final VoidCallback onOpenReports;
   final VoidCallback onOpenFamily;
@@ -62,12 +64,11 @@ class DashboardScreen extends StatelessWidget {
           _SoloFamilyCard(profile: profile, onOpenFamily: onOpenFamily),
           const SizedBox(height: 12),
         ],
-        FilledButton.icon(
-          onPressed: onAddExpense,
-          icon: const Icon(Icons.add_circle_outline),
-          label: const Text('Dodaj koszt'),
+        _QuickCaptureCard(
+          onAddExpense: onAddExpense,
+          onQuickReceiptDraft: onQuickReceiptDraft,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: onOpenReports,
           icon: const Icon(Icons.summarize_outlined),
@@ -123,6 +124,63 @@ class DashboardScreen extends StatelessWidget {
         if (monthExpenses.isNotEmpty)
           _RecentExpenses(expenses: recentExpenses.take(5).toList()),
       ],
+    );
+  }
+}
+
+class _QuickCaptureCard extends StatelessWidget {
+  const _QuickCaptureCard({
+    required this.onAddExpense,
+    required this.onQuickReceiptDraft,
+  });
+
+  final VoidCallback onAddExpense;
+  final VoidCallback onQuickReceiptDraft;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.flash_on_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Szybkie dodanie',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Zacznij prywatny szkic. Nic nie trafia do rozliczen ani do drugiego rodzica przed zapisem.',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: onAddExpense,
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Dodaj koszt'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onQuickReceiptDraft,
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: const Text('Szkic z paragonu'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
