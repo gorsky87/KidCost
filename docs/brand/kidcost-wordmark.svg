@@ -1,0 +1,14 @@
+<svg width="420" height="128" viewBox="0 0 420 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">KidCost wordmark</title>
+  <desc id="desc">KidCost wordmark with the Calm Ledger mark.</desc>
+  <rect x="12" y="20" width="88" height="88" rx="24" fill="#0F766E"/>
+  <path d="M36 42C36 39.7909 37.7909 38 40 38H72C74.2091 38 76 39.7909 76 42V86C76 88.2091 74.2091 90 72 90H40C37.7909 90 36 88.2091 36 86V42Z" fill="#FAFAF7"/>
+  <path d="M46 51H68" stroke="#0F766E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M46 63H62" stroke="#0F766E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M46 75H68" stroke="#0F766E" stroke-width="5" stroke-linecap="round"/>
+  <path d="M46 87H58" stroke="#C76F3D" stroke-width="5" stroke-linecap="round"/>
+  <path d="M40 40L68 64L40 88" stroke="#0F766E" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M68 64L80 53" stroke="#C76F3D" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="124" y="78" fill="#172326" font-family="Inter, SF Pro Display, Segoe UI, Arial, sans-serif" font-size="48" font-weight="700" letter-spacing="0">KidCost</text>
+  <path d="M126 91H300" stroke="#E7ECE7" stroke-width="4" stroke-linecap="round"/>
+</svg>
