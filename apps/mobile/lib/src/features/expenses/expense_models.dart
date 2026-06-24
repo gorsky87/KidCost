@@ -31,6 +31,8 @@ class ExpenseEntry {
     this.status = ExpenseStatus.pending,
     this.visibility = ExpenseVisibility.sharedFamily,
     this.attachment,
+    this.sourceTemplateId,
+    this.sourceTemplateName,
   });
 
   final String id;
@@ -44,6 +46,72 @@ class ExpenseEntry {
   final ExpenseStatus status;
   final ExpenseVisibility visibility;
   final ExpenseAttachment? attachment;
+  final String? sourceTemplateId;
+  final String? sourceTemplateName;
+}
+
+class ExpenseTemplate {
+  const ExpenseTemplate({
+    required this.id,
+    required this.name,
+    required this.amountCents,
+    required this.category,
+    required this.paidBy,
+    required this.recurrence,
+    required this.nextDueDate,
+    this.note,
+    this.isActive = true,
+  });
+
+  final String id;
+  final String name;
+  final int amountCents;
+  final ExpenseCategory category;
+  final ExpensePayer paidBy;
+  final ExpenseRecurrence recurrence;
+  final String nextDueDate;
+  final String? note;
+  final bool isActive;
+
+  ExpenseTemplate copyWith({
+    String? name,
+    int? amountCents,
+    ExpenseCategory? category,
+    ExpensePayer? paidBy,
+    ExpenseRecurrence? recurrence,
+    String? nextDueDate,
+    String? note,
+    bool? isActive,
+  }) {
+    return ExpenseTemplate(
+      id: id,
+      name: name ?? this.name,
+      amountCents: amountCents ?? this.amountCents,
+      category: category ?? this.category,
+      paidBy: paidBy ?? this.paidBy,
+      recurrence: recurrence ?? this.recurrence,
+      nextDueDate: nextDueDate ?? this.nextDueDate,
+      note: note ?? this.note,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+}
+
+enum ExpenseRecurrence { weekly, monthly, quarterly, yearly }
+
+extension ExpenseRecurrenceDetails on ExpenseRecurrence {
+  String get label {
+    switch (this) {
+      case ExpenseRecurrence.weekly:
+        return 'Co tydzien';
+      case ExpenseRecurrence.monthly:
+        return 'Co miesiac';
+      case ExpenseRecurrence.quarterly:
+        return 'Co kwartal';
+      case ExpenseRecurrence.yearly:
+        return 'Co rok';
+    }
+  }
 }
 
 class ExpensePayer {

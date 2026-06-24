@@ -14,6 +14,7 @@ class AddExpenseScreen extends StatefulWidget {
     required this.userEmail,
     required this.attachmentStorage,
     required this.onExpenseSaved,
+    this.initialTemplate,
     super.key,
   });
 
@@ -21,6 +22,7 @@ class AddExpenseScreen extends StatefulWidget {
   final String userEmail;
   final AttachmentStorage attachmentStorage;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
+  final ExpenseTemplate? initialTemplate;
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -63,6 +65,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ),
     ];
     _payer = _payers.first;
+    _applyInitialTemplate();
   }
 
   @override
@@ -85,6 +88,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           const SizedBox(height: 16),
           if (widget.profile.isSoloFamily) ...[
             const _SoloModeBanner(),
+            const SizedBox(height: 12),
+          ],
+          if (widget.initialTemplate != null) ...[
+            _TemplateSourceBanner(template: widget.initialTemplate!),
             const SizedBox(height: 12),
           ],
           TextField(
@@ -378,6 +385,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ? ExpenseVisibility.privateAuthor
           : ExpenseVisibility.sharedFamily,
       attachment: attachment,
+      sourceTemplateId: widget.initialTemplate?.id,
+      sourceTemplateName: widget.initialTemplate?.name,
     );
 
     widget.onExpenseSaved(expense);
@@ -405,6 +414,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       ),
     );
+  }
+
+  void _applyInitialTemplate() {
+    final template = widget.initialTemplate;
+    if (template == null) return;
+    _amountController.text = formatCents(
+      template.amountCents,
+    ).replaceAll(' zl', '');
+    _dateController.text = template.nextDueDate;
+    _titleController.text = template.note?.trim().isNotEmpty == true
+        ? template.note!.trim()
+        : template.name;
+    _category = template.category;
+    ExpensePayer? matchingPayer;
+    for (final payer in _payers) {
+      if (payer.id == template.paidBy.id ||
+          payer.label == template.paidBy.label) {
+        matchingPayer = payer;
+        break;
+      }
+    }
+    _payer = matchingPayer ?? _payers.first;
   }
 
   _AttachmentReviewStatus get _attachmentStatus {
@@ -478,6 +509,25 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       date.month.toString().padLeft(2, '0'),
       date.day.toString().padLeft(2, '0'),
     ].join('-');
+  }
+}
+
+class _TemplateSourceBanner extends StatelessWidget {
+  const _TemplateSourceBanner({required this.template});
+
+  final ExpenseTemplate template;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.event_repeat_outlined),
+        title: Text('Koszt z szablonu: ${template.name}'),
+        subtitle: const Text(
+          'Sprawdz kwote i date przed zapisem. Szablon nie ksieguje kosztu automatycznie.',
+        ),
+      ),
+    );
   }
 }
 

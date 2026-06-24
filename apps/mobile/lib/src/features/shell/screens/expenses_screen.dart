@@ -342,6 +342,8 @@ class _ExpenseCard extends StatelessWidget {
                 'Zaplacil: ${expense.paidBy.label}',
                 if (expense.paidBy.isManual) 'platnik bez konta',
                 expense.visibility.label,
+                if (expense.sourceTemplateName != null)
+                  'Szablon: ${expense.sourceTemplateName}',
                 if (expense.attachment != null)
                   expense.attachment!.status == AttachmentStatus.uploaded
                       ? 'Zalacznik: ${expense.attachment!.fileName}'
@@ -399,6 +401,11 @@ class _ExpenseCard extends StatelessWidget {
                   _DetailRow(label: 'Kategoria', value: expense.category.label),
                   _DetailRow(label: 'Dziecko', value: expense.childName),
                   _DetailRow(label: 'Placacy', value: expense.paidBy.label),
+                  if (expense.sourceTemplateName != null)
+                    _DetailRow(
+                      label: 'Zrodlo',
+                      value: 'Szablon: ${expense.sourceTemplateName}',
+                    ),
                   _DetailRow(
                     label: 'Widocznosc',
                     value: expense.visibility.description,

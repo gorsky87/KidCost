@@ -30,6 +30,7 @@ values
   ('family_a', gen_random_uuid()),
   ('family_b', gen_random_uuid()),
   ('child_a', gen_random_uuid()),
+  ('template_a', gen_random_uuid()),
   ('expense_a', gen_random_uuid()),
   ('attachment_a', gen_random_uuid());
 
@@ -71,7 +72,42 @@ values (
   'Child A'
 );
 
-insert into public.expenses (id, family_id, child_id, paid_by, amount, category, expense_date, created_by)
+insert into public.expense_templates (
+  id,
+  family_id,
+  child_id,
+  name,
+  amount,
+  category,
+  paid_by,
+  recurrence,
+  next_due_date,
+  created_by
+)
+values (
+  (select id from rls_ids where name = 'template_a'),
+  (select id from rls_ids where name = 'family_a'),
+  (select id from rls_ids where name = 'child_a'),
+  'Monthly preschool',
+  650.00,
+  'school',
+  (select id from rls_ids where name = 'user_a'),
+  'monthly',
+  current_date,
+  (select id from rls_ids where name = 'user_a')
+);
+
+insert into public.expenses (
+  id,
+  family_id,
+  child_id,
+  paid_by,
+  amount,
+  category,
+  expense_date,
+  created_by,
+  source_template_id
+)
 values (
   (select id from rls_ids where name = 'expense_a'),
   (select id from rls_ids where name = 'family_a'),
@@ -80,7 +116,8 @@ values (
   123.45,
   'school',
   current_date,
-  (select id from rls_ids where name = 'user_a')
+  (select id from rls_ids where name = 'user_a'),
+  (select id from rls_ids where name = 'template_a')
 );
 
 insert into storage.objects (bucket_id, name)
@@ -149,6 +186,15 @@ begin
 
   if outsider_count <> 0 then
     raise exception 'RLS leak: user B can see user A expense';
+  end if;
+
+  select count(*)
+  into outsider_count
+  from public.expense_templates
+  where id = (select id from rls_ids where name = 'template_a');
+
+  if outsider_count <> 0 then
+    raise exception 'RLS leak: user B can see user A expense template';
   end if;
 
   begin
