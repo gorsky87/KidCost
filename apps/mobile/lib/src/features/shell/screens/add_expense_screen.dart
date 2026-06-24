@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../expenses/attachment_storage.dart';
 import '../../expenses/expense_models.dart';
@@ -64,6 +65,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
+    _amountController.addListener(_refreshAgreementPreview);
     _dateController.text = _formatDate(DateTime.now());
     _manualPayerController.text = widget.profile.coParentLabel;
     _payers = [
@@ -81,6 +83,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   void dispose() {
+    _amountController.removeListener(_refreshAgreementPreview);
     _amountController.dispose();
     _dateController.dispose();
     _titleController.dispose();
@@ -149,6 +152,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               setState(() => _category = category);
             },
           ),
+          const SizedBox(height: 12),
+          _SharedExpenseRuleCard(decision: _currentAgreementDecision),
           const SizedBox(height: 12),
           DropdownButtonFormField<ExpensePayer>(
             key: const Key('expense-payer-picker'),
@@ -472,6 +477,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _payer = matchingPayer ?? _payers.first;
   }
 
+  domain.SharedExpenseRuleDecision get _currentAgreementDecision {
+    var amountCents = 0;
+    try {
+      amountCents = parseAmountToCents(_amountController.text);
+    } on FormatException {
+      amountCents = 0;
+    }
+    return domain.evaluateSharedExpenseRule(
+      categoryId: _category.id,
+      amountCents: amountCents,
+    );
+  }
+
+  void _refreshAgreementPreview() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   _AttachmentReviewStatus get _attachmentStatus {
     final draft = _attachmentDraft;
     if (draft == null) return _AttachmentReviewStatus.ready;
@@ -570,6 +593,63 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       date.month.toString().padLeft(2, '0'),
       date.day.toString().padLeft(2, '0'),
     ].join('-');
+  }
+}
+
+class _SharedExpenseRuleCard extends StatelessWidget {
+  const _SharedExpenseRuleCard({required this.decision});
+
+  final domain.SharedExpenseRuleDecision decision;
+
+  @override
+  Widget build(BuildContext context) {
+    final rule = decision.rule;
+    final colors = Theme.of(context).colorScheme;
+    final warning =
+        decision.requiresPriorApproval || !rule.isShareableByDefault;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  warning
+                      ? Icons.rule_folder_outlined
+                      : Icons.check_circle_outline,
+                  color: warning ? colors.tertiary : colors.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Regula kosztu: ${rule.label}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(rule.splitSummary),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(decision.guidance),
+            const SizedBox(height: 8),
+            Text(
+              domain.kidCostSharedExpenseAgreement.addExpenseCopy,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
