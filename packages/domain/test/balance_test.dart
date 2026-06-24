@@ -6,9 +6,12 @@ void main() {
   testNoExpenses();
   testMultipleChildrenAreAggregated();
   testDifferentStatuses();
+  testStatusMatchingIsCaseInsensitive();
+  testIgnoredStatusesStayOutOfCustomIncludedSet();
   testSettlementReducesOpenTransfer();
   testSettlementCanFullyCloseTransfer();
   testCustomSplit();
+  testCustomSplitRejectsInvalidParticipants();
   testRoundingIsDeterministic();
   testDecimalParser();
 }
@@ -143,6 +146,60 @@ void testDifferentStatuses() {
   expectEqual(result.transfers.length, 0);
 }
 
+void testStatusMatchingIsCaseInsensitive() {
+  final result = calculateBalance(
+    splitRule: SplitRule.equal(['dad', 'mom']),
+    expenses: const [
+      ExpenseInput(
+        id: 'accepted-uppercase',
+        amountCents: 1000,
+        paidBy: 'dad',
+        status: ' ACCEPTED ',
+      ),
+      ExpenseInput(
+        id: 'pending-mixed-case',
+        amountCents: 1000,
+        paidBy: 'mom',
+        status: 'Pending',
+      ),
+    ],
+  );
+
+  expectEqual(result.totalCents, 2000);
+  expectEqual(result.transfers.length, 0);
+}
+
+void testIgnoredStatusesStayOutOfCustomIncludedSet() {
+  final result = calculateBalance(
+    splitRule: SplitRule.equal(['dad', 'mom']),
+    includedStatuses: const {'accepted', 'deleted', 'void'},
+    expenses: const [
+      ExpenseInput(
+        id: 'accepted',
+        amountCents: 1000,
+        paidBy: 'dad',
+        status: 'accepted',
+      ),
+      ExpenseInput(
+        id: 'deleted',
+        amountCents: 9000,
+        paidBy: 'mom',
+        status: 'deleted',
+      ),
+      ExpenseInput(
+        id: 'void',
+        amountCents: 9000,
+        paidBy: 'mom',
+        status: 'void',
+      ),
+    ],
+  );
+
+  expectEqual(result.totalCents, 1000);
+  expectEqual(result.spentByParticipant['dad'], 1000);
+  expectEqual(result.spentByParticipant['mom'], 0);
+}
+
 void testSettlementReducesOpenTransfer() {
   final result = calculateBalance(
     splitRule: SplitRule.equal(['dad', 'mom']),
@@ -227,6 +284,12 @@ void testCustomSplit() {
   expectEqual(result.transfers.single.fromParticipantId, 'mom');
   expectEqual(result.transfers.single.toParticipantId, 'dad');
   expectEqual(result.transfers.single.amountCents, 3000);
+}
+
+void testCustomSplitRejectsInvalidParticipants() {
+  expectThrows(() => SplitRule.custom({' ': 1}));
+  expectThrows(() => SplitRule.custom({'dad': 0, 'mom': 1}));
+  expectThrows(() => SplitRule.custom({'dad': -1, 'mom': 1}));
 }
 
 void testRoundingIsDeterministic() {
