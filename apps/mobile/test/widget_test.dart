@@ -935,7 +935,8 @@ void main() {
 
     expect(find.text('Brak zalacznika'), findsOneWidget);
     expect(find.text('Wymaga wyjasnienia'), findsWidgets);
-    expect(find.text('Potwierdz po wyjasnieniu'), findsOneWidget);
+    expect(find.text('Dodaj korekte po wyjasnieniu'), findsOneWidget);
+    expect(find.text('Potwierdz po wyjasnieniu'), findsNothing);
 
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
