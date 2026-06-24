@@ -21,7 +21,7 @@ Guidance for AI agents working in this repository.
 - Work on each task in a separate Git worktree and a dedicated branch.
 - Use branch names that describe the task, for example `codex/issue-12-flutter-shell`.
 - Do not work directly on `master` except for repository setup or explicit user-approved maintenance.
-- When selecting the next GitHub issue for automation, use `gh issue list --state open --limit 200 --json number,title,createdAt,updatedAt,labels,assignees,url` and process issues by ascending issue number.
+- When selecting the next GitHub issue for automation, use `gh issue list --state open --limit 200 --json number,title,createdAt,updatedAt,labels,assignees,url`; first process open issues labeled `blocker` by ascending issue number, then process the remaining open issues by ascending issue number.
 - Before starting a task, check the main worktree status and avoid touching uncommitted user changes.
 - Keep each worktree scoped to one GitHub issue or one clearly defined task.
 - Add or update tests for every code change whenever a meaningful test can be written.
@@ -42,7 +42,7 @@ cd apps/mobile && flutter pub get
 cd apps/mobile && flutter test
 
 # Start the Flutter mobile app
-cd apps/mobile && flutter run
+cd apps/mobile && flutter run -d <android-device-id>
 
 # Run domain package tests
 cd packages/domain && dart run test/balance_test.dart
