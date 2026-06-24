@@ -7,9 +7,16 @@ import 'screens/family_screen.dart';
 import 'screens/settings_screen.dart';
 
 class KidCostShell extends StatefulWidget {
-  const KidCostShell({required this.onSignOut, super.key});
+  const KidCostShell({
+    required this.userEmail,
+    required this.isDemoSession,
+    required this.onSignOut,
+    super.key,
+  });
 
-  final VoidCallback onSignOut;
+  final String userEmail;
+  final bool isDemoSession;
+  final Future<void> Function() onSignOut;
 
   @override
   State<KidCostShell> createState() => _KidCostShellState();
@@ -47,7 +54,11 @@ class _KidCostShellState extends State<KidCostShell> {
       label: 'Ustawienia',
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings,
-      screen: SettingsScreen(onSignOut: widget.onSignOut),
+      screen: SettingsScreen(
+        userEmail: widget.userEmail,
+        isDemoSession: widget.isDemoSession,
+        onSignOut: widget.onSignOut,
+      ),
     ),
   ];
 
