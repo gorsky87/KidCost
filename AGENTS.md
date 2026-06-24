@@ -64,6 +64,7 @@ When the stack is added, document the canonical commands here, for example:
 - Do not commit secrets, credentials, tokens, private keys, or local environment files.
 - Treat user data and financial information as sensitive.
 - Validate inputs at boundaries once the application has user-facing or API surfaces.
+- Follow `docs/SECURITY.md` for the KidCost family data access model, RLS expectations, storage limits, soft delete, and audit log conventions.
 
 ## Updating This File
 

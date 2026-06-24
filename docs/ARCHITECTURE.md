@@ -35,6 +35,7 @@ KidCost/
     PLAN.md
     PL_MONTHLY_REPORTS.md
     ROADMAP_30_DAYS.md
+    SECURITY.md
     SUBSCRIPTIONS.md
     DATA_MODEL.md
     RELEASE.md
