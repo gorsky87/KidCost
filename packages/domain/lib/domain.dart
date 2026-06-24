@@ -6,3 +6,4 @@ export 'src/paywall_policy.dart';
 export 'src/professional_access.dart';
 export 'src/shared_expense_agreement.dart';
 export 'src/settlement_allocation.dart';
+export 'src/subscription_lifecycle.dart';
