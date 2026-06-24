@@ -11,6 +11,7 @@ class SettingsScreen extends StatefulWidget {
     required this.onSignOut,
     this.showAccountPlanPremiumHint = false,
     this.onPremiumHintDismissed,
+    this.onRequestFamilyExport,
     super.key,
   });
 
@@ -19,6 +20,7 @@ class SettingsScreen extends StatefulWidget {
   final Future<void> Function() onSignOut;
   final bool showAccountPlanPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
+  final Future<void> Function()? onRequestFamilyExport;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -29,6 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _statusPush = true;
   bool _balanceReminderPush = false;
   bool _permissionPromptSeen = false;
+  bool _familyExportRequested = false;
 
   @override
   Widget build(BuildContext context) {
@@ -111,16 +114,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'Koszty i statusy beda zapisywac kto i kiedy zmienil wpis.',
           ),
         ),
-        ListTile(
-          leading: const Icon(Icons.download_outlined),
-          title: const Text('Eksport danych'),
-          subtitle: const Text(
-            'Przygotujemy plik z kosztami, statusami i historia rodziny.',
-          ),
-          onTap: () => _showComingSoon(
-            context,
-            'Eksport danych bedzie dostepny po podpieciu backendu.',
-          ),
+        _FamilyDataExportCard(
+          isRequested: _familyExportRequested,
+          onRequestExport: _requestFamilyExport,
         ),
         ListTile(
           leading: const Icon(Icons.privacy_tip_outlined),
@@ -187,6 +183,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _balanceReminderPush = value);
   }
 
+  Future<void> _requestFamilyExport() async {
+    await widget.onRequestFamilyExport?.call();
+    if (!mounted) return;
+    setState(() => _familyExportRequested = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Eksport rodziny zostal zlecony. Pliki zalacznikow pozostaja poza paczka MVP.',
+        ),
+      ),
+    );
+  }
+
   void _showComingSoon(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,
@@ -214,6 +223,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _FamilyDataExportCard extends StatelessWidget {
+  const _FamilyDataExportCard({
+    required this.isRequested,
+    required this.onRequestExport,
+  });
+
+  final bool isRequested;
+  final Future<void> Function() onRequestExport;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusText = isRequested
+        ? 'Zlecono eksport JSON dla tej rodziny.'
+        : 'Eksport JSON obejmie profil, rodzine, czlonkow, dzieci, koszty, statusy, rozliczenia, audit log i metadane zalacznikow.';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.download_outlined),
+              title: Text('Eksport danych rodziny'),
+              subtitle: Text(
+                'Dla zalogowanego czlonka rodziny, bez danych innych rodzin.',
+              ),
+            ),
+            Text(statusText),
+            const SizedBox(height: 8),
+            Text(
+              'Zalaczniki w MVP sa opisane metadanymi; same prywatne pliki nie sa kopiowane do eksportu.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                onPressed: isRequested ? null : onRequestExport,
+                icon: Icon(
+                  isRequested
+                      ? Icons.check_circle_outline
+                      : Icons.file_download_outlined,
+                ),
+                label: Text(
+                  isRequested ? 'Eksport zlecony' : 'Przygotuj eksport',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
