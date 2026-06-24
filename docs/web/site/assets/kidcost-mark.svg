@@ -1,0 +1,12 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">KidCost mark</title>
+  <desc id="desc">Rounded KidCost K mark with ledger lines and a calm balance accent.</desc>
+  <rect x="12" y="12" width="104" height="104" rx="28" fill="#0F766E"/>
+  <path d="M39 34C39 30.6863 41.6863 28 45 28H83C86.3137 28 89 30.6863 89 34V94C89 97.3137 86.3137 100 83 100H45C41.6863 100 39 97.3137 39 94V34Z" fill="#FAFAF7"/>
+  <path d="M51 43H77" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+  <path d="M51 58H70" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+  <path d="M51 73H77" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+  <path d="M51 88H66" stroke="#C76F3D" stroke-width="6" stroke-linecap="round"/>
+  <path d="M45 30L78 64L45 98" stroke="#0F766E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M78 64L91 51" stroke="#C76F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
