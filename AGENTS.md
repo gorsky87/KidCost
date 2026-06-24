@@ -21,6 +21,7 @@ Guidance for AI agents working in this repository.
 - Work on each task in a separate Git worktree and a dedicated branch.
 - Use branch names that describe the task, for example `codex/issue-12-flutter-shell`.
 - Do not work directly on `master` except for repository setup or explicit user-approved maintenance.
+- When selecting the next GitHub issue for automation, use `gh issue list --state open --limit 200 --json number,title,createdAt,updatedAt,labels,assignees,url` and process issues by ascending issue number.
 - Before starting a task, check the main worktree status and avoid touching uncommitted user changes.
 - Keep each worktree scoped to one GitHub issue or one clearly defined task.
 - Add or update tests for every code change whenever a meaningful test can be written.
