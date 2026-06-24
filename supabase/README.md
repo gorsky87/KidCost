@@ -5,6 +5,7 @@ This directory contains Supabase schema artifacts for the KidCost MVP.
 ## Layout
 
 - `migrations/` - versioned PostgreSQL migrations for Supabase.
+- `config.toml` - local Supabase CLI project configuration.
 
 ## First migration
 
@@ -21,11 +22,15 @@ It also creates MVP enums, timestamp triggers, family-integrity triggers, and in
 
 ## Local verification
 
-Supabase CLI is not yet committed as a project dependency. Once installed locally, verify migrations from a clean database with:
+Local database verification requires Docker, Supabase CLI, and `psql`:
 
 ```sh
+supabase --version
+psql --version
 supabase db reset
 ```
+
+`supabase db reset` starts from the migrations in `supabase/migrations/`. Seed loading is disabled until the repository has a committed `supabase/seed.sql`.
 
 RLS policies are defined in `migrations/20260624005127_enable_mvp_rls.sql`.
 
