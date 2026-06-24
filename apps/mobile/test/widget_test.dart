@@ -12,6 +12,7 @@ import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart'
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/settings_screen.dart';
 import 'package:kidcost_mobile/src/theme/kidcost_theme.dart';
 
 void main() {
@@ -258,7 +259,10 @@ void main() {
 
     await tester.tap(find.text('Ustawienia'));
     await tester.pumpAndSettle();
+    expect(find.text('Powiadomienia'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Eksport danych'), 120);
     expect(find.text('Eksport danych'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Polityka prywatnosci'), 120);
     expect(find.text('Polityka prywatnosci'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Regulamin'), 120);
     expect(find.text('Regulamin'), findsOneWidget);
@@ -274,6 +278,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Zaloguj'), findsOneWidget);
+  });
+
+  testWidgets('settings exposes contextual notification controls', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsScreen(
+            userEmail: 'parent@example.com',
+            isDemoSession: true,
+            onSignOut: () async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Powiadomienia'), findsOneWidget);
+    expect(find.text('Nowy koszt od drugiego rodzica'), findsOneWidget);
+    expect(find.text('Zmiana statusu kosztu'), findsOneWidget);
+    expect(find.text('Przypomnienie o saldzie'), findsOneWidget);
+
+    await tester.tap(find.text('Przypomnienie o saldzie'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SwitchListTile), findsNWidgets(3));
+
+    await tester.tap(find.text('Wlacz powiadomienia po pierwszym koszcie'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Poprosimy o zgode dopiero w kontekscie wspolnego kosztu.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('add expense validates amount and date', (
