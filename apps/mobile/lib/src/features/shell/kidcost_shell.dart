@@ -7,6 +7,7 @@ import 'screens/add_expense_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/expenses_screen.dart';
 import 'screens/family_screen.dart';
+import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 
 class KidCostShell extends StatefulWidget {
@@ -47,6 +48,9 @@ class _KidCostShellState extends State<KidCostShell> {
         onAddExpense: () {
           setState(() => _selectedIndex = 2);
         },
+        onOpenReports: () {
+          setState(() => _selectedIndex = 3);
+        },
       ),
     ),
     _Destination(
@@ -65,6 +69,12 @@ class _KidCostShellState extends State<KidCostShell> {
         attachmentStorage: widget.attachmentStorage,
         onExpenseSaved: widget.onExpenseSaved,
       ),
+    ),
+    _Destination(
+      label: 'Raporty',
+      icon: Icons.summarize_outlined,
+      selectedIcon: Icons.summarize,
+      screen: ReportsScreen(expenses: widget.expenses),
     ),
     _Destination(
       label: 'Rodzina',

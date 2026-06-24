@@ -8,6 +8,7 @@ import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
 
 void main() {
   testWidgets('opens the KidCost shell after email sign in', (
@@ -383,6 +384,18 @@ void main() {
     expect(find.text('Nowy koszt'), findsOneWidget);
   });
 
+  testWidgets('dashboard CTA opens monthly reports', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+
+    await tester.tap(find.text('Raport miesiaca'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Raport miesieczny'), findsOneWidget);
+    expect(find.text('Eksport'), findsOneWidget);
+  });
+
   testWidgets('dashboard summarizes current month balance and recent costs', (
     WidgetTester tester,
   ) async {
@@ -414,6 +427,7 @@ void main() {
               ),
             ],
             onAddExpense: () {},
+            onOpenReports: () {},
           ),
         ),
       ),
@@ -457,6 +471,7 @@ void main() {
               ),
             ],
             onAddExpense: () {},
+            onOpenReports: () {},
           ),
         ),
       ),
@@ -468,6 +483,100 @@ void main() {
     );
     expect(find.text('Drugi rodzic zaplacil'), findsOneWidget);
     expect(find.text('80,00 zl'), findsWidgets);
+  });
+
+  testWidgets('monthly reports summarize costs and expose CSV export', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+              testExpense(
+                id: '2',
+                title: 'Lekarz',
+                amountCents: 6000,
+                expenseDate: '2026-06-20',
+                category: expenseCategories[3],
+                paidBy: const ExpensePayer(
+                  id: 'co-parent',
+                  label: 'Drugi rodzic',
+                  isCurrentUser: false,
+                ),
+                status: ExpenseStatus.disputed,
+              ),
+              testExpense(
+                id: '3',
+                title: 'Majowy koszt',
+                amountCents: 9900,
+                expenseDate: '2026-05-20',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Raport miesieczny'), findsOneWidget);
+    expect(find.text('Suma kosztow'), findsOneWidget);
+    expect(find.text('180,00 zl'), findsWidgets);
+    expect(find.text('Koszty sporne'), findsOneWidget);
+    expect(find.text('60,00 zl'), findsWidgets);
+    expect(find.text('Koszty nierozliczone'), findsOneWidget);
+    expect(find.text('120,00 zl'), findsWidgets);
+    expect(find.text('Suma per rodzic'), findsOneWidget);
+    expect(find.text('parent@example.com'), findsOneWidget);
+    expect(find.text('Drugi rodzic'), findsOneWidget);
+    expect(find.text('Suma per dziecko'), findsOneWidget);
+    expect(find.text('Antek'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Suma per kategoria'), 180);
+    expect(find.text('Suma per kategoria'), findsOneWidget);
+    expect(find.text('Jedzenie'), findsOneWidget);
+    expect(find.text('Lekarze i leki'), findsOneWidget);
+    expect(find.text('Majowy koszt'), findsNothing);
+
+    await tester.scrollUntilVisible(
+      find.text('CSV: kidcost-report-2026-06.csv'),
+      180,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('CSV: kidcost-report-2026-06.csv'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Eksport CSV'), findsOneWidget);
+    expect(find.text('kidcost-report-2026-06.csv'), findsOneWidget);
+    expect(find.textContaining('"data","tytul","dziecko"'), findsOneWidget);
+    expect(find.textContaining('"2026-06-20","Lekarz"'), findsOneWidget);
+  });
+
+  testWidgets('monthly reports handle empty selected month', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(
+                id: '1',
+                title: 'Majowy koszt',
+                amountCents: 9900,
+                expenseDate: '2026-05-20',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Brak kosztow w tym miesiacu'), findsOneWidget);
+    expect(find.text('0,00 zl'), findsWidgets);
+    expect(find.text('CSV: kidcost-report-2026-06.csv'), findsOneWidget);
+    expect(find.text('PDF wymaga generatora'), findsOneWidget);
   });
 }
 
