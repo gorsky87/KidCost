@@ -158,6 +158,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           DropdownButtonFormField<ExpensePayer>(
             key: const Key('expense-payer-picker'),
             initialValue: _payer,
+            isExpanded: true,
             decoration: InputDecoration(
               labelText: 'Kto zaplacil',
               prefixIcon: const Icon(Icons.account_circle_outlined),
@@ -1097,24 +1098,35 @@ class _CategoryPicker extends StatelessWidget {
         labelText: 'Kategoria',
         prefixIcon: Icon(Icons.category_outlined),
       ),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final category in expenseCategories)
-            ChoiceChip(
-              avatar: Icon(
-                category.icon,
-                color: category.accentColor,
-                size: 18,
-              ),
-              label: Text(category.label),
-              selected: category.id == selectedCategory.id,
-              onSelected: isEnabled
-                  ? (_) => onCategorySelected(category)
-                  : null,
-            ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxLabelWidth = constraints.hasBoundedWidth
+              ? (constraints.maxWidth - 80).clamp(120.0, 260.0)
+              : 220.0;
+
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final category in expenseCategories)
+                ChoiceChip(
+                  avatar: Icon(
+                    category.icon,
+                    color: category.accentColor,
+                    size: 18,
+                  ),
+                  label: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxLabelWidth),
+                    child: Text(category.label, softWrap: true),
+                  ),
+                  selected: category.id == selectedCategory.id,
+                  onSelected: isEnabled
+                      ? (_) => onCategorySelected(category)
+                      : null,
+                ),
+            ],
+          );
+        },
       ),
     );
   }
