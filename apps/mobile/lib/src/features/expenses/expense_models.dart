@@ -18,6 +18,25 @@ const expenseCategories = [
   ExpenseCategory(id: 'other', label: 'Inne'),
 ];
 
+class ExpenseCalendarEventLink {
+  const ExpenseCalendarEventLink({
+    required this.id,
+    required this.title,
+    required this.eventDate,
+    this.isRemoved = false,
+  });
+
+  final String id;
+  final String title;
+  final String eventDate;
+  final bool isRemoved;
+
+  String get displayLabel {
+    final suffix = isRemoved ? ' (wydarzenie usuniete)' : '';
+    return '$eventDate - $title$suffix';
+  }
+}
+
 class ExpenseEntry {
   const ExpenseEntry({
     required this.id,
@@ -34,6 +53,9 @@ class ExpenseEntry {
     this.attachment,
     this.sourceTemplateId,
     this.sourceTemplateName,
+    this.originalReceiptAmountCents,
+    this.originalReceiptCurrency,
+    this.calendarEvent,
   });
 
   final String id;
@@ -50,6 +72,28 @@ class ExpenseEntry {
   final ExpenseAttachment? attachment;
   final String? sourceTemplateId;
   final String? sourceTemplateName;
+  final int? originalReceiptAmountCents;
+  final String? originalReceiptCurrency;
+  final ExpenseCalendarEventLink? calendarEvent;
+
+  String? get calendarEventId => calendarEvent?.id;
+  String? get calendarEventTitle => calendarEvent?.title;
+  String? get calendarEventDate => calendarEvent?.eventDate;
+
+  bool get hasOriginalReceiptAmount =>
+      originalReceiptAmountCents != null &&
+      originalReceiptCurrency != null &&
+      originalReceiptCurrency!.trim().isNotEmpty;
+
+  String? get originalReceiptAmountLabel {
+    if (!hasOriginalReceiptAmount) {
+      return null;
+    }
+    return formatCents(
+      originalReceiptAmountCents!,
+      currencyCode: originalReceiptCurrency!,
+    );
+  }
 
   ExpenseEntry copyWith({
     int? amountCents,
@@ -64,6 +108,9 @@ class ExpenseEntry {
     ExpenseAttachment? attachment,
     String? sourceTemplateId,
     String? sourceTemplateName,
+    int? originalReceiptAmountCents,
+    String? originalReceiptCurrency,
+    ExpenseCalendarEventLink? calendarEvent,
   }) {
     return ExpenseEntry(
       id: id,
@@ -80,6 +127,11 @@ class ExpenseEntry {
       attachment: attachment ?? this.attachment,
       sourceTemplateId: sourceTemplateId ?? this.sourceTemplateId,
       sourceTemplateName: sourceTemplateName ?? this.sourceTemplateName,
+      originalReceiptAmountCents:
+          originalReceiptAmountCents ?? this.originalReceiptAmountCents,
+      originalReceiptCurrency:
+          originalReceiptCurrency ?? this.originalReceiptCurrency,
+      calendarEvent: calendarEvent ?? this.calendarEvent,
     );
   }
 }
@@ -385,10 +437,10 @@ extension ExpenseStatusDetails on ExpenseStatus {
   }
 }
 
-String formatCents(int cents) {
+String formatCents(int cents, {String currencyCode = 'PLN'}) {
   final whole = cents ~/ 100;
   final fraction = (cents % 100).abs().toString().padLeft(2, '0');
-  return '$whole,$fraction zl';
+  return '$whole,$fraction $currencyCode';
 }
 
 int parseAmountToCents(String value) {

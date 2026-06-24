@@ -77,7 +77,10 @@ class _KidCostShellState extends State<KidCostShell> {
         custodyDays: widget.custodyDays,
         currentDate: widget.currentDate,
         onAddExpense: () {
-          setState(() => _selectedIndex = 2);
+          _startQuickExpenseDraft('manual_expense');
+        },
+        onQuickReceiptDraft: () {
+          _startQuickExpenseDraft('receipt_draft');
         },
         onOpenExpenses: () {
           setState(() => _selectedIndex = 1);
@@ -114,6 +117,7 @@ class _KidCostShellState extends State<KidCostShell> {
         attachmentStorage: widget.attachmentStorage,
         initialTemplate: _pendingTemplate,
         currentDate: widget.currentDate,
+        calendarEvents: calendarEventsFromCustodyDays(widget.custodyDays),
         showReceiptOcrPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.receiptOcr,
         ),
@@ -150,6 +154,7 @@ class _KidCostShellState extends State<KidCostShell> {
         userEmail: widget.userEmail,
         custodyDays: widget.custodyDays,
         currentDate: widget.currentDate,
+        expenses: widget.expenses,
         onCustodyDaysChanged: widget.onCustodyDaysChanged,
       ),
     ),
@@ -233,6 +238,24 @@ class _KidCostShellState extends State<KidCostShell> {
         ),
       );
     }
+  }
+
+  void _startQuickExpenseDraft(String feature) {
+    setState(() {
+      _pendingTemplate = null;
+      _selectedIndex = 2;
+    });
+    unawaited(
+      widget.telemetry.track(
+        TelemetryEvent.quickExpenseStarted,
+        parameters: {
+          'screen': 'add_expense',
+          'surface': 'dashboard',
+          'trigger': 'dashboard_quick_entry',
+          'feature': feature,
+        },
+      ),
+    );
   }
 
   bool _isPremiumHintDismissed(PremiumDiscoveryPoint point) {

@@ -1,3 +1,5 @@
+import '../expenses/expense_models.dart';
+
 class CustodyParent {
   const CustodyParent({
     required this.id,
@@ -8,6 +10,25 @@ class CustodyParent {
   final String id;
   final String label;
   final bool isCurrentUser;
+}
+
+List<ExpenseCalendarEventLink> calendarEventsFromCustodyDays(
+  Iterable<CustodyDay> custodyDays,
+) {
+  final events =
+      [
+        for (final day in custodyDays)
+          ExpenseCalendarEventLink(
+            id: day.id,
+            title: 'Opieka: ${day.parent.label}',
+            eventDate: day.date,
+          ),
+      ]..sort((first, second) {
+        final dateComparison = first.eventDate.compareTo(second.eventDate);
+        if (dateComparison != 0) return dateComparison;
+        return first.title.compareTo(second.title);
+      });
+  return List.unmodifiable(events);
 }
 
 class CustodyDay {

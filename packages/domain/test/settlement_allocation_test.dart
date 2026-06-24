@@ -1,13 +1,16 @@
 import 'package:kidcost_domain/domain.dart';
+import 'package:test/test.dart' as t;
 
 void main() {
-  testPartialPaymentLeavesArrears();
-  testOnePaymentCanCoverMultipleExpenses();
-  testOverpaymentAndUnallocatedPaymentAreVisible();
-  testDisputedAndDeletedExpensesAreNotAutoSettled();
-  testPaymentProofAttachmentsAreReferencedBySettlement();
-  testPaymentProofValidationKeepsFailedAndRemovedStatesExplicit();
-  testPaymentProofCopyAndAuditEventsStayConservative();
+  t.test('domain assertions pass', () {
+    testPartialPaymentLeavesArrears();
+    testOnePaymentCanCoverMultipleExpenses();
+    testOverpaymentAndUnallocatedPaymentAreVisible();
+    testDisputedAndDeletedExpensesAreNotAutoSettled();
+    testPaymentProofAttachmentsAreReferencedBySettlement();
+    testPaymentProofValidationKeepsFailedAndRemovedStatesExplicit();
+    testPaymentProofCopyAndAuditEventsStayConservative();
+  });
 }
 
 void testPartialPaymentLeavesArrears() {

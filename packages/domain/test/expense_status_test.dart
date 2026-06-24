@@ -1,17 +1,20 @@
 import 'package:kidcost_domain/domain.dart';
+import 'package:test/test.dart' as t;
 
 void main() {
-  testCounterpartyCanAcceptPendingExpense();
-  testAuthorCannotAcceptOwnPendingExpense();
-  testDisputeRequiresCounterpartyComment();
-  testAcceptedExpenseCanBeSettled();
-  testSettledExpenseIsTerminal();
-  testDisputedExpenseCanReturnToAccepted();
-  testAuthorCannotAcceptDisputedExpense();
-  testCoreFieldsFreezeAfterReaction();
-  testStatusParserNormalizesWireNames();
-  testStatusEventNormalizesAuditData();
-  testStatusEventRejectsBlankAuditIds();
+  t.test('domain assertions pass', () {
+    testCounterpartyCanAcceptPendingExpense();
+    testAuthorCannotAcceptOwnPendingExpense();
+    testDisputeRequiresCounterpartyComment();
+    testAcceptedExpenseCanBeSettled();
+    testSettledExpenseIsTerminal();
+    testDisputedExpenseCanReturnToAccepted();
+    testAuthorCannotAcceptDisputedExpense();
+    testCoreFieldsFreezeAfterReaction();
+    testStatusParserNormalizesWireNames();
+    testStatusEventNormalizesAuditData();
+    testStatusEventRejectsBlankAuditIds();
+  });
 }
 
 void testCounterpartyCanAcceptPendingExpense() {

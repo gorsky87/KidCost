@@ -1,13 +1,16 @@
 import 'package:kidcost_domain/domain.dart';
+import 'package:test/test.dart' as t;
 
 void main() {
-  testEveryLifecycleStateHasAFeatureMatrix();
-  testPaymentFailureStatesKeepHistoricalRecordsReadable();
-  testPremiumLikeStatesAllowNewPremiumConvenience();
-  testPausedAndExpiredStatesStopNewPremiumConvenience();
-  testPlEuPricingPolicyUsesFamilyScopedPlnMonthlyBetaOffer();
-  testPriceChangeAndOfferMechanicsAreReleaseRequirements();
-  testSubscriptionAnalyticsTaxonomyUsesSafeProperties();
+  t.test('domain assertions pass', () {
+    testEveryLifecycleStateHasAFeatureMatrix();
+    testPaymentFailureStatesKeepHistoricalRecordsReadable();
+    testPremiumLikeStatesAllowNewPremiumConvenience();
+    testPausedAndExpiredStatesStopNewPremiumConvenience();
+    testPlEuPricingPolicyUsesFamilyScopedPlnMonthlyBetaOffer();
+    testPriceChangeAndOfferMechanicsAreReleaseRequirements();
+    testSubscriptionAnalyticsTaxonomyUsesSafeProperties();
+  });
 }
 
 void testEveryLifecycleStateHasAFeatureMatrix() {

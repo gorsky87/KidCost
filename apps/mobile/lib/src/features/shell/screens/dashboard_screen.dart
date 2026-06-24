@@ -10,6 +10,7 @@ class DashboardScreen extends StatelessWidget {
     required this.expenses,
     required this.custodyDays,
     required this.onAddExpense,
+    required this.onQuickReceiptDraft,
     required this.onOpenExpenses,
     required this.onOpenReports,
     required this.onOpenFamily,
@@ -21,6 +22,7 @@ class DashboardScreen extends StatelessWidget {
   final List<ExpenseEntry> expenses;
   final List<CustodyDay> custodyDays;
   final VoidCallback onAddExpense;
+  final VoidCallback onQuickReceiptDraft;
   final VoidCallback onOpenExpenses;
   final VoidCallback onOpenReports;
   final VoidCallback onOpenFamily;
@@ -56,17 +58,17 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(height: 8),
         Text('Rodzina: ${profile.familyName}'),
         Text('Dziecko: ${profile.childName}'),
+        Text('Waluta rozliczen: ${profile.familyCurrency}'),
         const SizedBox(height: 16),
         if (profile.isSoloFamily) ...[
           _SoloFamilyCard(profile: profile, onOpenFamily: onOpenFamily),
           const SizedBox(height: 12),
         ],
-        FilledButton.icon(
-          onPressed: onAddExpense,
-          icon: const Icon(Icons.add_circle_outline),
-          label: const Text('Dodaj koszt'),
+        _QuickCaptureCard(
+          onAddExpense: onAddExpense,
+          onQuickReceiptDraft: onQuickReceiptDraft,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: onOpenReports,
           icon: const Icon(Icons.summarize_outlined),
@@ -79,7 +81,7 @@ class DashboardScreen extends StatelessWidget {
           value: summary.balanceText(profile),
           helper: profile.isSoloFamily
               ? 'Prywatny szkic 50/50 widoczny tylko dla Ciebie.'
-              : 'Liczymy prosty podzial 50/50.',
+              : 'Liczymy prosty podzial 50/50 w ${profile.familyCurrency}.',
         ),
         const SizedBox(height: 8),
         _NeedsAttentionCard(
@@ -93,19 +95,28 @@ class DashboardScreen extends StatelessWidget {
         ],
         _MetricTile(
           icon: Icons.calendar_month_outlined,
-          title: 'Wydatki w tym miesiacu',
-          value: formatCents(summary.totalCents),
+          title: 'Wydatki w tym miesiacu (${profile.familyCurrency})',
+          value: formatCents(
+            summary.totalCents,
+            currencyCode: profile.familyCurrency,
+          ),
           helper: month.label,
         ),
         _MetricTile(
           icon: Icons.person_outline,
           title: 'Ty zaplaciles',
-          value: formatCents(summary.currentUserPaidCents),
+          value: formatCents(
+            summary.currentUserPaidCents,
+            currencyCode: profile.familyCurrency,
+          ),
         ),
         _MetricTile(
           icon: Icons.group_outlined,
           title: _coParentPaidTitle(profile.coParentLabel),
-          value: formatCents(summary.coParentPaidCents),
+          value: formatCents(
+            summary.coParentPaidCents,
+            currencyCode: profile.familyCurrency,
+          ),
         ),
         const SizedBox(height: 8),
         _UpcomingCustodyCard(custodyDays: upcomingCustodyDays),
@@ -113,6 +124,63 @@ class DashboardScreen extends StatelessWidget {
         if (monthExpenses.isNotEmpty)
           _RecentExpenses(expenses: recentExpenses.take(5).toList()),
       ],
+    );
+  }
+}
+
+class _QuickCaptureCard extends StatelessWidget {
+  const _QuickCaptureCard({
+    required this.onAddExpense,
+    required this.onQuickReceiptDraft,
+  });
+
+  final VoidCallback onAddExpense;
+  final VoidCallback onQuickReceiptDraft;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.flash_on_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Szybkie dodanie',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Zacznij prywatny szkic. Nic nie trafia do rozliczen ani do drugiego rodzica przed zapisem.',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: onAddExpense,
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Dodaj koszt'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onQuickReceiptDraft,
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: const Text('Szkic z paragonu'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -549,11 +617,11 @@ class _DashboardSummary {
 
     if (currentUserShare > 0) {
       final prefix = profile.isSoloFamily ? 'Roboczo: ' : '';
-      return '$prefix${profile.coParentLabel} oddaje Tobie ${formatCents(currentUserShare)}';
+      return '$prefix${profile.coParentLabel} oddaje Tobie ${formatCents(currentUserShare, currencyCode: profile.familyCurrency)}';
     }
 
     final prefix = profile.isSoloFamily ? 'Roboczo: ' : '';
-    return '${prefix}Ty oddajesz ${_coParentDativeLabel(profile.coParentLabel)} ${formatCents(-currentUserShare)}';
+    return '${prefix}Ty oddajesz ${_coParentDativeLabel(profile.coParentLabel)} ${formatCents(-currentUserShare, currencyCode: profile.familyCurrency)}';
   }
 }
 

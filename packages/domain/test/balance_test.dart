@@ -1,19 +1,22 @@
 import 'package:kidcost_domain/domain.dart';
+import 'package:test/test.dart' as t;
 
 void main() {
-  testEqualSplitExample();
-  testOneParentPaidEverything();
-  testNoExpenses();
-  testMultipleChildrenAreAggregated();
-  testDifferentStatuses();
-  testStatusMatchingIsCaseInsensitive();
-  testIgnoredStatusesStayOutOfCustomIncludedSet();
-  testSettlementReducesOpenTransfer();
-  testSettlementCanFullyCloseTransfer();
-  testCustomSplit();
-  testCustomSplitRejectsInvalidParticipants();
-  testRoundingIsDeterministic();
-  testDecimalParser();
+  t.test('domain assertions pass', () {
+    testEqualSplitExample();
+    testOneParentPaidEverything();
+    testNoExpenses();
+    testMultipleChildrenAreAggregated();
+    testDifferentStatuses();
+    testStatusMatchingIsCaseInsensitive();
+    testIgnoredStatusesStayOutOfCustomIncludedSet();
+    testSettlementReducesOpenTransfer();
+    testSettlementCanFullyCloseTransfer();
+    testCustomSplit();
+    testCustomSplitRejectsInvalidParticipants();
+    testRoundingIsDeterministic();
+    testDecimalParser();
+  });
 }
 
 void testEqualSplitExample() {

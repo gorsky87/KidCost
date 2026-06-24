@@ -18,6 +18,7 @@ class AddExpenseScreen extends StatefulWidget {
     required this.onExpenseSaved,
     this.initialTemplate,
     this.currentDate,
+    this.calendarEvents = const [],
     this.showReceiptOcrPremiumHint = false,
     this.onPremiumHintDismissed,
     super.key,
@@ -29,6 +30,7 @@ class AddExpenseScreen extends StatefulWidget {
   final ValueChanged<ExpenseEntry> onExpenseSaved;
   final ExpenseTemplate? initialTemplate;
   final DateTime? currentDate;
+  final List<ExpenseCalendarEventLink> calendarEvents;
   final bool showReceiptOcrPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
@@ -52,14 +54,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _merchantController = TextEditingController();
   final _documentNumberController = TextEditingController();
   final _paymentMethodController = TextEditingController();
+  final _originalReceiptAmountController = TextEditingController();
   late final List<ExpensePayer> _payers;
   ExpenseCategory _category = expenseCategories.first;
   ExpensePayer? _payer;
+  String _receiptCurrency = 'PLN';
   AttachmentDraft? _attachmentDraft;
   EvidenceType? _evidenceType;
   bool? _buyerNamePresent;
   bool _isSaving = false;
   bool _attachmentFailedOnLastSave = false;
+  String? _calendarEventId;
   String? _amountError;
   String? _dateError;
   String? _payerError;
@@ -70,6 +75,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _amountController.addListener(_refreshAgreementPreview);
     _dateController.text = _formatDate(widget.currentDate ?? DateTime.now());
     _manualPayerController.text = widget.profile.coParentLabel;
+    _receiptCurrency = widget.profile.familyCurrency;
     _payers = [
       ExpensePayer(id: 'self', label: widget.userEmail, isCurrentUser: true),
       ExpensePayer(
@@ -94,6 +100,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _merchantController.dispose();
     _documentNumberController.dispose();
     _paymentMethodController.dispose();
+    _originalReceiptAmountController.dispose();
     super.dispose();
   }
 
@@ -120,9 +127,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             textInputAction: TextInputAction.next,
             style: Theme.of(context).textTheme.headlineMedium,
             decoration: InputDecoration(
-              labelText: 'Kwota',
+              labelText: 'Kwota do rozliczenia',
               hintText: '0,00',
               prefixIcon: const Icon(Icons.payments_outlined),
+              suffixText: widget.profile.familyCurrency,
               errorText: _amountError,
             ),
           ),
@@ -138,6 +146,36 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               errorText: _dateError,
             ),
           ),
+          if (widget.calendarEvents.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String?>(
+              key: const Key('expense-calendar-event-picker'),
+              initialValue: _calendarEventId,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Wydarzenie kalendarza',
+                prefixIcon: Icon(Icons.event_available_outlined),
+              ),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Bez wydarzenia'),
+                ),
+                for (final event in widget.calendarEvents)
+                  DropdownMenuItem<String?>(
+                    value: event.id,
+                    child: Text(event.displayLabel),
+                  ),
+              ],
+              onChanged: _isSaving
+                  ? null
+                  : (eventId) => setState(() => _calendarEventId = eventId),
+            ),
+            if (_selectedCalendarEvent != null) ...[
+              const SizedBox(height: 8),
+              _CalendarEventLinkCard(event: _selectedCalendarEvent!),
+            ],
+          ],
           const SizedBox(height: 12),
           InputDecorator(
             decoration: const InputDecoration(
@@ -210,6 +248,49 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               prefixIcon: Icon(Icons.notes_outlined),
             ),
           ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            key: const Key('receipt-currency-picker'),
+            initialValue: _receiptCurrency,
+            decoration: const InputDecoration(
+              labelText: 'Waluta na paragonie',
+              prefixIcon: Icon(Icons.currency_exchange_outlined),
+            ),
+            items: [
+              for (final currency in _supportedReceiptCurrencies)
+                DropdownMenuItem(value: currency, child: Text(currency)),
+            ],
+            onChanged: _isSaving
+                ? null
+                : (currency) {
+                    if (currency == null) return;
+                    setState(() => _receiptCurrency = currency);
+                  },
+          ),
+          const SizedBox(height: 12),
+          _CurrencyGuardrailCard(
+            familyCurrency: widget.profile.familyCurrency,
+            receiptCurrency: _receiptCurrency,
+          ),
+          if (_usesForeignReceiptCurrency) ...[
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('original-receipt-amount-field'),
+              controller: _originalReceiptAmountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                labelText: 'Kwota z paragonu',
+                hintText: '0,00',
+                prefixIcon: const Icon(Icons.receipt_long_outlined),
+                suffixText: _receiptCurrency,
+                helperText:
+                    'Opcjonalny kontekst. KidCost nie przelicza kursow w MVP.',
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: _isSaving ? null : _chooseAttachment,
@@ -375,6 +456,35 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       return;
     }
 
+    if (_usesForeignReceiptCurrency) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            icon: const Icon(Icons.currency_exchange_outlined),
+            title: const Text('Potwierdz walute rozliczenia'),
+            content: Text(
+              'Zapiszemy saldo w ${widget.profile.familyCurrency}. '
+              'Kwota z paragonu w $_receiptCurrency zostaje tylko jako informacja; KidCost nie liczy kursow w MVP.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Wroc'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Zapisz w walucie rodziny'),
+              ),
+            ],
+          );
+        },
+      );
+      if (confirmed != true) {
+        return;
+      }
+    }
+
     final attachmentStatusBeforeSave = _attachmentStatus;
     setState(() => _isSaving = true);
 
@@ -428,6 +538,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       attachment: attachment,
       sourceTemplateId: widget.initialTemplate?.id,
       sourceTemplateName: widget.initialTemplate?.name,
+      originalReceiptAmountCents: _originalReceiptAmountCents,
+      originalReceiptCurrency: _originalReceiptAmountCents == null
+          ? null
+          : _receiptCurrency,
+      calendarEvent: _selectedCalendarEvent,
     );
 
     widget.onExpenseSaved(expense);
@@ -440,6 +555,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _category = expenseCategories.first;
       _payer = _payers.first;
       _manualPayerController.text = widget.profile.coParentLabel;
+      _receiptCurrency = widget.profile.familyCurrency;
+      _originalReceiptAmountController.clear();
+      _calendarEventId = null;
       _attachmentDraft = null;
       _clearEvidenceFields();
       _attachmentFailedOnLastSave = uploadFailed;
@@ -463,7 +581,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     if (template == null) return;
     _amountController.text = formatCents(
       template.amountCents,
-    ).replaceAll(' zl', '');
+      currencyCode: widget.profile.familyCurrency,
+    ).replaceAll(' ${widget.profile.familyCurrency}', '');
     _dateController.text = template.nextDueDate;
     _titleController.text = template.note?.trim().isNotEmpty == true
         ? template.note!.trim()
@@ -496,6 +615,35 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void _refreshAgreementPreview() {
     if (!mounted) return;
     setState(() {});
+  }
+
+  bool get _usesForeignReceiptCurrency =>
+      _receiptCurrency != widget.profile.familyCurrency;
+
+  ExpenseCalendarEventLink? get _selectedCalendarEvent {
+    final selectedId = _calendarEventId;
+    if (selectedId == null) return null;
+    for (final event in widget.calendarEvents) {
+      if (event.id == selectedId) {
+        return event;
+      }
+    }
+    return null;
+  }
+
+  int? get _originalReceiptAmountCents {
+    if (!_usesForeignReceiptCurrency) {
+      return null;
+    }
+    final text = _originalReceiptAmountController.text.trim();
+    if (text.isEmpty) {
+      return null;
+    }
+    try {
+      return parseAmountToCents(text);
+    } on FormatException {
+      return null;
+    }
   }
 
   _AttachmentReviewStatus get _attachmentStatus {
@@ -596,6 +744,59 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       date.month.toString().padLeft(2, '0'),
       date.day.toString().padLeft(2, '0'),
     ].join('-');
+  }
+}
+
+class _CalendarEventLinkCard extends StatelessWidget {
+  const _CalendarEventLinkCard({required this.event});
+
+  final ExpenseCalendarEventLink event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.event_available_outlined),
+        title: Text(event.title),
+        subtitle: Text(
+          'Koszt pojawi sie na szczegolach wydarzenia z dnia ${event.eventDate}.',
+        ),
+      ),
+    );
+  }
+}
+
+const _supportedReceiptCurrencies = ['PLN', 'EUR', 'USD', 'GBP', 'CHF'];
+
+class _CurrencyGuardrailCard extends StatelessWidget {
+  const _CurrencyGuardrailCard({
+    required this.familyCurrency,
+    required this.receiptCurrency,
+  });
+
+  final String familyCurrency;
+  final String receiptCurrency;
+
+  @override
+  Widget build(BuildContext context) {
+    final usesForeignReceiptCurrency = receiptCurrency != familyCurrency;
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          usesForeignReceiptCurrency
+              ? Icons.currency_exchange_outlined
+              : Icons.verified_outlined,
+          color: usesForeignReceiptCurrency ? colors.tertiary : colors.primary,
+        ),
+        title: Text('Saldo rodziny: $familyCurrency'),
+        subtitle: Text(
+          usesForeignReceiptCurrency
+              ? 'Paragon jest w $receiptCurrency. Wpisz kwote przeliczona na $familyCurrency; oryginalna kwota jest tylko informacyjna.'
+              : 'Raporty i pulpit pokazuja laczne kwoty w jednej walucie. KidCost nie liczy kursow w MVP.',
+        ),
+      ),
+    );
   }
 }
 

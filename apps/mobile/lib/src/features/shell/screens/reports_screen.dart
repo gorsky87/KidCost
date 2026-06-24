@@ -490,8 +490,11 @@ class MonthlyExpenseReport {
         'kategoria',
         'placacy',
         'status',
+        'wydarzenie_data',
+        'wydarzenie_tytul',
         'typ_dowodu',
-        'kwota',
+        'kwota_pln',
+        'oryginalna_kwota_paragonu',
       ],
       for (final expense in expenses)
         [
@@ -501,8 +504,11 @@ class MonthlyExpenseReport {
           expense.category.label,
           expense.paidBy.label,
           expense.status.label,
+          expense.calendarEventDate ?? '',
+          expense.calendarEventTitle ?? '',
           expense.attachment?.evidence?.type?.label ?? '',
           formatCents(expense.amountCents),
+          expense.originalReceiptAmountLabel ?? '',
         ],
     ];
 
@@ -644,8 +650,11 @@ class AnnualExpenseReport {
         'kategoria',
         'placacy',
         'status',
+        'wydarzenie_data',
+        'wydarzenie_tytul',
         'typ_dowodu',
-        'kwota',
+        'kwota_pln',
+        'oryginalna_kwota_paragonu',
       ],
       for (final expense in expenses)
         [
@@ -655,8 +664,11 @@ class AnnualExpenseReport {
           expense.category.label,
           expense.paidBy.label,
           expense.status.label,
+          expense.calendarEventDate ?? '',
+          expense.calendarEventTitle ?? '',
           expense.attachment?.evidence?.type?.label ?? '',
           formatCents(expense.amountCents),
+          expense.originalReceiptAmountLabel ?? '',
         ],
     ];
 
@@ -681,6 +693,13 @@ class _ReportSummaryCard extends StatelessWidget {
             title: const Text('Do wyrownania'),
             subtitle: Text(report.balanceText),
             trailing: Text(report.month),
+          ),
+          const ListTile(
+            leading: Icon(Icons.currency_exchange_outlined),
+            title: Text('Waluta raportu: PLN'),
+            subtitle: Text(
+              'Suma i saldo sa liczone w jednej walucie. Kwoty z paragonow w innych walutach sa tylko informacyjne.',
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.payments_outlined),
@@ -753,6 +772,13 @@ class _AnnualReportSummaryCard extends StatelessWidget {
               'Wygenerowano ${report.generatedAt.toIso8601String()}',
             ),
             trailing: Text(report.year.toString()),
+          ),
+          const ListTile(
+            leading: Icon(Icons.currency_exchange_outlined),
+            title: Text('Waluta raportu: PLN'),
+            subtitle: Text(
+              'KidCost nie laczy walut w sumach i nie liczy kursow w MVP.',
+            ),
           ),
           ListTile(
             leading: const Icon(Icons.payments_outlined),
@@ -843,7 +869,12 @@ class _AnnualExpenseListCard extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 title: Text(expense.title),
                 subtitle: Text(
-                  '${expense.expenseDate} • ${expense.status.label}',
+                  [
+                    expense.expenseDate,
+                    expense.status.label,
+                    if (expense.originalReceiptAmountLabel != null)
+                      'paragon: ${expense.originalReceiptAmountLabel}',
+                  ].join(' • '),
                 ),
                 trailing: Text(formatCents(expense.amountCents)),
               ),
@@ -877,7 +908,12 @@ class _ExpenseStatusCard extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 title: Text(expense.title),
                 subtitle: Text(
-                  '${expense.expenseDate} • ${expense.status.label}',
+                  [
+                    expense.expenseDate,
+                    expense.status.label,
+                    if (expense.originalReceiptAmountLabel != null)
+                      'paragon: ${expense.originalReceiptAmountLabel}',
+                  ].join(' • '),
                 ),
                 trailing: Text(formatCents(expense.amountCents)),
               ),
