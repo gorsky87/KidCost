@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../expenses/expense_models.dart';
+import '../../expenses/expense_visuals.dart';
 
 enum _ExpenseSort { newest, oldest, highestAmount, lowestAmount }
 
@@ -328,7 +329,10 @@ class _ExpenseCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ListTile(
-            leading: const Icon(Icons.receipt_long_outlined),
+            leading: Icon(
+              expense.category.icon,
+              color: expense.category.accentColor,
+            ),
             title: Text(expense.title),
             subtitle: Text(
               [
@@ -410,10 +414,11 @@ class _ExpenseStatusPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = status.accentColor;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _statusColor(status).withValues(alpha: 0.08),
-        border: Border.all(color: _statusColor(status).withValues(alpha: 0.24)),
+        color: color.withValues(alpha: 0.08),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
@@ -438,11 +443,11 @@ class _ExpenseStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(status);
+    final color = status.accentColor;
     return Semantics(
       label: 'Status kosztu: ${status.label}',
       child: Chip(
-        avatar: Icon(_statusIcon(status), color: color, size: 18),
+        avatar: Icon(status.icon, color: color, size: 18),
         label: Text(status.label),
         side: BorderSide(color: color.withValues(alpha: 0.32)),
         backgroundColor: color.withValues(alpha: 0.1),
@@ -534,32 +539,6 @@ class _StatusHistoryPlaceholder extends StatelessWidget {
       title: const Text('Historia statusu'),
       subtitle: Text(status.historyPlaceholder),
     );
-  }
-}
-
-Color _statusColor(ExpenseStatus status) {
-  switch (status) {
-    case ExpenseStatus.pending:
-      return Colors.deepOrange;
-    case ExpenseStatus.accepted:
-      return Colors.green;
-    case ExpenseStatus.disputed:
-      return Colors.indigo;
-    case ExpenseStatus.settled:
-      return Colors.blueGrey;
-  }
-}
-
-IconData _statusIcon(ExpenseStatus status) {
-  switch (status) {
-    case ExpenseStatus.pending:
-      return Icons.hourglass_top_outlined;
-    case ExpenseStatus.accepted:
-      return Icons.check_circle_outline;
-    case ExpenseStatus.disputed:
-      return Icons.report_problem_outlined;
-    case ExpenseStatus.settled:
-      return Icons.task_alt_outlined;
   }
 }
 
