@@ -41,6 +41,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
+    _dateController.text = _formatDate(DateTime.now());
     _payers = [
       ExpensePayer(id: 'self', label: widget.userEmail, isCurrentUser: true),
       const ExpensePayer(
@@ -102,23 +103,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             child: Text(widget.profile.childName),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<ExpenseCategory>(
-            initialValue: _category,
-            decoration: const InputDecoration(
-              labelText: 'Kategoria',
-              prefixIcon: Icon(Icons.category_outlined),
-            ),
-            items: [
-              for (final category in expenseCategories)
-                DropdownMenuItem(value: category, child: Text(category.label)),
-            ],
-            onChanged: _isSaving
-                ? null
-                : (category) {
-                    if (category != null) {
-                      setState(() => _category = category);
-                    }
-                  },
+          _CategoryPicker(
+            selectedCategory: _category,
+            isEnabled: !_isSaving,
+            onCategorySelected: (category) {
+              setState(() => _category = category);
+            },
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<ExpensePayer>(
@@ -193,8 +183,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.image_outlined),
-                title: const Text('Zdjecie paragonu'),
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Aparat'),
+                subtitle: const Text('Zrob zdjecie paragonu'),
                 onTap: () => Navigator.of(context).pop(
                   _demoAttachment(
                     fileName: 'paragon.jpg',
@@ -203,8 +194,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
               ),
               ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Galeria'),
+                subtitle: const Text('Wybierz zdjecie z telefonu'),
+                onTap: () => Navigator.of(context).pop(
+                  _demoAttachment(
+                    fileName: 'paragon-z-galerii.jpg',
+                    contentType: 'image/jpeg',
+                  ),
+                ),
+              ),
+              ListTile(
                 leading: const Icon(Icons.picture_as_pdf_outlined),
                 title: const Text('PDF'),
+                subtitle: const Text('Dodaj fakture lub rachunek'),
                 onTap: () => Navigator.of(context).pop(
                   _demoAttachment(
                     fileName: 'rachunek.pdf',
@@ -306,7 +309,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     setState(() {
       _isSaving = false;
       _amountController.clear();
-      _dateController.clear();
+      _dateController.text = _formatDate(DateTime.now());
       _titleController.clear();
       _category = expenseCategories.first;
       _payer = _payers.first;
@@ -322,5 +325,73 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return [
+      date.year.toString().padLeft(4, '0'),
+      date.month.toString().padLeft(2, '0'),
+      date.day.toString().padLeft(2, '0'),
+    ].join('-');
+  }
+}
+
+class _CategoryPicker extends StatelessWidget {
+  const _CategoryPicker({
+    required this.selectedCategory,
+    required this.isEnabled,
+    required this.onCategorySelected,
+  });
+
+  final ExpenseCategory selectedCategory;
+  final bool isEnabled;
+  final ValueChanged<ExpenseCategory> onCategorySelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: 'Kategoria',
+        prefixIcon: Icon(Icons.category_outlined),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final category in expenseCategories)
+            ChoiceChip(
+              avatar: Icon(_categoryIcon(category), size: 18),
+              label: Text(category.label),
+              selected: category.id == selectedCategory.id,
+              onSelected: isEnabled
+                  ? (_) => onCategorySelected(category)
+                  : null,
+            ),
+        ],
+      ),
+    );
+  }
+
+  IconData _categoryIcon(ExpenseCategory category) {
+    switch (category.id) {
+      case 'food':
+        return Icons.restaurant_outlined;
+      case 'clothes':
+        return Icons.checkroom_outlined;
+      case 'school':
+        return Icons.school_outlined;
+      case 'health':
+        return Icons.medical_services_outlined;
+      case 'activities':
+        return Icons.sports_soccer_outlined;
+      case 'holiday':
+        return Icons.beach_access_outlined;
+      case 'transport':
+        return Icons.directions_car_outlined;
+      case 'other':
+        return Icons.more_horiz;
+      default:
+        return Icons.category_outlined;
+    }
   }
 }
