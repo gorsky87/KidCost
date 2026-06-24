@@ -166,7 +166,7 @@ Nie zapisujemy do analytics:
 ## Powiazania z innymi issue
 
 - Issue #23: ten dokument rozszerza miesieczny raport o czytelny kosztorys i jezyk bez ksiegowosci.
-- Issue #30: backend/export beda potrzebowaly agregacji miesiecznych, ale ten zakres nie wymaga jeszcze implementacji API.
+- Issue #30: backend/export korzysta z kontraktu opisanego w `docs/MONTHLY_REPORT_API.md`.
 - Issue #56: adresowane przez kategorie planu, porownanie plan vs actual i eksport organizacyjny.
 - Issue #62: adresowane przez sekcje `Zalozenia i swiadczenia`, disclaimer i zasade `display only`.
 
