@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.userEmail,
     required this.isDemoSession,
@@ -13,10 +13,69 @@ class SettingsScreen extends StatelessWidget {
   final Future<void> Function() onSignOut;
 
   @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _newExpensePush = true;
+  bool _statusPush = true;
+  bool _balanceReminderPush = false;
+  bool _permissionPromptSeen = false;
+
+  @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        const ListTile(
+          leading: Icon(Icons.notifications_active_outlined),
+          title: Text('Powiadomienia'),
+          subtitle: Text(
+            'Neutralne alerty bez kwot, opisow kosztow i danych dziecka na ekranie blokady.',
+          ),
+        ),
+        SwitchListTile(
+          secondary: const Icon(Icons.receipt_long_outlined),
+          title: const Text('Nowy koszt od drugiego rodzica'),
+          subtitle: const Text('Krotki alert, gdy pojawi sie wpis do reakcji.'),
+          value: _newExpensePush,
+          onChanged: _setNewExpensePush,
+        ),
+        SwitchListTile(
+          secondary: const Icon(Icons.swap_horiz_outlined),
+          title: const Text('Zmiana statusu kosztu'),
+          subtitle: const Text(
+            'Informacja o akceptacji, sporze lub rozliczeniu.',
+          ),
+          value: _statusPush,
+          onChanged: _setStatusPush,
+        ),
+        SwitchListTile(
+          secondary: const Icon(Icons.account_balance_wallet_outlined),
+          title: const Text('Przypomnienie o saldzie'),
+          subtitle: const Text('Opcjonalny sygnal o nierozliczonym bilansie.'),
+          value: _balanceReminderPush,
+          onChanged: _setBalanceReminderPush,
+        ),
+        ListTile(
+          leading: const Icon(Icons.touch_app_outlined),
+          title: Text(
+            _permissionPromptSeen
+                ? 'Zgoda systemowa bedzie podlaczona z FCM'
+                : 'Wlacz powiadomienia po pierwszym koszcie',
+          ),
+          subtitle: const Text(
+            'Brak zgody nie blokuje dodawania kosztow ani raportow.',
+          ),
+          onTap: () {
+            setState(() => _permissionPromptSeen = true);
+            _showComingSoon(
+              context,
+              'Poprosimy o zgode dopiero w kontekscie wspolnego kosztu.',
+            );
+          },
+        ),
+        const Divider(),
         const ListTile(
           leading: Icon(Icons.security_outlined),
           title: Text('Prywatnosc danych rodzinnych'),
@@ -78,9 +137,9 @@ class SettingsScreen extends StatelessWidget {
         ),
         ListTile(
           leading: const Icon(Icons.account_circle_outlined),
-          title: Text(userEmail),
+          title: Text(widget.userEmail),
           subtitle: Text(
-            isDemoSession
+            widget.isDemoSession
                 ? 'Sesja demo w tym uruchomieniu aplikacji.'
                 : 'Sesja Supabase zapisana lokalnie.',
           ),
@@ -89,10 +148,22 @@ class SettingsScreen extends StatelessWidget {
         ListTile(
           leading: const Icon(Icons.logout),
           title: const Text('Wyloguj'),
-          onTap: onSignOut,
+          onTap: widget.onSignOut,
         ),
       ],
     );
+  }
+
+  void _setNewExpensePush(bool value) {
+    setState(() => _newExpensePush = value);
+  }
+
+  void _setStatusPush(bool value) {
+    setState(() => _statusPush = value);
+  }
+
+  void _setBalanceReminderPush(bool value) {
+    setState(() => _balanceReminderPush = value);
   }
 
   void _showComingSoon(BuildContext context, String message) {
