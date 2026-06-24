@@ -1,10 +1,13 @@
 import 'package:kidcost_domain/domain.dart';
+import 'package:test/test.dart' as t;
 
 void main() {
-  testPolicyUsesScopedExpiringReportLink();
-  testPolicyIsReadOnlyAuditedAndMinimized();
-  testAuditEventNormalizesRequiredFields();
-  testAuditEventRejectsInvalidScope();
+  t.test('domain assertions pass', () {
+    testPolicyUsesScopedExpiringReportLink();
+    testPolicyIsReadOnlyAuditedAndMinimized();
+    testAuditEventNormalizesRequiredFields();
+    testAuditEventRejectsInvalidScope();
+  });
 }
 
 void testPolicyUsesScopedExpiringReportLink() {

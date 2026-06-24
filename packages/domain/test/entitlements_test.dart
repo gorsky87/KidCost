@@ -1,11 +1,14 @@
 import 'package:kidcost_domain/domain.dart';
+import 'package:test/test.dart' as t;
 
 void main() {
-  testFreePlanKeepsCoreLedgerAvailable();
-  testFreeLimitsCanBlockNewUsageWithoutHidingExistingData();
-  testPremiumUnlocksAutomationAndReports();
-  testDowngradeKeepsCoreRecordsReadable();
-  testFamilyPayerDoesNotBecomeSoleDataAdmin();
+  t.test('domain assertions pass', () {
+    testFreePlanKeepsCoreLedgerAvailable();
+    testFreeLimitsCanBlockNewUsageWithoutHidingExistingData();
+    testPremiumUnlocksAutomationAndReports();
+    testDowngradeKeepsCoreRecordsReadable();
+    testFamilyPayerDoesNotBecomeSoleDataAdmin();
+  });
 }
 
 void testFreePlanKeepsCoreLedgerAvailable() {
