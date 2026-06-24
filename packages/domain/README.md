@@ -50,3 +50,27 @@ Run workflow tests:
 cd packages/domain
 dart test/expense_status_test.dart
 ```
+
+## Usage credits
+
+`usage_credits.dart` defines the MVP credit contract for cost-bearing
+Premium conveniences:
+
+- credit types are limited to receipt OCR and Premium report generation
+- grant sources cover free monthly allowance, Premium bundles, referral
+  rewards, hardship/support grants, admin adjustments, and future add-ons
+- ledger entries are signed deltas with scope, audit actor, expiry, and
+  related feature event fields
+- failed OCR/report jobs do not spend credits; credits are consumed only after
+  successful output
+- manual expense creation, existing record access, receipt storage, and basic
+  CSV export are explicitly outside the credit gate
+- analytics allowlists exclude child, receipt, expense, attachment, note, and
+  amount properties
+
+Run usage credit tests:
+
+```sh
+cd packages/domain
+dart test test/usage_credits_test.dart
+```
