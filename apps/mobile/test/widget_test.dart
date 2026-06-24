@@ -680,6 +680,58 @@ void main() {
     expect(savedExpense!.originalReceiptAmountLabel, '25,50 EUR');
   });
 
+  testWidgets('add expense can link an existing calendar event', (
+    WidgetTester tester,
+  ) async {
+    ExpenseEntry? savedExpense;
+    const event = ExpenseCalendarEventLink(
+      id: 'custody-2026-06-24',
+      title: 'Opieka: Drugi rodzic',
+      eventDate: '2026-06-24',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            attachmentStorage: InMemoryAttachmentStorage(),
+            calendarEvents: const [event],
+            onExpenseSaved: (expense) => savedExpense = expense,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).at(0), '42');
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('expense-calendar-event-picker')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('expense-calendar-event-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(event.displayLabel).last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Opieka: Drugi rodzic'), findsOneWidget);
+    expect(find.textContaining('szczegolach wydarzenia'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(savedExpense, isNotNull);
+    expect(savedExpense!.calendarEventId, 'custody-2026-06-24');
+    expect(savedExpense!.calendarEventTitle, 'Opieka: Drugi rodzic');
+    expect(savedExpense!.calendarEventDate, '2026-06-24');
+  });
+
   testWidgets('add expense previews shared agreement rules and thresholds', (
     WidgetTester tester,
   ) async {
@@ -1510,6 +1562,90 @@ void main() {
     expect(custodyDays.first.parent.label, 'Drugi rodzic');
   });
 
+  testWidgets('custody day details show linked expenses and co-parent share', (
+    WidgetTester tester,
+  ) async {
+    const coParent = CustodyParent(
+      id: 'co-parent',
+      label: 'Drugi rodzic',
+      isCurrentUser: false,
+    );
+    final custodyDays = [
+      CustodyDay(
+        id: 'custody-2026-06-24',
+        date: '2026-06-24',
+        childName: 'Antek',
+        parent: coParent,
+        createdAt: DateTime.utc(2026, 6, 24),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CustodyCalendarScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: custodyDays,
+            expenses: [
+              testExpense(
+                id: '1',
+                title: 'Basen',
+                amountCents: 5000,
+                category: expenseCategories[4],
+                calendarEvent: const ExpenseCalendarEventLink(
+                  id: 'custody-2026-06-24',
+                  title: 'Opieka: Drugi rodzic',
+                  eventDate: '2026-06-24',
+                ),
+              ),
+            ],
+            onCustodyDaysChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    await dragUntilPresent(tester, find.widgetWithText(OutlinedButton, '24'));
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, '24'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, '24'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Powiazane koszty (1)'), findsOneWidget);
+    expect(find.text('Basen'), findsOneWidget);
+    expect(find.textContaining('Zajecia dodatkowe'), findsOneWidget);
+    expect(
+      find.textContaining('udzial drugiego rodzica: 25,00 PLN'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('report csv includes linked calendar event date and title', (
+    WidgetTester tester,
+  ) async {
+    final report = MonthlyExpenseReport.fromExpenses(
+      month: '2026-06',
+      expenses: [
+        testExpense(
+          id: '1',
+          title: 'Basen',
+          calendarEvent: const ExpenseCalendarEventLink(
+            id: 'custody-2026-06-24',
+            title: 'Opieka: Drugi rodzic',
+            eventDate: '2026-06-24',
+          ),
+        ),
+      ],
+    );
+
+    final csv = report.toCsv();
+
+    expect(csv, contains('"wydarzenie_data","wydarzenie_tytul"'));
+    expect(csv, contains('"2026-06-24","Opieka: Drugi rodzic"'));
+  });
+
   testWidgets('custody calendar previews and applies a preset', (
     WidgetTester tester,
   ) async {
@@ -2106,6 +2242,7 @@ ExpenseEntry testExpense({
   ExpenseStatus status = ExpenseStatus.pending,
   ExpenseVisibility visibility = ExpenseVisibility.sharedFamily,
   ExpenseAttachment? attachment,
+  ExpenseCalendarEventLink? calendarEvent,
 }) {
   return ExpenseEntry(
     id: id,
@@ -2119,6 +2256,7 @@ ExpenseEntry testExpense({
     visibility: visibility,
     createdAt: DateTime.utc(2026, 6, 24),
     attachment: attachment,
+    calendarEvent: calendarEvent,
   );
 }
 

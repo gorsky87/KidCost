@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../custody/custody_models.dart';
+import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
 
 class CustodyCalendarScreen extends StatefulWidget {
@@ -9,6 +10,7 @@ class CustodyCalendarScreen extends StatefulWidget {
     required this.userEmail,
     required this.custodyDays,
     required this.onCustodyDaysChanged,
+    this.expenses = const [],
     this.currentDate,
     super.key,
   });
@@ -16,6 +18,7 @@ class CustodyCalendarScreen extends StatefulWidget {
   final OnboardingProfile profile;
   final String userEmail;
   final List<CustodyDay> custodyDays;
+  final List<ExpenseEntry> expenses;
   final ValueChanged<List<CustodyDay>> onCustodyDaysChanged;
   final DateTime? currentDate;
 
@@ -274,45 +277,54 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
     final existing = widget.custodyDays
         .where((day) => day.date == formattedDate)
         .firstOrNull;
+    final linkedExpenses = existing == null
+        ? const <ExpenseEntry>[]
+        : widget.expenses
+              .where((expense) => expense.calendarEventId == existing.id)
+              .toList(growable: false);
 
     final selected = await showModalBottomSheet<_CustodyEditAction>(
       context: context,
       showDragHandle: true,
       builder: (context) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.event_available_outlined),
-                title: Text(formattedDate),
-                subtitle: Text(
-                  existing == null
-                      ? 'Dodaj opieke na ten dzien.'
-                      : 'Teraz: ${existing.parent.label}',
-                ),
-              ),
-              for (final parent in _parents)
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 ListTile(
-                  leading: Icon(
-                    parent.isCurrentUser
-                        ? Icons.person_outline
-                        : Icons.group_outlined,
+                  leading: const Icon(Icons.event_available_outlined),
+                  title: Text(formattedDate),
+                  subtitle: Text(
+                    existing == null
+                        ? 'Dodaj opieke na ten dzien.'
+                        : 'Teraz: ${existing.parent.label}',
                   ),
-                  title: Text(parent.label),
-                  onTap: () => Navigator.of(
-                    context,
-                  ).pop(_CustodyEditAction(parent: parent)),
                 ),
-              if (existing != null)
-                ListTile(
-                  leading: const Icon(Icons.delete_outline),
-                  title: const Text('Usun opieke z dnia'),
-                  onTap: () => Navigator.of(
-                    context,
-                  ).pop(const _CustodyEditAction(remove: true)),
-                ),
-            ],
+                for (final parent in _parents)
+                  ListTile(
+                    leading: Icon(
+                      parent.isCurrentUser
+                          ? Icons.person_outline
+                          : Icons.group_outlined,
+                    ),
+                    title: Text(parent.label),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pop(_CustodyEditAction(parent: parent)),
+                  ),
+                if (existing != null)
+                  _LinkedExpensesForDay(expenses: linkedExpenses),
+                if (existing != null)
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline),
+                    title: const Text('Usun opieke z dnia'),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pop(const _CustodyEditAction(remove: true)),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -359,6 +371,50 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
         parent: parent,
         createdAt: DateTime.now().toUtc(),
       ),
+    );
+  }
+}
+
+class _LinkedExpensesForDay extends StatelessWidget {
+  const _LinkedExpensesForDay({required this.expenses});
+
+  final List<ExpenseEntry> expenses;
+
+  @override
+  Widget build(BuildContext context) {
+    if (expenses.isEmpty) {
+      return const ListTile(
+        leading: Icon(Icons.receipt_long_outlined),
+        title: Text('Brak kosztow powiazanych z tym dniem'),
+        subtitle: Text('Koszty mozna dodac z formularza nowego kosztu.'),
+      );
+    }
+
+    final totalCents = expenses.fold<int>(
+      0,
+      (total, expense) => total + expense.amountCents,
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Divider(height: 1),
+        ListTile(
+          leading: const Icon(Icons.receipt_long_outlined),
+          title: Text('Powiazane koszty (${expenses.length})'),
+          subtitle: Text(
+            'Suma: ${formatCents(totalCents)}, udzial drugiego rodzica: ${formatCents(totalCents ~/ 2)}',
+          ),
+        ),
+        for (final expense in expenses)
+          ListTile(
+            leading: const Icon(Icons.payments_outlined),
+            title: Text(expense.title),
+            subtitle: Text(
+              '${expense.category.label} - ${expense.status.label}',
+            ),
+            trailing: Text(formatCents(expense.amountCents)),
+          ),
+      ],
     );
   }
 }

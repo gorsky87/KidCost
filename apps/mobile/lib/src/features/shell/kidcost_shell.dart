@@ -110,6 +110,7 @@ class _KidCostShellState extends State<KidCostShell> {
         userEmail: widget.userEmail,
         attachmentStorage: widget.attachmentStorage,
         initialTemplate: _pendingTemplate,
+        calendarEvents: calendarEventsFromCustodyDays(widget.custodyDays),
         showReceiptOcrPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.receiptOcr,
         ),
@@ -145,6 +146,7 @@ class _KidCostShellState extends State<KidCostShell> {
         profile: widget.onboardingProfile,
         userEmail: widget.userEmail,
         custodyDays: widget.custodyDays,
+        expenses: widget.expenses,
         onCustodyDaysChanged: widget.onCustodyDaysChanged,
       ),
     ),

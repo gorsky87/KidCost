@@ -17,6 +17,7 @@ class AddExpenseScreen extends StatefulWidget {
     required this.attachmentStorage,
     required this.onExpenseSaved,
     this.initialTemplate,
+    this.calendarEvents = const [],
     this.showReceiptOcrPremiumHint = false,
     this.onPremiumHintDismissed,
     super.key,
@@ -27,6 +28,7 @@ class AddExpenseScreen extends StatefulWidget {
   final AttachmentStorage attachmentStorage;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
   final ExpenseTemplate? initialTemplate;
+  final List<ExpenseCalendarEventLink> calendarEvents;
   final bool showReceiptOcrPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
@@ -60,6 +62,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool? _buyerNamePresent;
   bool _isSaving = false;
   bool _attachmentFailedOnLastSave = false;
+  String? _calendarEventId;
   String? _amountError;
   String? _dateError;
   String? _payerError;
@@ -141,6 +144,36 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               errorText: _dateError,
             ),
           ),
+          if (widget.calendarEvents.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String?>(
+              key: const Key('expense-calendar-event-picker'),
+              initialValue: _calendarEventId,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Wydarzenie kalendarza',
+                prefixIcon: Icon(Icons.event_available_outlined),
+              ),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Bez wydarzenia'),
+                ),
+                for (final event in widget.calendarEvents)
+                  DropdownMenuItem<String?>(
+                    value: event.id,
+                    child: Text(event.displayLabel),
+                  ),
+              ],
+              onChanged: _isSaving
+                  ? null
+                  : (eventId) => setState(() => _calendarEventId = eventId),
+            ),
+            if (_selectedCalendarEvent != null) ...[
+              const SizedBox(height: 8),
+              _CalendarEventLinkCard(event: _selectedCalendarEvent!),
+            ],
+          ],
           const SizedBox(height: 12),
           InputDecorator(
             decoration: const InputDecoration(
@@ -507,6 +540,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       originalReceiptCurrency: _originalReceiptAmountCents == null
           ? null
           : _receiptCurrency,
+      calendarEvent: _selectedCalendarEvent,
     );
 
     widget.onExpenseSaved(expense);
@@ -521,6 +555,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _manualPayerController.text = widget.profile.coParentLabel;
       _receiptCurrency = widget.profile.familyCurrency;
       _originalReceiptAmountController.clear();
+      _calendarEventId = null;
       _attachmentDraft = null;
       _clearEvidenceFields();
       _attachmentFailedOnLastSave = uploadFailed;
@@ -582,6 +617,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   bool get _usesForeignReceiptCurrency =>
       _receiptCurrency != widget.profile.familyCurrency;
+
+  ExpenseCalendarEventLink? get _selectedCalendarEvent {
+    final selectedId = _calendarEventId;
+    if (selectedId == null) return null;
+    for (final event in widget.calendarEvents) {
+      if (event.id == selectedId) {
+        return event;
+      }
+    }
+    return null;
+  }
 
   int? get _originalReceiptAmountCents {
     if (!_usesForeignReceiptCurrency) {
@@ -696,6 +742,25 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       date.month.toString().padLeft(2, '0'),
       date.day.toString().padLeft(2, '0'),
     ].join('-');
+  }
+}
+
+class _CalendarEventLinkCard extends StatelessWidget {
+  const _CalendarEventLinkCard({required this.event});
+
+  final ExpenseCalendarEventLink event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.event_available_outlined),
+        title: Text(event.title),
+        subtitle: Text(
+          'Koszt pojawi sie na szczegolach wydarzenia z dnia ${event.eventDate}.',
+        ),
+      ),
+    );
   }
 }
 
