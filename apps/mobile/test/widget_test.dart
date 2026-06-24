@@ -3,13 +3,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:kidcost_mobile/src/app.dart';
 import 'package:kidcost_mobile/src/features/auth/auth_repository.dart';
+import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 
 void main() {
   testWidgets('opens the KidCost shell after email sign in', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      KidCostApp(authRepository: InMemoryAuthRepository()),
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: InMemoryAttachmentStorage(),
+      ),
     );
     await tester.pump();
 
@@ -30,7 +34,10 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      KidCostApp(authRepository: InMemoryAuthRepository()),
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: InMemoryAttachmentStorage(),
+      ),
     );
     await tester.pump();
     await tester.enterText(find.byType(TextField).first, 'parent@example.com');
@@ -43,6 +50,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('Nowy koszt'), findsOneWidget);
+    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
     expect(find.text('Zapisz koszt'), findsOneWidget);
   });
 
@@ -50,7 +59,10 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      KidCostApp(authRepository: InMemoryAuthRepository()),
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: InMemoryAttachmentStorage(),
+      ),
     );
     await tester.pump();
 
@@ -71,7 +83,10 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      KidCostApp(authRepository: InMemoryAuthRepository()),
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: InMemoryAttachmentStorage(),
+      ),
     );
     await tester.pump();
 
@@ -90,7 +105,10 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      KidCostApp(authRepository: InMemoryAuthRepository()),
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: InMemoryAttachmentStorage(),
+      ),
     );
     await tester.pump();
 
@@ -133,7 +151,10 @@ void main() {
 
   testWidgets('logout clears the user session', (WidgetTester tester) async {
     await tester.pumpWidget(
-      KidCostApp(authRepository: InMemoryAuthRepository()),
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: InMemoryAttachmentStorage(),
+      ),
     );
     await tester.pump();
     await tester.enterText(find.byType(TextField).first, 'parent@example.com');
@@ -151,6 +172,95 @@ void main() {
 
     expect(find.text('Zaloguj'), findsOneWidget);
   });
+
+  testWidgets('add expense validates amount and date', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Podaj kwote wieksza od 0.'), findsOneWidget);
+    expect(find.text('Podaj date kosztu.'), findsOneWidget);
+  });
+
+  testWidgets('saved expense appears on list and changes balance', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), '12,50');
+    await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
+    await tester.enterText(find.byType(TextField).at(2), 'Obiad');
+    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Koszt zapisany.'), findsOneWidget);
+
+    await tester.tap(find.text('Koszty'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Obiad'), findsOneWidget);
+    expect(find.text('12,50 zl'), findsOneWidget);
+
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Wydatki razem'), findsOneWidget);
+    expect(find.text('12,50 zl'), findsOneWidget);
+    expect(find.text('Drugi rodzic oddaje 6,25 zl'), findsOneWidget);
+  });
+
+  testWidgets('optional PDF attachment is saved with the expense', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), '40');
+    await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
+    await tester.enterText(find.byType(TextField).at(2), 'Faktura');
+    await tester.ensureVisible(find.text('Dodaj paragon lub PDF'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dodaj paragon lub PDF'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('PDF'));
+    await tester.pumpAndSettle();
+    expect(find.text('rachunek.pdf'), findsOneWidget);
+
+    await tester.tap(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Koszty'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Faktura'), findsOneWidget);
+    expect(find.textContaining('Zalacznik: rachunek.pdf'), findsOneWidget);
+  });
+}
+
+Future<void> pumpSignedInOnboardedApp(WidgetTester tester) async {
+  await tester.pumpWidget(
+    KidCostApp(
+      authRepository: InMemoryAuthRepository(),
+      attachmentStorage: InMemoryAttachmentStorage(),
+    ),
+  );
+  await tester.pump();
+  await tester.enterText(find.byType(TextField).first, 'parent@example.com');
+  await tester.enterText(find.byType(TextField).last, 'secret1');
+  await tester.tap(find.byIcon(Icons.login));
+  await tester.pumpAndSettle();
+  await completeOnboarding(tester);
 }
 
 Future<void> completeOnboarding(

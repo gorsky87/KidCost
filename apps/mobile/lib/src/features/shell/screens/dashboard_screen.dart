@@ -1,14 +1,35 @@
 import 'package:flutter/material.dart';
 
+import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({required this.profile, super.key});
+  const DashboardScreen({
+    required this.profile,
+    required this.expenses,
+    super.key,
+  });
 
   final OnboardingProfile profile;
+  final List<ExpenseEntry> expenses;
 
   @override
   Widget build(BuildContext context) {
+    final totalCents = expenses.fold<int>(
+      0,
+      (sum, expense) => sum + expense.amountCents,
+    );
+    final userPaidCents = expenses
+        .where((expense) => expense.paidBy.isCurrentUser)
+        .fold<int>(0, (sum, expense) => sum + expense.amountCents);
+    final halfCents = totalCents ~/ 2;
+    final netCents = userPaidCents - halfCents;
+    final balanceText = expenses.isEmpty
+        ? 'Brak kosztow'
+        : netCents >= 0
+        ? 'Drugi rodzic oddaje ${formatCents(netCents)}'
+        : 'Ty oddajesz ${formatCents(-netCents)}';
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -20,21 +41,22 @@ class DashboardScreen extends StatelessWidget {
         Text('Rodzina: ${profile.familyName}'),
         Text('Dziecko: ${profile.childName}'),
         const SizedBox(height: 16),
-        const _MetricTile(
+        _MetricTile(
           icon: Icons.account_balance_wallet_outlined,
           title: 'Wydatki razem',
-          value: '0,00 zl',
+          value: formatCents(totalCents),
         ),
-        const _MetricTile(
+        _MetricTile(
           icon: Icons.swap_horiz,
           title: 'Saldo 50/50',
-          value: 'Brak kosztow',
+          value: balanceText,
         ),
-        const _MetricTile(
+        _MetricTile(
           icon: Icons.receipt_long_outlined,
-          title: 'Dodaj pierwszy koszt',
-          value:
-              'Onboarding gotowy. Zapisz pierwszy koszt, aby zobaczyc saldo i historie.',
+          title: expenses.isEmpty ? 'Dodaj pierwszy koszt' : 'Ostatnie koszty',
+          value: expenses.isEmpty
+              ? 'Onboarding gotowy. Zapisz pierwszy koszt, aby zobaczyc saldo i historie.'
+              : '${expenses.length} kosztow w historii.',
         ),
       ],
     );
