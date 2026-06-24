@@ -49,6 +49,9 @@ When the stack is added, document the canonical commands here, for example:
 
 # Reset local Supabase database after migrations exist
 supabase db reset
+
+# Run domain package tests
+cd packages/domain && dart test/balance_test.dart
 ```
 
 ## Testing
