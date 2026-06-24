@@ -7,8 +7,11 @@ void main() {
   testAcceptedExpenseCanBeSettled();
   testSettledExpenseIsTerminal();
   testDisputedExpenseCanReturnToAccepted();
+  testAuthorCannotAcceptDisputedExpense();
   testCoreFieldsFreezeAfterReaction();
+  testStatusParserNormalizesWireNames();
   testStatusEventNormalizesAuditData();
+  testStatusEventRejectsBlankAuditIds();
 }
 
 void testCounterpartyCanAcceptPendingExpense() {
@@ -95,11 +98,31 @@ void testDisputedExpenseCanReturnToAccepted() {
   );
 }
 
+void testAuthorCannotAcceptDisputedExpense() {
+  expectFalse(
+    canTransitionExpenseStatus(
+      const ExpenseStatusTransition(
+        from: ExpenseStatus.disputed,
+        to: ExpenseStatus.accepted,
+        actor: ExpenseStatusActor.author,
+      ),
+    ),
+  );
+}
+
 void testCoreFieldsFreezeAfterReaction() {
   expectTrue(canEditExpenseCoreFields(ExpenseStatus.pending));
   expectFalse(canEditExpenseCoreFields(ExpenseStatus.accepted));
   expectFalse(canEditExpenseCoreFields(ExpenseStatus.disputed));
   expectFalse(canEditExpenseCoreFields(ExpenseStatus.settled));
+}
+
+void testStatusParserNormalizesWireNames() {
+  expectEqual(ExpenseStatus.parse(' PENDING '), ExpenseStatus.pending);
+  expectEqual(ExpenseStatus.parse('Accepted'), ExpenseStatus.accepted);
+  expectEqual(ExpenseStatus.parse('disputed'), ExpenseStatus.disputed);
+  expectEqual(ExpenseStatus.parse('SETTLED'), ExpenseStatus.settled);
+  expectThrows(() => ExpenseStatus.parse('deleted'));
 }
 
 void testStatusEventNormalizesAuditData() {
@@ -119,6 +142,29 @@ void testStatusEventNormalizesAuditData() {
   expectEqual(event.occurredAt.toIso8601String(), '2026-06-24T10:00:00.000Z');
 }
 
+void testStatusEventRejectsBlankAuditIds() {
+  expectThrows(
+    () => buildExpenseStatusEvent(
+      expenseId: ' ',
+      from: ExpenseStatus.pending,
+      to: ExpenseStatus.accepted,
+      actorId: 'parent-2',
+      actor: ExpenseStatusActor.counterparty,
+      occurredAt: DateTime.parse('2026-06-24T12:00:00Z'),
+    ),
+  );
+  expectThrows(
+    () => buildExpenseStatusEvent(
+      expenseId: 'expense-1',
+      from: ExpenseStatus.pending,
+      to: ExpenseStatus.accepted,
+      actorId: ' ',
+      actor: ExpenseStatusActor.counterparty,
+      occurredAt: DateTime.parse('2026-06-24T12:00:00Z'),
+    ),
+  );
+}
+
 void expectTrue(bool value) {
   if (!value) {
     throw StateError('Expected value to be true.');
@@ -134,5 +180,17 @@ void expectFalse(bool value) {
 void expectEqual(Object? actual, Object? expected) {
   if (actual != expected) {
     throw StateError('Expected <$expected>, got <$actual>.');
+  }
+}
+
+void expectThrows(void Function() callback) {
+  var didThrow = false;
+  try {
+    callback();
+  } catch (_) {
+    didThrow = true;
+  }
+  if (!didThrow) {
+    throw StateError('Expected callback to throw.');
   }
 }

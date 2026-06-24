@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../expenses/attachment_storage.dart';
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
 import '../../onboarding/onboarding_profile.dart';
+import '../../premium/premium_discovery.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({
@@ -15,6 +17,8 @@ class AddExpenseScreen extends StatefulWidget {
     required this.attachmentStorage,
     required this.onExpenseSaved,
     this.initialTemplate,
+    this.showReceiptOcrPremiumHint = false,
+    this.onPremiumHintDismissed,
     super.key,
   });
 
@@ -23,6 +27,8 @@ class AddExpenseScreen extends StatefulWidget {
   final AttachmentStorage attachmentStorage;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
   final ExpenseTemplate? initialTemplate;
+  final bool showReceiptOcrPremiumHint;
+  final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -59,6 +65,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
+    _amountController.addListener(_refreshAgreementPreview);
     _dateController.text = _formatDate(DateTime.now());
     _manualPayerController.text = widget.profile.coParentLabel;
     _payers = [
@@ -76,6 +83,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   void dispose() {
+    _amountController.removeListener(_refreshAgreementPreview);
     _amountController.dispose();
     _dateController.dispose();
     _titleController.dispose();
@@ -145,9 +153,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             },
           ),
           const SizedBox(height: 12),
+          _SharedExpenseRuleCard(decision: _currentAgreementDecision),
+          const SizedBox(height: 12),
           DropdownButtonFormField<ExpensePayer>(
             key: const Key('expense-payer-picker'),
             initialValue: _payer,
+            isExpanded: true,
             decoration: InputDecoration(
               labelText: 'Kto zaplacil',
               prefixIcon: const Icon(Icons.account_circle_outlined),
@@ -208,6 +219,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             _AttachmentReviewTray(
               attachment: _attachmentDraft!,
               status: _attachmentStatus,
+              showReceiptOcrPremiumHint: widget.showReceiptOcrPremiumHint,
               onPreview: _previewAttachment,
               onReplace: _chooseAttachment,
               onRemove: _removeAttachment,
@@ -225,6 +237,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               onBuyerNamePresentChanged: (value) {
                 setState(() => _buyerNamePresent = value);
               },
+              onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+                PremiumDiscoveryPoint.receiptOcr,
+              ),
             ),
           ] else ...[
             const SizedBox(height: 8),
@@ -463,6 +478,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _payer = matchingPayer ?? _payers.first;
   }
 
+  domain.SharedExpenseRuleDecision get _currentAgreementDecision {
+    var amountCents = 0;
+    try {
+      amountCents = parseAmountToCents(_amountController.text);
+    } on FormatException {
+      amountCents = 0;
+    }
+    return domain.evaluateSharedExpenseRule(
+      categoryId: _category.id,
+      amountCents: amountCents,
+    );
+  }
+
+  void _refreshAgreementPreview() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   _AttachmentReviewStatus get _attachmentStatus {
     final draft = _attachmentDraft;
     if (draft == null) return _AttachmentReviewStatus.ready;
@@ -564,6 +597,63 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 }
 
+class _SharedExpenseRuleCard extends StatelessWidget {
+  const _SharedExpenseRuleCard({required this.decision});
+
+  final domain.SharedExpenseRuleDecision decision;
+
+  @override
+  Widget build(BuildContext context) {
+    final rule = decision.rule;
+    final colors = Theme.of(context).colorScheme;
+    final warning =
+        decision.requiresPriorApproval || !rule.isShareableByDefault;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  warning
+                      ? Icons.rule_folder_outlined
+                      : Icons.check_circle_outline,
+                  color: warning ? colors.tertiary : colors.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Regula kosztu: ${rule.label}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(rule.splitSummary),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(decision.guidance),
+            const SizedBox(height: 8),
+            Text(
+              domain.kidCostSharedExpenseAgreement.addExpenseCopy,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TemplateSourceBanner extends StatelessWidget {
   const _TemplateSourceBanner({required this.template});
 
@@ -587,6 +677,7 @@ class _AttachmentReviewTray extends StatelessWidget {
   const _AttachmentReviewTray({
     required this.attachment,
     required this.status,
+    required this.showReceiptOcrPremiumHint,
     required this.onPreview,
     required this.onReplace,
     required this.onRemove,
@@ -600,10 +691,12 @@ class _AttachmentReviewTray extends StatelessWidget {
     required this.buyerNamePresent,
     required this.onEvidenceTypeChanged,
     required this.onBuyerNamePresentChanged,
+    required this.onPremiumHintDismissed,
   });
 
   final AttachmentDraft attachment;
   final _AttachmentReviewStatus status;
+  final bool showReceiptOcrPremiumHint;
   final VoidCallback onPreview;
   final VoidCallback onReplace;
   final VoidCallback onRemove;
@@ -617,6 +710,7 @@ class _AttachmentReviewTray extends StatelessWidget {
   final bool? buyerNamePresent;
   final ValueChanged<EvidenceType?> onEvidenceTypeChanged;
   final ValueChanged<bool?> onBuyerNamePresentChanged;
+  final VoidCallback onPremiumHintDismissed;
 
   @override
   Widget build(BuildContext context) {
@@ -659,6 +753,21 @@ class _AttachmentReviewTray extends StatelessWidget {
               icon: Icons.tips_and_updates_outlined,
               text: status.guidanceText,
             ),
+            if (status == _AttachmentReviewStatus.ready) ...[
+              const SizedBox(height: 8),
+              _AttachmentSaveNotice(
+                icon: Icons.privacy_tip_outlined,
+                text: _attachmentPrivacyText(attachment.contentType),
+              ),
+            ],
+            if (showReceiptOcrPremiumHint) ...[
+              const SizedBox(height: 12),
+              PremiumDiscoveryCard(
+                point: PremiumDiscoveryPoint.receiptOcr,
+                onDismiss: onPremiumHintDismissed,
+                compact: true,
+              ),
+            ],
             const SizedBox(height: 12),
             const Divider(height: 1),
             const SizedBox(height: 12),
@@ -790,6 +899,16 @@ String _buyerNameStateLabel(bool? value) {
     return 'Nie zaznaczono';
   }
   return value ? 'Tak' : 'Nie';
+}
+
+String _attachmentPrivacyText(String contentType) {
+  if (contentType.startsWith('image/')) {
+    return 'Zdjecie zapiszemy bez metadanych lokalizacji i opisow technicznych.';
+  }
+  if (contentType == 'application/pdf') {
+    return 'PDF zapisujemy jako zalacznik; czyszczenie metadanych PDF jest poza MVP.';
+  }
+  return 'Zalacznik zapiszemy tylko w obslugiwanym formacie.';
 }
 
 class _AttachmentThumbnail extends StatelessWidget {
@@ -979,24 +1098,35 @@ class _CategoryPicker extends StatelessWidget {
         labelText: 'Kategoria',
         prefixIcon: Icon(Icons.category_outlined),
       ),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (final category in expenseCategories)
-            ChoiceChip(
-              avatar: Icon(
-                category.icon,
-                color: category.accentColor,
-                size: 18,
-              ),
-              label: Text(category.label),
-              selected: category.id == selectedCategory.id,
-              onSelected: isEnabled
-                  ? (_) => onCategorySelected(category)
-                  : null,
-            ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxLabelWidth = constraints.hasBoundedWidth
+              ? (constraints.maxWidth - 80).clamp(120.0, 260.0)
+              : 220.0;
+
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final category in expenseCategories)
+                ChoiceChip(
+                  avatar: Icon(
+                    category.icon,
+                    color: category.accentColor,
+                    size: 18,
+                  ),
+                  label: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxLabelWidth),
+                    child: Text(category.label, softWrap: true),
+                  ),
+                  selected: category.id == selectedCategory.id,
+                  onSelected: isEnabled
+                      ? (_) => onCategorySelected(category)
+                      : null,
+                ),
+            ],
+          );
+        },
       ),
     );
   }

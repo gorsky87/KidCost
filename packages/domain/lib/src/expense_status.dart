@@ -124,9 +124,11 @@ const _allowedTransitions = {
 };
 
 bool _requiresCounterparty(ExpenseStatusTransition transition) {
-  return transition.from == ExpenseStatus.pending &&
-      (transition.to == ExpenseStatus.accepted ||
-          transition.to == ExpenseStatus.disputed);
+  return (transition.from == ExpenseStatus.pending &&
+          (transition.to == ExpenseStatus.accepted ||
+              transition.to == ExpenseStatus.disputed)) ||
+      (transition.from == ExpenseStatus.disputed &&
+          transition.to == ExpenseStatus.accepted);
 }
 
 bool _requiresDisputeComment(ExpenseStatusTransition transition) {

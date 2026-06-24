@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
+import '../../premium/premium_discovery.dart';
 
 enum _ExpenseSort { newest, oldest, highestAmount, lowestAmount }
 
@@ -10,12 +12,18 @@ class ExpensesScreen extends StatefulWidget {
     required this.expenses,
     this.isLoading = false,
     this.errorMessage,
+    this.showExpenseHistoryPremiumHint = false,
+    this.onExpenseChanged,
+    this.onPremiumHintDismissed,
     super.key,
   });
 
   final List<ExpenseEntry> expenses;
   final bool isLoading;
   final String? errorMessage;
+  final bool showExpenseHistoryPremiumHint;
+  final ValueChanged<ExpenseEntry>? onExpenseChanged;
+  final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
   State<ExpensesScreen> createState() => _ExpensesScreenState();
@@ -92,7 +100,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           )
         else
           for (final expense in filteredExpenses)
-            _ExpenseCard(expense: expense),
+            _ExpenseCard(
+              expense: expense,
+              onExpenseChanged: widget.onExpenseChanged,
+              showExpenseHistoryPremiumHint:
+                  widget.showExpenseHistoryPremiumHint,
+              onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+                PremiumDiscoveryPoint.expenseHistory,
+              ),
+            ),
       ],
     );
   }
@@ -318,9 +334,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 }
 
 class _ExpenseCard extends StatelessWidget {
-  const _ExpenseCard({required this.expense});
+  const _ExpenseCard({
+    required this.expense,
+    required this.onExpenseChanged,
+    required this.showExpenseHistoryPremiumHint,
+    required this.onPremiumHintDismissed,
+  });
 
   final ExpenseEntry expense;
+  final ValueChanged<ExpenseEntry>? onExpenseChanged;
+  final bool showExpenseHistoryPremiumHint;
+  final VoidCallback onPremiumHintDismissed;
 
   @override
   Widget build(BuildContext context) {
@@ -413,6 +437,15 @@ class _ExpenseCard extends StatelessWidget {
                     value: expense.visibility.description,
                   ),
                   _DetailRow(label: 'Data', value: expense.expenseDate),
+                  if (!expense.status.canEdit)
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.lock_outline),
+                      title: Text('Edycja zablokowana'),
+                      subtitle: Text(
+                        'Kwota, data i kategoria sa zamrozone po reakcji na koszt.',
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   _AttachmentPreview(attachment: expense.attachment),
                   if (expense.attachment?.evidence?.hasDetails == true) ...[
@@ -420,9 +453,19 @@ class _ExpenseCard extends StatelessWidget {
                     _EvidenceDetails(attachment: expense.attachment!),
                   ],
                   const SizedBox(height: 16),
-                  _StatusActionsSection(status: expense.status),
+                  _StatusActionsSection(
+                    expense: expense,
+                    onExpenseChanged: onExpenseChanged,
+                  ),
                   const SizedBox(height: 16),
-                  _StatusHistoryPlaceholder(status: expense.status),
+                  _StatusHistoryPlaceholder(expense: expense),
+                  if (showExpenseHistoryPremiumHint) ...[
+                    const SizedBox(height: 12),
+                    PremiumDiscoveryCard(
+                      point: PremiumDiscoveryPoint.expenseHistory,
+                      onDismiss: onPremiumHintDismissed,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -509,77 +552,250 @@ class _ExpenseStatusBadge extends StatelessWidget {
 }
 
 class _StatusActionsSection extends StatelessWidget {
-  const _StatusActionsSection({required this.status});
+  const _StatusActionsSection({
+    required this.expense,
+    required this.onExpenseChanged,
+  });
 
-  final ExpenseStatus status;
+  final ExpenseEntry expense;
+  final ValueChanged<ExpenseEntry>? onExpenseChanged;
 
   @override
   Widget build(BuildContext context) {
-    final authorActions = status.authorActions;
-    final counterpartyActions = status.counterpartyActions;
+    final isAuthor = expense.paidBy.isCurrentUser;
+    final actions = _actionsForCurrentUser(isAuthor);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Akcje', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        _ActionGroup(title: 'Autor kosztu', actions: authorActions),
+        Text(
+          isAuthor ? 'Twoja rola: autor kosztu' : 'Twoja rola: drugi rodzic',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const SizedBox(height: 8),
-        _ActionGroup(title: 'Drugi rodzic', actions: counterpartyActions),
-      ],
-    );
-  }
-}
-
-class _ActionGroup extends StatelessWidget {
-  const _ActionGroup({required this.title, required this.actions});
-
-  final String title;
-  final List<String> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    if (actions.isEmpty) {
-      return ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.lock_outline),
-        title: Text(title),
-        subtitle: const Text('Brak dostepnych akcji w tym statusie.'),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final action in actions)
-              OutlinedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '$action bedzie dostepne po podpieciu backendu.',
-                      ),
-                    ),
-                  );
-                },
-                child: Text(action),
-              ),
-          ],
+        _ActionGroup(
+          actions: actions,
+          onSelected: onExpenseChanged == null
+              ? null
+              : (action) => _applyAction(context, action),
         ),
       ],
     );
   }
+
+  List<_StatusAction> _actionsForCurrentUser(bool isAuthor) {
+    switch (expense.status) {
+      case ExpenseStatus.pending:
+        if (isAuthor) {
+          return const [
+            _StatusAction(
+              label: 'Edytuj koszt',
+              icon: Icons.edit_outlined,
+              targetStatus: ExpenseStatus.pending,
+            ),
+          ];
+        }
+        return const [
+          _StatusAction(
+            label: 'Zaakceptuj koszt',
+            icon: Icons.check_circle_outline,
+            targetStatus: ExpenseStatus.accepted,
+          ),
+          _StatusAction(
+            label: 'Oznacz jako sporne',
+            icon: Icons.report_problem_outlined,
+            targetStatus: ExpenseStatus.disputed,
+            requiresComment: true,
+          ),
+        ];
+      case ExpenseStatus.accepted:
+        return const [
+          _StatusAction(
+            label: 'Oznacz jako rozliczone',
+            icon: Icons.task_alt_outlined,
+            targetStatus: ExpenseStatus.settled,
+          ),
+        ];
+      case ExpenseStatus.disputed:
+        if (isAuthor) {
+          return const [
+            _StatusAction(
+              label: 'Dodaj korekte po wyjasnieniu',
+              icon: Icons.edit_note_outlined,
+              targetStatus: ExpenseStatus.disputed,
+            ),
+          ];
+        }
+        return const [
+          _StatusAction(
+            label: 'Potwierdz po wyjasnieniu',
+            icon: Icons.check_circle_outline,
+            targetStatus: ExpenseStatus.accepted,
+          ),
+        ];
+      case ExpenseStatus.settled:
+        return const [];
+    }
+  }
+
+  Future<void> _applyAction(BuildContext context, _StatusAction action) async {
+    if (action.targetStatus == expense.status) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Edycja kosztu zostanie dodana osobno.')),
+      );
+      return;
+    }
+
+    final comment = action.requiresComment
+        ? await _askForDisputeComment(context)
+        : null;
+    if (!context.mounted) {
+      return;
+    }
+    if (action.requiresComment && comment == null) {
+      return;
+    }
+    if (!_isStatusTransitionAllowed(action.targetStatus, comment: comment)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ta zmiana statusu nie jest dostepna.')),
+      );
+      return;
+    }
+
+    onExpenseChanged!(
+      expense.copyWith(status: action.targetStatus, statusComment: comment),
+    );
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Status zmieniony: ${action.targetStatus.label}.'),
+      ),
+    );
+  }
+
+  bool _isStatusTransitionAllowed(
+    ExpenseStatus targetStatus, {
+    String? comment,
+  }) {
+    final actor = expense.paidBy.isCurrentUser
+        ? domain.ExpenseStatusActor.author
+        : domain.ExpenseStatusActor.counterparty;
+    return domain.canTransitionExpenseStatus(
+      domain.ExpenseStatusTransition(
+        from: expense.status.toDomainStatus(),
+        to: targetStatus.toDomainStatus(),
+        actor: actor,
+        comment: comment,
+      ),
+    );
+  }
+
+  Future<String?> _askForDisputeComment(BuildContext context) async {
+    var comment = '';
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Komentarz do sporu'),
+          content: TextField(
+            key: const Key('expense-dispute-comment'),
+            autofocus: true,
+            minLines: 2,
+            maxLines: 4,
+            onChanged: (value) => comment = value,
+            decoration: const InputDecoration(
+              labelText: 'Co wymaga wyjasnienia?',
+              hintText: 'Np. brakuje potwierdzenia platnosci',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Anuluj'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final normalizedComment = comment.trim();
+                if (normalizedComment.isEmpty) {
+                  return;
+                }
+                Navigator.of(context).pop(normalizedComment);
+              },
+              child: const Text('Zapisz spor'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+extension _ExpenseStatusDomainMapping on ExpenseStatus {
+  domain.ExpenseStatus toDomainStatus() {
+    switch (this) {
+      case ExpenseStatus.pending:
+        return domain.ExpenseStatus.pending;
+      case ExpenseStatus.accepted:
+        return domain.ExpenseStatus.accepted;
+      case ExpenseStatus.disputed:
+        return domain.ExpenseStatus.disputed;
+      case ExpenseStatus.settled:
+        return domain.ExpenseStatus.settled;
+    }
+  }
+}
+
+class _ActionGroup extends StatelessWidget {
+  const _ActionGroup({required this.actions, required this.onSelected});
+
+  final List<_StatusAction> actions;
+  final ValueChanged<_StatusAction>? onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    if (actions.isEmpty) {
+      return const ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.lock_outline),
+        title: Text('Brak dostepnych akcji'),
+        subtitle: Text('Ten status nie pozwala na kolejna akcje w MVP.'),
+      );
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final action in actions)
+          OutlinedButton.icon(
+            onPressed: onSelected == null ? null : () => onSelected!(action),
+            icon: Icon(action.icon),
+            label: Text(action.label),
+          ),
+      ],
+    );
+  }
+}
+
+class _StatusAction {
+  const _StatusAction({
+    required this.label,
+    required this.icon,
+    required this.targetStatus,
+    this.requiresComment = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final ExpenseStatus targetStatus;
+  final bool requiresComment;
 }
 
 class _StatusHistoryPlaceholder extends StatelessWidget {
-  const _StatusHistoryPlaceholder({required this.status});
+  const _StatusHistoryPlaceholder({required this.expense});
 
-  final ExpenseStatus status;
+  final ExpenseEntry expense;
 
   @override
   Widget build(BuildContext context) {
@@ -587,7 +803,13 @@ class _StatusHistoryPlaceholder extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.history_outlined),
       title: const Text('Historia statusu'),
-      subtitle: Text(status.historyPlaceholder),
+      subtitle: Text(
+        [
+          expense.status.historyPlaceholder,
+          if (expense.statusComment != null)
+            'Komentarz: ${expense.statusComment}',
+        ].join('\n'),
+      ),
     );
   }
 }

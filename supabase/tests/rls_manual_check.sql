@@ -105,6 +105,7 @@ insert into public.expenses (
   amount,
   category,
   expense_date,
+  status,
   created_by,
   source_template_id
 )
@@ -116,6 +117,7 @@ values (
   123.45,
   'school',
   current_date,
+  'accepted',
   (select id from rls_ids where name = 'user_a'),
   (select id from rls_ids where name = 'template_a')
 );
@@ -134,10 +136,6 @@ values (
   'pdf',
   (select id from rls_ids where name = 'user_a')
 );
-
-update public.expenses
-set status = 'accepted'
-where id = (select id from rls_ids where name = 'expense_a');
 
 do $$
 begin

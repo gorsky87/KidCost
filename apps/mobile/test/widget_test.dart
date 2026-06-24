@@ -8,6 +8,8 @@ import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_visuals.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
+import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/add_expense_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
@@ -66,6 +68,72 @@ void main() {
     );
   });
 
+  testWidgets('core MVP screens stay usable with large text and tap targets', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KidCostTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            textScaler: TextScaler.linear(2),
+          ),
+          child: Scaffold(
+            body: DashboardScreen(
+              profile: testProfile(),
+              expenses: [testExpense(id: '1', title: 'Obiad')],
+              custodyDays: const [],
+              currentDate: DateTime.utc(2026, 6, 24),
+              onAddExpense: () {},
+              onOpenReports: () {},
+              onOpenFamily: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final addExpenseButton = find.widgetWithText(FilledButton, 'Dodaj koszt');
+    expect(addExpenseButton, findsOneWidget);
+    expect(tester.getSize(addExpenseButton).height, greaterThanOrEqualTo(48));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KidCostTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            textScaler: TextScaler.linear(2),
+          ),
+          child: Scaffold(
+            body: AddExpenseScreen(
+              profile: testProfile(),
+              userEmail: 'parent@example.com',
+              attachmentStorage: InMemoryAttachmentStorage(),
+              onExpenseSaved: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final saveExpenseButton = find.widgetWithText(FilledButton, 'Zapisz koszt');
+    await tester.ensureVisible(saveExpenseButton);
+    await tester.pumpAndSettle();
+
+    expect(saveExpenseButton, findsOneWidget);
+    expect(tester.getSize(saveExpenseButton).height, greaterThanOrEqualTo(48));
+  });
+
   testWidgets('expense visuals cover MVP categories and statuses', (_) async {
     const expectedCategoryIds = {
       'food',
@@ -105,18 +173,46 @@ void main() {
     final sanitized = sanitizeTelemetryParameters({
       'screen': 'dashboard',
       'category_id': 'school',
+      'from_status': 'pending',
+      'to_status': 'accepted',
+      'actor': 'counterparty',
+      'has_status_comment': false,
       'email': 'parent@example.com',
       'child_name': 'Antek',
       'amount': '42.99',
       'content_type': 'application/pdf',
       'release_channel': 'beta',
+      'trigger': 'after_first_balance_viewed',
+      'surface': 'settings',
+      'plan_context': 'family',
+      'feature': 'receipt_ocr',
+      'reason_code': 'too_early',
+      'access_scope': 'selected_report',
+      'audit_action': 'report_viewed',
+      'expires_in_days': 14,
+      'professional_role': 'mediator',
+      'report_month': '2026-06',
     });
 
     expect(sanitized, {
       'screen': 'dashboard',
       'category_id': 'school',
+      'from_status': 'pending',
+      'to_status': 'accepted',
+      'actor': 'counterparty',
+      'has_status_comment': false,
       'content_type': 'application/pdf',
       'release_channel': 'beta',
+      'trigger': 'after_first_balance_viewed',
+      'surface': 'settings',
+      'plan_context': 'family',
+      'feature': 'receipt_ocr',
+      'reason_code': 'too_early',
+      'access_scope': 'selected_report',
+      'audit_action': 'report_viewed',
+      'expires_in_days': 14,
+      'professional_role': 'mediator',
+      'report_month': '2026-06',
     });
   });
 
@@ -288,10 +384,7 @@ void main() {
       find.text('Kod nie ujawnia kosztow ani danych dziecka.'),
       findsOneWidget,
     );
-    await tester.drag(
-      find.byType(SingleChildScrollView),
-      const Offset(0, -500),
-    );
+    await tester.ensureVisible(find.text('Prywatnosc i zaufanie'));
     await tester.pumpAndSettle();
     expect(find.text('Prywatnosc i zaufanie'), findsWidgets);
     expect(
@@ -391,6 +484,97 @@ void main() {
     );
   });
 
+  testWidgets('premium discovery stays calm and dismissible', (
+    WidgetTester tester,
+  ) async {
+    final dismissed = <PremiumDiscoveryPoint>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            showReportExportPremiumHint: true,
+            onPremiumHintDismissed: dismissed.add,
+            expenses: [testExpense(id: '1', title: 'Obiad')],
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Raport gotowy do rozmowy'), 180);
+    expect(find.text('Raport gotowy do rozmowy'), findsOneWidget);
+    expect(find.textContaining('podstawowy CSV zostaja'), findsOneWidget);
+    expect(find.text('CSV: kidcost-report-2026-06.csv'), findsOneWidget);
+
+    await tester.ensureVisible(find.byTooltip('Ukryj na teraz'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Ukryj na teraz'));
+    await tester.pumpAndSettle();
+
+    expect(dismissed, [PremiumDiscoveryPoint.reportExport]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsScreen(
+            userEmail: 'parent@example.com',
+            isDemoSession: true,
+            showAccountPlanPremiumHint: true,
+            onPremiumHintDismissed: dismissed.add,
+            onSignOut: () async {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Premium bez presji'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Zakres MVP i przyszlego Premium'),
+      120,
+    );
+    expect(find.text('MVP/basic'), findsOneWidget);
+    expect(find.text('Kandydaci Premium'), findsOneWidget);
+    expect(find.text('Downgrade'), findsOneWidget);
+    expect(find.text('Platnik rodzinny'), findsOneWidget);
+    expect(find.textContaining('zalaczniki do limitu'), findsOneWidget);
+    expect(find.textContaining('platnosc nie daje wylacznej'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Fee-waiver i dostep po lapse'),
+      120,
+    );
+    expect(
+      find.textContaining('Premium automatyzacje sa wstrzymane'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('minimalnego formularza'), findsOneWidget);
+
+    final paywallPreviewButton = find.widgetWithText(
+      TextButton,
+      'Podglad Premium i trial',
+    );
+    await tester.ensureVisible(paywallPreviewButton);
+    await tester.pumpAndSettle();
+    await tester.tap(paywallPreviewButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Premium po pierwszej wartosci'), findsOneWidget);
+    expect(find.textContaining('platnik nie staje sie'), findsOneWidget);
+    expect(find.textContaining('Bez subskrypcji nadal'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Przed pierwszym recznym kosztem'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Przed pierwszym recznym kosztem'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Zobacz trial'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Zobacz trial'), findsOneWidget);
+  });
+
   testWidgets('add expense validates amount and date', (
     WidgetTester tester,
   ) async {
@@ -402,9 +586,10 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), '');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
-    await tester.drag(
-      find.byType(SingleChildScrollView),
-      const Offset(0, -500),
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      180,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
@@ -436,6 +621,27 @@ void main() {
 
     expect(find.text('Lekarze i leki'), findsWidgets);
     expect(find.text('30,00 zl'), findsOneWidget);
+  });
+
+  testWidgets('add expense previews shared agreement rules and thresholds', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Regula kosztu: Jedzenie'), findsOneWidget);
+    expect(find.text('Domyslny podzial 50/50.'), findsOneWidget);
+    expect(find.textContaining('nie jest porada prawna'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(0), '250');
+    await tester.ensureVisible(find.text('Zajecia dodatkowe'));
+    await tester.tap(find.text('Zajecia dodatkowe'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Regula kosztu: Zajecia dodatkowe'), findsOneWidget);
+    expect(find.textContaining('prog uprzedniej zgody'), findsOneWidget);
+    expect(find.textContaining('pending'), findsOneWidget);
   });
 
   testWidgets('saved expense appears on list and changes balance', (
@@ -576,6 +782,50 @@ void main() {
     );
   });
 
+  testWidgets('expense status action emits sanitized telemetry', (
+    WidgetTester tester,
+  ) async {
+    final telemetry = RecordingTelemetry();
+    await pumpSignedInOnboardedApp(tester, telemetry: telemetry);
+
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), '45');
+    await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
+    await tester.enterText(find.byType(TextField).at(2), 'Basen');
+    await tester.ensureVisible(find.byKey(const Key('expense-payer-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expense-payer-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Drugi rodzic').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Koszty'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Basen'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Zaakceptuj koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zaakceptuj koszt'));
+    await tester.pumpAndSettle();
+
+    final statusEvents = telemetry.events
+        .where((event) => event.event == TelemetryEvent.expenseStatusChanged)
+        .toList();
+    expect(statusEvents, hasLength(1));
+    expect(statusEvents.single.parameters, {
+      'from_status': 'pending',
+      'to_status': 'accepted',
+      'actor': 'counterparty',
+      'has_status_comment': false,
+      'release_channel': 'demo',
+    });
+  });
+
   testWidgets('optional PDF attachment is saved with the expense', (
     WidgetTester tester,
   ) async {
@@ -596,6 +846,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('rachunek.pdf'), findsOneWidget);
     expect(find.text('Gotowy do wyslania'), findsOneWidget);
+    expect(find.text('Szybsze przepisywanie paragonow'), findsOneWidget);
+    expect(find.textContaining('reczne pola zostaja'), findsOneWidget);
     expect(find.text('Typ dowodu'), findsOneWidget);
     expect(
       find.textContaining('To pomaga uporzadkowac dokumenty'),
@@ -776,6 +1028,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: ExpensesScreen(
+            showExpenseHistoryPremiumHint: true,
             expenses: [
               testExpense(
                 id: '1',
@@ -822,9 +1075,15 @@ void main() {
     expect(find.text('Apteka Testowa'), findsOneWidget);
     expect(find.text('FV/20/06'), findsOneWidget);
     expect(find.textContaining('nie jest porada prawna'), findsOneWidget);
+    expect(find.text('Twoja rola: autor kosztu'), findsOneWidget);
     expect(find.text('Edytuj koszt'), findsOneWidget);
-    expect(find.text('Oznacz jako sporne'), findsOneWidget);
+    expect(find.text('Oznacz jako sporne'), findsNothing);
     expect(find.text('Historia statusu'), findsOneWidget);
+    expect(find.text('Pelniejsza historia kosztu'), findsOneWidget);
+    expect(
+      find.textContaining('Status kosztu i podstawowe szczegoly'),
+      findsOneWidget,
+    );
 
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
@@ -833,7 +1092,8 @@ void main() {
 
     expect(find.text('Brak zalacznika'), findsOneWidget);
     expect(find.text('Wymaga wyjasnienia'), findsWidgets);
-    expect(find.text('Potwierdz po wyjasnieniu'), findsOneWidget);
+    expect(find.text('Dodaj korekte po wyjasnieniu'), findsOneWidget);
+    expect(find.text('Potwierdz po wyjasnieniu'), findsNothing);
 
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
@@ -841,7 +1101,84 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Rozliczony'), findsWidgets);
-    expect(find.text('Brak dostepnych akcji w tym statusie.'), findsWidgets);
+    expect(find.text('Brak dostepnych akcji'), findsWidgets);
+  });
+
+  testWidgets('counterparty can accept or dispute a pending expense', (
+    WidgetTester tester,
+  ) async {
+    var expenses = [
+      testExpense(
+        id: '1',
+        title: 'Kolonie',
+        paidBy: const ExpensePayer(
+          id: 'coparent',
+          label: 'coparent@example.com',
+          isCurrentUser: false,
+        ),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return Scaffold(
+              body: ExpensesScreen(
+                expenses: expenses,
+                onExpenseChanged: (expense) {
+                  setState(() {
+                    expenses = [
+                      for (final item in expenses)
+                        if (item.id == expense.id) expense else item,
+                    ];
+                  });
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Kolonie'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Twoja rola: drugi rodzic'), findsOneWidget);
+    expect(find.text('Zaakceptuj koszt'), findsOneWidget);
+    expect(find.text('Oznacz jako sporne'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Oznacz jako sporne'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Oznacz jako sporne'));
+    await tester.pumpAndSettle();
+    expect(find.text('Komentarz do sporu'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('expense-dispute-comment')),
+      'Brakuje potwierdzenia platnosci.',
+    );
+    await tester.tap(find.text('Zapisz spor'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Wymaga wyjasnienia'), findsWidgets);
+    expect(expenses.single.status, ExpenseStatus.disputed);
+    expect(expenses.single.statusComment, 'Brakuje potwierdzenia platnosci.');
+
+    await tester.tap(find.text('Kolonie'));
+    await tester.pumpAndSettle();
+    expect(find.text('Potwierdz po wyjasnieniu'), findsOneWidget);
+    expect(
+      find.textContaining('Brakuje potwierdzenia platnosci.'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(find.text('Potwierdz po wyjasnieniu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Potwierdz po wyjasnieniu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zaakceptowany'), findsWidgets);
+    expect(expenses.single.status, ExpenseStatus.accepted);
   });
 
   testWidgets('dashboard shows empty state and CTA opens add expense', (
@@ -1235,6 +1572,8 @@ void main() {
     expect(find.text('60,00 zl'), findsWidgets);
     expect(find.text('Twoj udzial'), findsOneWidget);
     expect(find.text('100,00 zl'), findsWidgets);
+    expect(find.text('Reguly rodzinne'), findsOneWidget);
+    expect(find.textContaining('nie wnioski prawne'), findsOneWidget);
     expect(find.text('Roznica'), findsOneWidget);
     expect(
       find.text('Zaplaciles o 40,00 zl wiecej niz Twoj udzial.'),
@@ -1306,13 +1645,70 @@ void main() {
     expect(find.text('CSV: kidcost-report-2026-06.csv'), findsOneWidget);
     expect(find.text('PDF wymaga generatora'), findsOneWidget);
   });
+
+  testWidgets('monthly reports expose professional access guardrails', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Dostep mediatora lub prawnika'),
+      180,
+    );
+    expect(find.textContaining('read-only'), findsOneWidget);
+    expect(find.textContaining('nie udziela porad prawnych'), findsOneWidget);
+
+    final previewButton = find.widgetWithText(
+      OutlinedButton,
+      'Podglad bezpiecznego linku',
+    );
+    await tester.ensureVisible(previewButton);
+    await tester.pumpAndSettle();
+    await tester.tap(previewButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Udostepnij wybrany raport profesjonaliscie'),
+      findsOneWidget,
+    );
+    expect(find.text('Zakres: raport 2026-06.'), findsOneWidget);
+    expect(find.text('Uprawnienia'), findsOneWidget);
+    expect(find.text('Podglad wybranego raportu'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Prywatne notatki poza pakietem'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Prywatne notatki poza pakietem'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Kazdy podglad raportu'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Kazdy podglad raportu'), findsOneWidget);
+  });
 }
 
-Future<void> pumpSignedInOnboardedApp(WidgetTester tester) async {
+Future<void> pumpSignedInOnboardedApp(
+  WidgetTester tester, {
+  AppTelemetry? telemetry,
+}) async {
   await tester.pumpWidget(
     KidCostApp(
       authRepository: InMemoryAuthRepository(),
       attachmentStorage: InMemoryAttachmentStorage(),
+      telemetry: telemetry,
     ),
   );
   await tester.pump();

@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../expenses/expense_models.dart';
+import '../../premium/premium_discovery.dart';
 
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({required this.expenses, this.currentDate, super.key});
+  const ReportsScreen({
+    required this.expenses,
+    this.currentDate,
+    this.showReportExportPremiumHint = false,
+    this.onPremiumHintDismissed,
+    super.key,
+  });
 
   final List<ExpenseEntry> expenses;
   final DateTime? currentDate;
+  final bool showReportExportPremiumHint;
+  final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
@@ -64,7 +74,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
           _ExpenseStatusCard(report: report),
         ],
         const SizedBox(height: 12),
-        _ExportCard(report: report),
+        _ExportCard(
+          report: report,
+          showPremiumHint: widget.showReportExportPremiumHint,
+          onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+            PremiumDiscoveryPoint.reportExport,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _ProfessionalAccessCard(report: report),
       ],
     );
   }
@@ -296,6 +314,13 @@ class _ReportSummaryCard extends StatelessWidget {
             trailing: Text(formatCents(report.currentUserShareCents)),
           ),
           ListTile(
+            leading: const Icon(Icons.rule_folder_outlined),
+            title: const Text('Reguly rodzinne'),
+            subtitle: Text(
+              domain.kidCostSharedExpenseAgreement.reportDisclaimer,
+            ),
+          ),
+          ListTile(
             leading: const Icon(Icons.compare_arrows_outlined),
             title: const Text('Roznica'),
             subtitle: Text(report.differenceText),
@@ -402,9 +427,15 @@ class _EmptyReportCard extends StatelessWidget {
 }
 
 class _ExportCard extends StatelessWidget {
-  const _ExportCard({required this.report});
+  const _ExportCard({
+    required this.report,
+    required this.showPremiumHint,
+    required this.onPremiumHintDismissed,
+  });
 
   final MonthlyExpenseReport report;
+  final bool showPremiumHint;
+  final VoidCallback onPremiumHintDismissed;
 
   @override
   Widget build(BuildContext context) {
@@ -421,6 +452,13 @@ class _ExportCard extends StatelessWidget {
               icon: const Icon(Icons.table_view_outlined),
               label: Text('CSV: ${report.fileName}'),
             ),
+            if (showPremiumHint) ...[
+              const SizedBox(height: 8),
+              PremiumDiscoveryCard(
+                point: PremiumDiscoveryPoint.reportExport,
+                onDismiss: onPremiumHintDismissed,
+              ),
+            ],
             const SizedBox(height: 8),
             OutlinedButton.icon(
               onPressed: null,
@@ -458,6 +496,132 @@ class _ExportCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ProfessionalAccessCard extends StatelessWidget {
+  const _ProfessionalAccessCard({required this.report});
+
+  final MonthlyExpenseReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    final policy = domain.kidCostProfessionalAccessPolicy;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.verified_user_outlined),
+              title: const Text('Dostep mediatora lub prawnika'),
+              subtitle: Text(
+                'Tylko raport ${report.month}, read-only, wygasa po ${policy.defaultExpiryDays} dniach.',
+              ),
+            ),
+            Text(policy.copy.body),
+            const SizedBox(height: 8),
+            Text(
+              policy.copy.noLegalAdvice,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _showProfessionalAccessPreview(context),
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Podglad bezpiecznego linku'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showProfessionalAccessPreview(BuildContext context) {
+    final policy = domain.kidCostProfessionalAccessPolicy;
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.78,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Text(
+                  policy.copy.title,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text('Zakres: raport ${report.month}.'),
+                Text('Wygasa po ${policy.defaultExpiryDays} dniach.'),
+                const SizedBox(height: 16),
+                _AccessPreviewSection(
+                  title: 'Uprawnienia',
+                  children: [
+                    for (final permission in policy.permissions)
+                      domain.professionalPermissionLabel(permission),
+                  ],
+                ),
+                _AccessPreviewSection(
+                  title: 'Domyslna minimalizacja danych',
+                  children: [
+                    for (final rule in policy.dataMinimizationRules)
+                      domain.professionalDataRuleLabel(rule),
+                  ],
+                ),
+                _AccessPreviewSection(
+                  title: 'Audit widoczny dla rodzicow',
+                  children: const [
+                    'Utworzenie zaproszenia',
+                    'Akceptacja zaproszenia',
+                    'Kazdy podglad raportu',
+                    'Kazde pobranie PDF',
+                    'Cofniecie lub wygasniecie dostepu',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(policy.copy.noLegalAdvice),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AccessPreviewSection extends StatelessWidget {
+  const _AccessPreviewSection({required this.title, required this.children});
+
+  final String title;
+  final List<String> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 6),
+          for (final child in children)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.check_circle_outline),
+              title: Text(child),
+            ),
+        ],
+      ),
     );
   }
 }

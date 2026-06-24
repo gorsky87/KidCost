@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
+
+import '../../premium/premium_discovery.dart';
+import '../../premium/premium_paywall_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.userEmail,
     required this.isDemoSession,
     required this.onSignOut,
+    this.showAccountPlanPremiumHint = false,
+    this.onPremiumHintDismissed,
     super.key,
   });
 
   final String userEmail;
   final bool isDemoSession;
   final Future<void> Function() onSignOut;
+  final bool showAccountPlanPremiumHint;
+  final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -75,6 +83,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             );
           },
         ),
+        const Divider(),
+        if (widget.showAccountPlanPremiumHint) ...[
+          PremiumDiscoveryCard(
+            point: PremiumDiscoveryPoint.accountPlan,
+            onDismiss: () => widget.onPremiumHintDismissed?.call(
+              PremiumDiscoveryPoint.accountPlan,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        _PlanComparisonCard(onPreviewPaywall: _showPremiumPaywallPreview),
+        const SizedBox(height: 8),
+        const _FeeWaiverPolicyCard(),
         const Divider(),
         const ListTile(
           leading: Icon(Icons.security_outlined),
@@ -170,5 +191,129 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showPremiumPaywallPreview() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.9,
+          child: PremiumPaywallScreen(
+            onStartTrial: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Trial zostanie podpiety po wyborze billing SDK.',
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _FeeWaiverPolicyCard extends StatelessWidget {
+  const _FeeWaiverPolicyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final policy = domain.kidCostFeeWaiverPolicy;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.volunteer_activism_outlined),
+              title: Text('Fee-waiver i dostep po lapse'),
+              subtitle: Text('Platnosc nie blokuje historii rodziny.'),
+            ),
+            Text(policy.copy.paymentFailure),
+            const SizedBox(height: 8),
+            Text(policy.copy.requestHelp),
+            const SizedBox(height: 8),
+            Text(
+              policy.copy.privacy,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanComparisonCard extends StatelessWidget {
+  const _PlanComparisonCard({required this.onPreviewPaywall});
+
+  final VoidCallback onPreviewPaywall;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.compare_arrows_outlined),
+              title: Text('Zakres MVP i przyszlego Premium'),
+              subtitle: Text(
+                'Bez cen i bez blokowania podstawowych przeplywow.',
+              ),
+            ),
+            _PlanRow(title: 'MVP/basic', body: domain.freePlanSummaryText()),
+            _PlanRow(
+              title: 'Kandydaci Premium',
+              body: domain.premiumPlanSummaryText(),
+            ),
+            _PlanRow(
+              title: 'Downgrade',
+              body: domain.downgradeProtectionSummaryText(),
+            ),
+            _PlanRow(
+              title: 'Platnik rodzinny',
+              body: domain.familyBillingPolicy.summary,
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: onPreviewPaywall,
+                icon: const Icon(Icons.workspace_premium_outlined),
+                label: const Text('Podglad Premium i trial'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanRow extends StatelessWidget {
+  const _PlanRow({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.check_circle_outline),
+      title: Text(title),
+      subtitle: Text(body),
+    );
   }
 }

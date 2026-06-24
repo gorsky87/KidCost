@@ -4,9 +4,22 @@ enum TelemetryEvent {
   familyCreated('family_created'),
   childAdded('child_added'),
   expenseCreated('expense_created'),
+  expenseStatusChanged('expense_status_changed'),
   receiptAttached('receipt_attached'),
   balanceViewed('balance_viewed'),
-  reportViewed('report_viewed');
+  reportViewed('report_viewed'),
+  premiumPaywallViewed('premium_paywall_viewed'),
+  premiumTrialStarted('premium_trial_started'),
+  premiumTrialCancelled('premium_trial_cancelled'),
+  premiumUpgraded('premium_upgraded'),
+  premiumDowngraded('premium_downgraded'),
+  premiumFeatureIntent('premium_feature_intent'),
+  professionalAccessInvited('professional_access_invited'),
+  professionalAccessAccepted('professional_access_accepted'),
+  professionalReportViewed('professional_report_viewed'),
+  professionalReportDownloaded('professional_report_downloaded'),
+  professionalAccessRevoked('professional_access_revoked'),
+  professionalAccessExpired('professional_access_expired');
 
   const TelemetryEvent(this.name);
 
@@ -64,9 +77,23 @@ const _allowedParameterKeys = {
   'screen',
   'category_id',
   'status',
+  'from_status',
+  'to_status',
+  'actor',
   'has_attachment',
+  'has_status_comment',
   'content_type',
   'invitation_skipped',
+  'feature',
+  'plan_context',
+  'reason_code',
+  'surface',
+  'trigger',
+  'access_scope',
+  'audit_action',
+  'expires_in_days',
+  'professional_role',
+  'report_month',
 };
 
 bool _looksSensitive(String value) {
