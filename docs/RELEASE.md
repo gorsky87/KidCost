@@ -89,6 +89,11 @@ Na obecnym etapie nie budujemy jeszcze osobnej aplikacji `apps/web`. Zrodlem tre
 | Terms of service | `https://kidcost.app/terms` | `docs/web/terms-of-service.md` |
 | App description source | `https://kidcost.app/app` | `docs/web/app-description.md` |
 
+Gotowy statyczny pakiet do publikacji znajduje sie w `docs/web/site/`.
+Wystawienie tego katalogu jako root statycznego hostingu daje sciezki
+`/privacy/`, `/support/`, `/terms/` i `/app/` bez potrzeby budowania osobnej
+aplikacji webowej.
+
 Minimalne URL dla pierwszego release:
 
 - Privacy policy: `https://kidcost.app/privacy`
@@ -250,6 +255,18 @@ Crashlytics/analytics beta wymaga przed wyslaniem builda:
 ## Publikacja tresci
 
 Przed pierwszym wyslaniem do TestFlight i Google Play Internal Testing tresci z `docs/web/*.md` nalezy opublikowac pod wskazanymi URL albo skopiowac 1:1 do statycznych stron pod domena `kidcost.app`.
+
+Najprostszy wariant publikacji dla issue #35:
+
+1. Wrzuc `docs/web/site/` jako root statycznego hostingu.
+2. Skieruj `kidcost.app` na hosting.
+3. Sprawdz publicznie:
+   - `https://kidcost.app/privacy/`
+   - `https://kidcost.app/support/`
+   - `https://kidcost.app/terms/`
+   - `https://kidcost.app/app/`
+4. Uzyj `https://kidcost.app/privacy/` jako Privacy Policy URL w Google Play i App Store Connect.
+5. Uzyj `https://kidcost.app/support/` jako Support URL w App Store Connect i jako kontakt pomocniczy w Play Console.
 
 ## Feedback beta i znane ograniczenia
 

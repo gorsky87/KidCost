@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KidCost - informacje dla sklepow</title>
+    <meta
+      name="description"
+      content="Minimalne strony KidCost wymagane do TestFlight i Google Play Internal Testing."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="shell topbar__inner">
+        <a class="brand" href="./">
+          <img src="assets/kidcost-mark.svg" alt="" />
+          <span>KidCost</span>
+        </a>
+        <nav class="nav" aria-label="Glowne linki">
+          <a href="privacy/">Privacy</a>
+          <a href="support/">Support</a>
+          <a href="app/">Opis aplikacji</a>
+          <a href="terms/">Regulamin</a>
+        </nav>
+      </div>
+    </header>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Store readiness</p>
+        <h1>Minimalne strony KidCost dla TestFlight i Google Play.</h1>
+        <p class="lead">
+          Ten pakiet statyczny zawiera gotowe do publikacji tresci privacy,
+          support, opisu aplikacji i regulaminu pod domena kidcost.app.
+        </p>
+      </section>
+
+      <section class="grid" aria-label="Strony">
+        <article class="tile">
+          <h2>Privacy policy</h2>
+          <p>Zakres danych, widocznosc rodziny, telemetryka i ograniczenia.</p>
+          <a href="privacy/">Otworz privacy policy</a>
+        </article>
+        <article class="tile">
+          <h2>Support</h2>
+          <p>Kontakt, beta feedback, FAQ i instrukcje zglaszania problemow.</p>
+          <a href="support/">Otworz support</a>
+        </article>
+        <article class="tile">
+          <h2>Opis aplikacji</h2>
+          <p>Krotki opis i copy do metadanych sklepowych.</p>
+          <a href="app/">Otworz opis</a>
+        </article>
+        <article class="tile">
+          <h2>Regulamin</h2>
+          <p>Minimalne zasady korzystania dla wersji testowej.</p>
+          <a href="terms/">Otworz regulamin</a>
+        </article>
+      </section>
+
+      <section class="notice">
+        <h2>Docelowe URL</h2>
+        <p>
+          Po publikacji zawartosc tego katalogu jako root statycznej strony daje
+          linki: <code>https://kidcost.app/privacy/</code>,
+          <code>https://kidcost.app/support/</code>,
+          <code>https://kidcost.app/app/</code> i
+          <code>https://kidcost.app/terms/</code>.
+        </p>
+      </section>
+    </main>
+    <footer class="footer">
+      <div class="shell">KidCost, wersja testowa. Kontakt: support@kidcost.app</div>
+    </footer>
+  </body>
+</html>
