@@ -32,6 +32,7 @@ class KidCostShell extends StatefulWidget {
     required this.onCustodyDaysChanged,
     required this.onSignOut,
     required this.telemetry,
+    this.currentDate,
     super.key,
   });
 
@@ -48,6 +49,7 @@ class KidCostShell extends StatefulWidget {
   final ValueChanged<List<CustodyDay>> onCustodyDaysChanged;
   final Future<void> Function() onSignOut;
   final AppTelemetry telemetry;
+  final DateTime? currentDate;
 
   @override
   State<KidCostShell> createState() => _KidCostShellState();
@@ -73,6 +75,7 @@ class _KidCostShellState extends State<KidCostShell> {
         profile: widget.onboardingProfile,
         expenses: widget.expenses,
         custodyDays: widget.custodyDays,
+        currentDate: widget.currentDate,
         onAddExpense: () {
           _startQuickExpenseDraft('manual_expense');
         },
@@ -113,6 +116,7 @@ class _KidCostShellState extends State<KidCostShell> {
         userEmail: widget.userEmail,
         attachmentStorage: widget.attachmentStorage,
         initialTemplate: _pendingTemplate,
+        currentDate: widget.currentDate,
         calendarEvents: calendarEventsFromCustodyDays(widget.custodyDays),
         showReceiptOcrPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.receiptOcr,
@@ -149,6 +153,7 @@ class _KidCostShellState extends State<KidCostShell> {
         profile: widget.onboardingProfile,
         userEmail: widget.userEmail,
         custodyDays: widget.custodyDays,
+        currentDate: widget.currentDate,
         expenses: widget.expenses,
         onCustodyDaysChanged: widget.onCustodyDaysChanged,
       ),

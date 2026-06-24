@@ -20,6 +20,7 @@ class KidCostApp extends StatefulWidget {
     required this.attachmentStorage,
     AppTelemetry? telemetry,
     this.config,
+    this.currentDate,
     super.key,
   }) : telemetry = telemetry ?? const NoopTelemetry();
 
@@ -27,6 +28,7 @@ class KidCostApp extends StatefulWidget {
   final AttachmentStorage attachmentStorage;
   final AppTelemetry telemetry;
   final AppConfig? config;
+  final DateTime? currentDate;
 
   @override
   State<KidCostApp> createState() => _KidCostAppState();
@@ -195,6 +197,7 @@ class _KidCostAppState extends State<KidCostApp> {
         },
         onSignOut: _signOut,
         telemetry: widget.telemetry,
+        currentDate: widget.currentDate,
       );
     }
 
