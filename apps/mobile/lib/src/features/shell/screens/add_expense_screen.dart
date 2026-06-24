@@ -17,6 +17,7 @@ class AddExpenseScreen extends StatefulWidget {
     required this.attachmentStorage,
     required this.onExpenseSaved,
     this.initialTemplate,
+    this.currentDate,
     this.calendarEvents = const [],
     this.showReceiptOcrPremiumHint = false,
     this.onPremiumHintDismissed,
@@ -28,6 +29,7 @@ class AddExpenseScreen extends StatefulWidget {
   final AttachmentStorage attachmentStorage;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
   final ExpenseTemplate? initialTemplate;
+  final DateTime? currentDate;
   final List<ExpenseCalendarEventLink> calendarEvents;
   final bool showReceiptOcrPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
@@ -71,7 +73,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void initState() {
     super.initState();
     _amountController.addListener(_refreshAgreementPreview);
-    _dateController.text = _formatDate(DateTime.now());
+    _dateController.text = _formatDate(widget.currentDate ?? DateTime.now());
     _manualPayerController.text = widget.profile.coParentLabel;
     _receiptCurrency = widget.profile.familyCurrency;
     _payers = [
@@ -548,7 +550,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     setState(() {
       _isSaving = false;
       _amountController.clear();
-      _dateController.text = _formatDate(DateTime.now());
+      _dateController.text = _formatDate(widget.currentDate ?? DateTime.now());
       _titleController.clear();
       _category = expenseCategories.first;
       _payer = _payers.first;

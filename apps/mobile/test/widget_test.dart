@@ -434,8 +434,8 @@ void main() {
     await tester.tap(find.text('Ustawienia'));
     await tester.pumpAndSettle();
     expect(find.text('Powiadomienia'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Eksport danych'), 120);
-    expect(find.text('Eksport danych'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Eksport danych rodziny'), 120);
+    expect(find.text('Eksport danych rodziny'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Polityka prywatnosci'), 120);
     expect(find.text('Polityka prywatnosci'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Regulamin'), 120);
@@ -482,6 +482,52 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.text('Poprosimy o zgode dopiero w kontekscie wspolnego kosztu.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('settings exposes family data export request scope', (
+    WidgetTester tester,
+  ) async {
+    var exportRequests = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsScreen(
+            userEmail: 'parent@example.com',
+            isDemoSession: true,
+            onRequestFamilyExport: () async {
+              exportRequests += 1;
+            },
+            onSignOut: () async {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Eksport danych rodziny'), 160);
+    expect(find.text('Eksport danych rodziny'), findsOneWidget);
+    expect(find.textContaining('bez danych innych rodzin'), findsOneWidget);
+    expect(
+      find.textContaining('audit log i metadane zalacznikow'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('same prywatne pliki nie sa kopiowane'),
+      findsOneWidget,
+    );
+
+    final exportButton = find.widgetWithText(FilledButton, 'Przygotuj eksport');
+    await tester.ensureVisible(exportButton);
+    await tester.pumpAndSettle();
+    await tester.tap(exportButton);
+    await tester.pumpAndSettle();
+
+    expect(exportRequests, 1);
+    expect(find.text('Eksport zlecony'), findsOneWidget);
+    expect(
+      find.textContaining('Pliki zalacznikow pozostaja poza paczka MVP'),
       findsOneWidget,
     );
   });
@@ -2227,6 +2273,7 @@ Future<void> pumpSignedInOnboardedApp(
       authRepository: InMemoryAuthRepository(),
       attachmentStorage: InMemoryAttachmentStorage(),
       telemetry: telemetry,
+      currentDate: DateTime.utc(2026, 6, 24),
     ),
   );
   await tester.pump();
