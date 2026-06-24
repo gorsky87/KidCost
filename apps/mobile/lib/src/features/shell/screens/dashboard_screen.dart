@@ -11,6 +11,7 @@ class DashboardScreen extends StatelessWidget {
     required this.custodyDays,
     required this.onAddExpense,
     required this.onOpenReports,
+    required this.onOpenFamily,
     this.currentDate,
     super.key,
   });
@@ -20,6 +21,7 @@ class DashboardScreen extends StatelessWidget {
   final List<CustodyDay> custodyDays;
   final VoidCallback onAddExpense;
   final VoidCallback onOpenReports;
+  final VoidCallback onOpenFamily;
   final DateTime? currentDate;
 
   @override
@@ -53,6 +55,10 @@ class DashboardScreen extends StatelessWidget {
         Text('Rodzina: ${profile.familyName}'),
         Text('Dziecko: ${profile.childName}'),
         const SizedBox(height: 16),
+        if (profile.isSoloFamily) ...[
+          _SoloFamilyCard(profile: profile, onOpenFamily: onOpenFamily),
+          const SizedBox(height: 12),
+        ],
         FilledButton.icon(
           onPressed: onAddExpense,
           icon: const Icon(Icons.add_circle_outline),
@@ -67,9 +73,11 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(height: 12),
         _MetricTile(
           icon: Icons.swap_horiz,
-          title: 'Kto komu oddaje',
-          value: summary.balanceText,
-          helper: 'Liczymy prosty podzial 50/50.',
+          title: profile.isSoloFamily ? 'Saldo robocze' : 'Kto komu oddaje',
+          value: summary.balanceText(profile),
+          helper: profile.isSoloFamily
+              ? 'Prywatny szkic 50/50 widoczny tylko dla Ciebie.'
+              : 'Liczymy prosty podzial 50/50.',
         ),
         if (monthExpenses.isEmpty) ...[
           const SizedBox(height: 8),
@@ -88,7 +96,7 @@ class DashboardScreen extends StatelessWidget {
         ),
         _MetricTile(
           icon: Icons.group_outlined,
-          title: 'Drugi rodzic zaplacil',
+          title: _coParentPaidTitle(profile.coParentLabel),
           value: formatCents(summary.coParentPaidCents),
         ),
         const SizedBox(height: 8),
@@ -97,6 +105,47 @@ class DashboardScreen extends StatelessWidget {
         if (monthExpenses.isNotEmpty)
           _RecentExpenses(expenses: recentExpenses.take(5).toList()),
       ],
+    );
+  }
+}
+
+String _coParentPaidTitle(String label) {
+  if (label == 'Drugi rodzic') {
+    return 'Drugi rodzic zaplacil';
+  }
+  return '$label zaplacil(a)';
+}
+
+class _SoloFamilyCard extends StatelessWidget {
+  const _SoloFamilyCard({required this.profile, required this.onOpenFamily});
+
+  final OnboardingProfile profile;
+  final VoidCallback onOpenFamily;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.lock_person_outlined),
+              title: const Text('Pracujesz solo'),
+              subtitle: Text(
+                'Koszty sa prywatne dla autora. Etykieta drugiego rodzica: ${profile.coParentLabel}.',
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: onOpenFamily,
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              label: const Text('Pokaz podsumowanie i zapros wspolrodzica'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -259,23 +308,36 @@ class _DashboardSummary {
   final int currentUserPaidCents;
   final int coParentPaidCents;
 
-  String get balanceText {
+  String balanceText(OnboardingProfile profile) {
     if (totalCents == 0) {
-      return 'Brak kosztow do wyrownania';
+      return profile.isSoloFamily
+          ? 'Brak kosztow w saldzie roboczym'
+          : 'Brak kosztow do wyrownania';
     }
 
     final halfCents = totalCents ~/ 2;
     final currentUserShare = currentUserPaidCents - halfCents;
     if (currentUserShare == 0) {
-      return 'Jestescie rozliczeni na zero';
+      return profile.isSoloFamily
+          ? 'Roboczo: saldo wychodzi na zero'
+          : 'Jestescie rozliczeni na zero';
     }
 
     if (currentUserShare > 0) {
-      return 'Drugi rodzic oddaje Tobie ${formatCents(currentUserShare)}';
+      final prefix = profile.isSoloFamily ? 'Roboczo: ' : '';
+      return '$prefix${profile.coParentLabel} oddaje Tobie ${formatCents(currentUserShare)}';
     }
 
-    return 'Ty oddajesz drugiemu rodzicowi ${formatCents(-currentUserShare)}';
+    final prefix = profile.isSoloFamily ? 'Roboczo: ' : '';
+    return '${prefix}Ty oddajesz ${_coParentDativeLabel(profile.coParentLabel)} ${formatCents(-currentUserShare)}';
   }
+}
+
+String _coParentDativeLabel(String label) {
+  if (label == 'Drugi rodzic') {
+    return 'drugiemu rodzicowi';
+  }
+  return label;
 }
 
 class _DashboardMonth {

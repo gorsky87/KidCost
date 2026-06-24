@@ -20,6 +20,7 @@ class _FamilyOnboardingScreenState extends State<FamilyOnboardingScreen> {
   final _familyController = TextEditingController();
   final _childController = TextEditingController();
   final _birthDateController = TextEditingController();
+  final _coParentLabelController = TextEditingController();
   final _coParentEmailController = TextEditingController();
   var _step = _OnboardingStep.choice;
   String? _message;
@@ -30,6 +31,7 @@ class _FamilyOnboardingScreenState extends State<FamilyOnboardingScreen> {
     _familyController.dispose();
     _childController.dispose();
     _birthDateController.dispose();
+    _coParentLabelController.dispose();
     _coParentEmailController.dispose();
     super.dispose();
   }
@@ -90,6 +92,7 @@ class _FamilyOnboardingScreenState extends State<FamilyOnboardingScreen> {
         onNext: _goToInvite,
       ),
       _OnboardingStep.invite => _InviteStep(
+        labelController: _coParentLabelController,
         controller: _coParentEmailController,
         inviteCode: _inviteCode,
         onGenerate: _generateInvite,
@@ -142,6 +145,8 @@ class _FamilyOnboardingScreenState extends State<FamilyOnboardingScreen> {
         familyName: _familyName,
         childName: _childController.text.trim(),
         childBirthDate: _optionalText(_birthDateController),
+        coParentConnectionState: CoParentConnectionState.solo,
+        coParentLabel: _coParentLabel,
         invitationSkipped: true,
       ),
     );
@@ -158,11 +163,21 @@ class _FamilyOnboardingScreenState extends State<FamilyOnboardingScreen> {
         familyName: _familyName,
         childName: _childController.text.trim(),
         childBirthDate: _optionalText(_birthDateController),
+        coParentConnectionState: CoParentConnectionState.invited,
+        coParentLabel: _coParentLabel,
         coParentEmail: _coParentEmailController.text.trim(),
         inviteCode: _inviteCode,
         invitationSkipped: false,
       ),
     );
+  }
+
+  String get _coParentLabel {
+    final value = _coParentLabelController.text.trim();
+    if (value.isNotEmpty) return value;
+    final email = _coParentEmailController.text.trim();
+    if (email.isNotEmpty) return email;
+    return 'Drugi rodzic';
   }
 
   String _buildInviteCode(String email) {
@@ -323,6 +338,7 @@ class _ChildStep extends StatelessWidget {
 
 class _InviteStep extends StatelessWidget {
   const _InviteStep({
+    required this.labelController,
     required this.controller,
     required this.inviteCode,
     required this.onGenerate,
@@ -330,6 +346,7 @@ class _InviteStep extends StatelessWidget {
     required this.onFinish,
   });
 
+  final TextEditingController labelController;
   final TextEditingController controller;
   final String? inviteCode;
   final VoidCallback onGenerate;
@@ -342,10 +359,20 @@ class _InviteStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
+          controller: labelController,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Etykieta drugiego rodzica',
+            hintText: 'Np. mama Oli albo tata Antka',
+            prefixIcon: Icon(Icons.badge_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
           controller: controller,
           keyboardType: TextInputType.emailAddress,
           decoration: const InputDecoration(
-            labelText: 'Email drugiego rodzica',
+            labelText: 'Email drugiego rodzica (opcjonalnie)',
             prefixIcon: Icon(Icons.alternate_email),
           ),
         ),
@@ -365,7 +392,10 @@ class _InviteStep extends StatelessWidget {
         ],
         const SizedBox(height: 16),
         FilledButton(onPressed: onFinish, child: const Text('Zakoncz')),
-        TextButton(onPressed: onSkip, child: const Text('Pomin zaproszenie')),
+        TextButton(
+          onPressed: onSkip,
+          child: const Text('Zacznij solo bez zaproszenia'),
+        ),
         const SizedBox(height: 12),
         const _TrustNote(),
       ],

@@ -30,6 +30,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _amountController = TextEditingController();
   final _dateController = TextEditingController();
   final _titleController = TextEditingController();
+  final _manualPayerController = TextEditingController();
   late final List<ExpensePayer> _payers;
   ExpenseCategory _category = expenseCategories.first;
   ExpensePayer? _payer;
@@ -43,12 +44,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void initState() {
     super.initState();
     _dateController.text = _formatDate(DateTime.now());
+    _manualPayerController.text = widget.profile.coParentLabel;
     _payers = [
       ExpensePayer(id: 'self', label: widget.userEmail, isCurrentUser: true),
-      const ExpensePayer(
-        id: 'co-parent',
-        label: 'Drugi rodzic',
+      ExpensePayer(
+        id: widget.profile.isSoloFamily ? 'manual-co-parent' : 'co-parent',
+        label: widget.profile.coParentLabel,
         isCurrentUser: false,
+        isManual: widget.profile.isSoloFamily,
       ),
     ];
     _payer = _payers.first;
@@ -59,6 +62,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _amountController.dispose();
     _dateController.dispose();
     _titleController.dispose();
+    _manualPayerController.dispose();
     super.dispose();
   }
 
@@ -71,6 +75,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         children: [
           Text('Nowy koszt', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 16),
+          if (widget.profile.isSoloFamily) ...[
+            const _SoloModeBanner(),
+            const SizedBox(height: 12),
+          ],
           TextField(
             controller: _amountController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -113,6 +121,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<ExpensePayer>(
+            key: const Key('expense-payer-picker'),
             initialValue: _payer,
             decoration: InputDecoration(
               labelText: 'Kto zaplacil',
@@ -129,9 +138,31 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     setState(() {
                       _payer = payer;
                       _payerError = null;
+                      if (payer?.isManual == true &&
+                          _manualPayerController.text.trim().isEmpty) {
+                        _manualPayerController.text = payer!.label;
+                      }
                     });
                   },
           ),
+          if (_payer?.isManual == true) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _manualPayerController,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: 'Reczna etykieta platnika',
+                helperText: 'To nie jest konto uzytkownika ani user_id.',
+                prefixIcon: const Icon(Icons.badge_outlined),
+                errorText: _payerError,
+              ),
+              onChanged: (_) {
+                if (_payerError != null) {
+                  setState(() => _payerError = null);
+                }
+              },
+            ),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: _titleController,
@@ -243,7 +274,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _saveExpense() async {
-    final payer = _payer;
+    final selectedPayer = _payer;
+    final manualPayerLabel = _manualPayerController.text.trim();
+    final payer = selectedPayer?.isManual == true
+        ? selectedPayer!.copyWith(label: manualPayerLabel)
+        : selectedPayer;
     int amountCents;
     try {
       amountCents = parseAmountToCents(_amountController.text);
@@ -255,10 +290,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     setState(() {
       _amountError = amountCents > 0 ? null : 'Podaj kwote wieksza od 0.';
       _dateError = date.isEmpty ? 'Podaj date kosztu.' : null;
-      _payerError = payer == null ? 'Wybierz kto zaplacil.' : null;
+      _payerError = payer == null
+          ? 'Wybierz kto zaplacil.'
+          : selectedPayer!.isManual && manualPayerLabel.isEmpty
+          ? 'Wpisz etykiete drugiego rodzica.'
+          : null;
     });
 
-    if (amountCents <= 0 || date.isEmpty || payer == null) {
+    if (amountCents <= 0 ||
+        date.isEmpty ||
+        payer == null ||
+        _payerError != null) {
       return;
     }
 
@@ -302,6 +344,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ? _category.label
           : _titleController.text.trim(),
       createdAt: DateTime.now().toUtc(),
+      visibility: widget.profile.isSoloFamily
+          ? ExpenseVisibility.privateAuthor
+          : ExpenseVisibility.sharedFamily,
       attachment: attachment,
     );
 
@@ -314,6 +359,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _titleController.clear();
       _category = expenseCategories.first;
       _payer = _payers.first;
+      _manualPayerController.text = widget.profile.coParentLabel;
       _attachmentDraft = null;
     });
 
@@ -334,6 +380,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       date.month.toString().padLeft(2, '0'),
       date.day.toString().padLeft(2, '0'),
     ].join('-');
+  }
+}
+
+class _SoloModeBanner extends StatelessWidget {
+  const _SoloModeBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: ListTile(
+        leading: Icon(Icons.lock_person_outlined),
+        title: Text('Tryb solo'),
+        subtitle: Text(
+          'Koszt zapiszesz prywatnie dla siebie. Drugi rodzic nie zobaczy go bez zaproszenia i jawnego udostepnienia.',
+        ),
+      ),
+    );
   }
 }
 

@@ -23,15 +23,29 @@ class FamilyScreen extends StatelessWidget {
           subtitle: Text(profile.childBirthDate ?? 'Data urodzenia niepodana.'),
         ),
         const Divider(),
-        if (profile.invitationSkipped)
+        if (profile.isSoloFamily) ...[
+          ListTile(
+            leading: const Icon(Icons.lock_person_outlined),
+            title: const Text('Tryb solo'),
+            subtitle: Text(
+              'Koszty solo sa prywatne dla autora. Reczna etykieta: ${profile.coParentLabel}.',
+            ),
+          ),
           const ListTile(
             leading: Icon(Icons.person_add_alt_1_outlined),
-            title: Text('Zaproszenie pominiete'),
+            title: Text('Pokaz podsumowanie i zapros wspolrodzica'),
             subtitle: Text(
-              'Mozesz wrocic do zaproszenia drugiego rodzica pozniej.',
+              'Zaproszenie przygotujemy bez automatycznego udostepniania prywatnych notatek autora.',
             ),
-          )
-        else
+          ),
+          const ListTile(
+            leading: Icon(Icons.account_tree_outlined),
+            title: Text('Mapowanie po akceptacji'),
+            subtitle: Text(
+              'Reczna etykieta zostanie polaczona z prawdziwym kontem dopiero po potwierdzeniu uzytkownika.',
+            ),
+          ),
+        ] else
           ListTile(
             leading: const Icon(Icons.mark_email_read_outlined),
             title: Text(profile.coParentEmail ?? 'Zaproszenie przygotowane'),

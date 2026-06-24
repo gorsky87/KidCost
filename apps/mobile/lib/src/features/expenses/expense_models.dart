@@ -29,6 +29,7 @@ class ExpenseEntry {
     required this.title,
     required this.createdAt,
     this.status = ExpenseStatus.pending,
+    this.visibility = ExpenseVisibility.sharedFamily,
     this.attachment,
   });
 
@@ -41,6 +42,7 @@ class ExpenseEntry {
   final String title;
   final DateTime createdAt;
   final ExpenseStatus status;
+  final ExpenseVisibility visibility;
   final ExpenseAttachment? attachment;
 }
 
@@ -49,11 +51,22 @@ class ExpensePayer {
     required this.id,
     required this.label,
     required this.isCurrentUser,
+    this.isManual = false,
   });
 
   final String id;
   final String label;
   final bool isCurrentUser;
+  final bool isManual;
+
+  ExpensePayer copyWith({String? label}) {
+    return ExpensePayer(
+      id: id,
+      label: label ?? this.label,
+      isCurrentUser: isCurrentUser,
+      isManual: isManual,
+    );
+  }
 }
 
 class AttachmentDraft {
@@ -87,6 +100,28 @@ class ExpenseAttachment {
 enum AttachmentStatus { uploaded, failed }
 
 enum ExpenseStatus { pending, accepted, disputed, settled }
+
+enum ExpenseVisibility { privateAuthor, sharedFamily }
+
+extension ExpenseVisibilityDetails on ExpenseVisibility {
+  String get label {
+    switch (this) {
+      case ExpenseVisibility.privateAuthor:
+        return 'Prywatny koszt solo';
+      case ExpenseVisibility.sharedFamily:
+        return 'Wspolna rodzina';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case ExpenseVisibility.privateAuthor:
+        return 'Widoczny tylko dla autora do czasu jawnego udostepnienia.';
+      case ExpenseVisibility.sharedFamily:
+        return 'Widoczny dla aktywnych czlonkow rodziny.';
+    }
+  }
+}
 
 extension ExpenseStatusDetails on ExpenseStatus {
   String get label {
