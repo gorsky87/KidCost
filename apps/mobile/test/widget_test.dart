@@ -111,6 +111,11 @@ void main() {
       'amount': '42.99',
       'content_type': 'application/pdf',
       'release_channel': 'beta',
+      'trigger': 'after_first_balance_viewed',
+      'surface': 'settings',
+      'plan_context': 'family',
+      'feature': 'receipt_ocr',
+      'reason_code': 'too_early',
     });
 
     expect(sanitized, {
@@ -118,6 +123,11 @@ void main() {
       'category_id': 'school',
       'content_type': 'application/pdf',
       'release_channel': 'beta',
+      'trigger': 'after_first_balance_viewed',
+      'surface': 'settings',
+      'plan_context': 'family',
+      'feature': 'receipt_ocr',
+      'reason_code': 'too_early',
     });
   });
 
@@ -447,6 +457,31 @@ void main() {
     expect(find.text('Platnik rodzinny'), findsOneWidget);
     expect(find.textContaining('zalaczniki do limitu'), findsOneWidget);
     expect(find.textContaining('platnosc nie daje wylacznej'), findsOneWidget);
+
+    final paywallPreviewButton = find.widgetWithText(
+      TextButton,
+      'Podglad Premium i trial',
+    );
+    await tester.ensureVisible(paywallPreviewButton);
+    await tester.pumpAndSettle();
+    await tester.tap(paywallPreviewButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Premium po pierwszej wartosci'), findsOneWidget);
+    expect(find.textContaining('platnik nie staje sie'), findsOneWidget);
+    expect(find.textContaining('Bez subskrypcji nadal'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Przed pierwszym recznym kosztem'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Przed pierwszym recznym kosztem'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Zobacz trial'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Zobacz trial'), findsOneWidget);
   });
 
   testWidgets('add expense validates amount and date', (
