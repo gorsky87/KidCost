@@ -6,6 +6,7 @@ import 'package:kidcost_mobile/src/features/auth/auth_repository.dart';
 import 'package:kidcost_mobile/src/features/custody/custody_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
+import 'package:kidcost_mobile/src/features/expenses/expense_visuals.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
@@ -40,6 +41,41 @@ void main() {
       Theme.of(tester.element(find.byType(Text))).scaffoldBackgroundColor,
       KidCostTheme.surface,
     );
+  });
+
+  testWidgets('expense visuals cover MVP categories and statuses', (_) async {
+    const expectedCategoryIds = {
+      'food',
+      'clothes',
+      'school',
+      'health',
+      'activities',
+      'holiday',
+      'transport',
+      'other',
+    };
+
+    expect(expenseCategories.map((category) => category.id).toSet(), {
+      ...expectedCategoryIds,
+    });
+    expect(
+      expenseCategories.map((category) => category.icon).toSet(),
+      hasLength(expenseCategories.length),
+    );
+    for (final category in expenseCategories) {
+      expect(category.accentColor, isA<Color>());
+      expect(category.iconAssetPath, endsWith('${category.id}.svg'));
+    }
+
+    expect(
+      ExpenseStatus.values.map((status) => status.icon).toSet(),
+      hasLength(ExpenseStatus.values.length),
+    );
+    for (final status in ExpenseStatus.values) {
+      expect(status.accentColor, isA<Color>());
+      expect(status.iconAssetPath, endsWith('.svg'));
+      expect(status.label, isNotEmpty);
+    }
   });
 
   testWidgets('opens the KidCost shell after email sign in', (

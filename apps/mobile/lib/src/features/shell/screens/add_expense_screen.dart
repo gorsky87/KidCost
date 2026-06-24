@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../expenses/attachment_storage.dart';
 import '../../expenses/expense_models.dart';
+import '../../expenses/expense_visuals.dart';
 import '../../onboarding/onboarding_profile.dart';
 
 class AddExpenseScreen extends StatefulWidget {
@@ -360,7 +361,11 @@ class _CategoryPicker extends StatelessWidget {
         children: [
           for (final category in expenseCategories)
             ChoiceChip(
-              avatar: Icon(_categoryIcon(category), size: 18),
+              avatar: Icon(
+                category.icon,
+                color: category.accentColor,
+                size: 18,
+              ),
               label: Text(category.label),
               selected: category.id == selectedCategory.id,
               onSelected: isEnabled
@@ -370,28 +375,5 @@ class _CategoryPicker extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  IconData _categoryIcon(ExpenseCategory category) {
-    switch (category.id) {
-      case 'food':
-        return Icons.restaurant_outlined;
-      case 'clothes':
-        return Icons.checkroom_outlined;
-      case 'school':
-        return Icons.school_outlined;
-      case 'health':
-        return Icons.medical_services_outlined;
-      case 'activities':
-        return Icons.sports_soccer_outlined;
-      case 'holiday':
-        return Icons.beach_access_outlined;
-      case 'transport':
-        return Icons.directions_car_outlined;
-      case 'other':
-        return Icons.more_horiz;
-      default:
-        return Icons.category_outlined;
-    }
   }
 }
