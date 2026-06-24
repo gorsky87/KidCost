@@ -97,14 +97,19 @@ Centralna tabela kosztow dziecka lub calej rodziny.
 | `family_id` | `uuid` | tak | FK -> `families.id`. |
 | `child_id` | `uuid` | nie | FK -> `children.id`. `NULL` oznacza koszt rodzinny lub jeszcze nieprzypisany do dziecka. |
 | `paid_by` | `uuid` | tak | FK -> `profiles.id`. Rodzic, ktory zaplacil. |
+| `payer_kind` | `expense_payer_kind` | tak | `profile` dla konta uzytkownika albo `manual_label` dla trybu solo. |
+| `manual_payer_label` | `text` | nie | Reczna etykieta drugiego rodzica, gdy nie ma jeszcze konta. |
 | `amount` | `numeric(12,2)` | tak | Constraint `amount > 0`. |
 | `currency` | `text` | tak | Domyslnie `PLN`. |
 | `category` | `expense_category` | tak | Enum MVP. |
 | `description` | `text` | nie | Opcjonalny opis kosztu. |
 | `expense_date` | `date` | tak | Data kosztu. |
 | `status` | `expense_status` | tak | Domyslnie `pending`. |
+| `visibility` | `expense_visibility` | tak | `private_author` dla kosztu solo albo `shared_family` dla kosztu wspolnego. |
 | `created_by` | `uuid` | tak | FK -> `profiles.id`. Autor rekordu. |
 | `updated_by` | `uuid` | nie | Ostatni edytujacy. |
+| `shared_at` | `timestamptz` | nie | Ustawiane przy jawnym udostepnieniu kosztu solo rodzinie. |
+| `shared_by` | `uuid` | nie | FK -> `profiles.id`. Uzytkownik, ktory udostepnil koszt solo. |
 | `created_at` | `timestamptz` | tak | Domyslnie `now()`. |
 | `updated_at` | `timestamptz` | tak | Aktualizowane przy zmianach kosztu. |
 
@@ -113,7 +118,31 @@ Ograniczenia:
 - `family_id` musi nalezec do rodziny, ktorej czlonkiem jest `paid_by`,
 - jesli `child_id` nie jest `NULL`, dziecko musi nalezec do tej samej rodziny co koszt,
 - `paid_by` i `created_by` musza byc czlonkami tej samej rodziny,
+- dla `payer_kind = manual_label` pole `paid_by` jest puste, a `manual_payer_label` jest niepuste,
+- `private_author` widzi tylko autor kosztu, nawet jezeli drugi rodzic dolaczy pozniej do rodziny,
 - `status` steruje tym, czy rekord mozna jeszcze edytowac bez tworzenia korekty lub audit eventu.
+
+## Tryb solo i mapowanie platnika
+
+Tryb solo pozwala jednemu rodzicowi zaczac dokumentowac koszty przed akceptacja
+zaproszenia przez drugiego rodzica. To nie tworzy technicznego konta dla
+drugiego rodzica i nie nadaje mu automatycznie dostepu do prywatnych wpisow.
+
+Zasady:
+
+1. Rodzina moze miec koszty `private_author`, ktore sa widoczne tylko dla
+   `created_by`.
+2. Jezeli koszt wpisuje platnosc drugiego rodzica bez konta, uzywa
+   `payer_kind = manual_label` oraz `manual_payer_label`, a `paid_by` pozostaje
+   puste.
+3. Po akceptacji zaproszenia nie mapujemy automatycznie wszystkich kosztow
+   `manual_label` na nowy profil. Aplikacja pokazuje uzytkownikowi liste
+   kosztow solo i wymaga jawnego potwierdzenia udostepnienia.
+4. Udostepnienie kosztu zmienia `visibility` na `shared_family`, ustawia
+   `shared_at` i `shared_by`, ale prywatne notatki autora pozostaja poza
+   zakresem udostepnienia, dopoki nie powstanie osobna zgoda i model notatek.
+5. RLS dla `private_author` musi sprawdzac `created_by = auth.uid()`, a nie
+   samo aktywne czlonkostwo w rodzinie.
 
 ### `expense_attachments`
 
@@ -188,6 +217,16 @@ Znaczenie:
 - `disputed`: koszt jest zakwestionowany, ale rekord i dowody pozostaja widoczne,
 - `settled`: koszt albo grupa kosztow zostala wyrownana poza systemem lub przez osobny workflow.
 
+### `expense_payer_kind`
+
+- `profile`
+- `manual_label`
+
+### `expense_visibility`
+
+- `private_author`
+- `shared_family`
+
 ### `expense_category`
 
 - `food`
@@ -216,12 +255,15 @@ To nie jest jeszcze osobny pakiet, ale kontrakty sa juz jawne.
 ExpenseInput {
   family_id: uuid
   child_id: uuid | null
-  paid_by: uuid
+  paid_by: uuid | null
+  payer_kind: "profile" | "manual_label"
+  manual_payer_label: string | null
   amount: decimal(12,2)
   currency: "PLN" | future currency code
   category: expense_category
   description: string | null
   expense_date: date
+  visibility: "private_author" | "shared_family"
 }
 ```
 
@@ -271,7 +313,8 @@ MVP day-3:
 
 1. Pobieramy koszty z jednej rodziny.
 2. Filtrujemy statusy zgodnie z regula domenowa. MVP moze zaczac od `pending`, `accepted` i `settled`, a temat `disputed` doprecyzowac w issue statusowym.
-3. Sumujemy wydatki per `paid_by`.
+3. Sumujemy wydatki per `paid_by` albo per `manual_payer_label`, jezeli koszt
+   jest jeszcze kosztem solo bez konta drugiego rodzica.
 4. Dzielimy sume kosztow przez liczbe rodzicow objetych splitem.
 5. Porownujemy realny wydatek z docelowym udzialem.
 6. Zwracamy jedna kwote wyrownania i kierunek transferu.

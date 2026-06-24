@@ -69,6 +69,9 @@ class _KidCostShellState extends State<KidCostShell> {
         onOpenReports: () {
           setState(() => _selectedIndex = 4);
         },
+        onOpenFamily: () {
+          setState(() => _selectedIndex = 5);
+        },
       ),
     ),
     _Destination(

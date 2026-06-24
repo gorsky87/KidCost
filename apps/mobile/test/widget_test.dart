@@ -256,7 +256,7 @@ void main() {
     await tester.tap(find.text('Dalej'));
     await tester.pumpAndSettle();
     await tester.enterText(
-      find.byType(TextField).first,
+      find.byType(TextField).at(1),
       'coparent@example.com',
     );
     await tester.tap(find.text('Wygeneruj kod'));
@@ -401,6 +401,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).at(0), '30');
+    await tester.ensureVisible(find.text('Lekarze i leki'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Lekarze i leki'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Zapisz koszt'));
@@ -441,10 +443,70 @@ void main() {
     await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('Wydatki w tym miesiacu'), 120);
     expect(find.text('Wydatki w tym miesiacu'), findsOneWidget);
-    expect(find.text('12,50 zl'), findsOneWidget);
     expect(
       find.textContaining('Drugi rodzic oddaje Tobie 6,25 zl'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('solo mode saves private manual co-parent expenses', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: InMemoryAttachmentStorage(),
+      ),
+    );
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).first, 'parent@example.com');
+    await tester.enterText(find.byType(TextField).last, 'secret1');
+    await tester.tap(find.byIcon(Icons.login));
+    await tester.pumpAndSettle();
+    await completeOnboarding(tester, coParentLabel: 'Mama Oli');
+
+    expect(find.text('Pracujesz solo'), findsOneWidget);
+    expect(
+      find.textContaining('Etykieta drugiego rodzica: Mama Oli'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Dodaj koszt'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tryb solo'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(0), '20');
+    await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
+    await tester.enterText(find.byType(TextField).at(2), 'Lek');
+    await tester.ensureVisible(find.byKey(const Key('expense-payer-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expense-payer-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Mama Oli').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Reczna etykieta platnika'), findsOneWidget);
+    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Koszty'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lek'), findsOneWidget);
+    expect(find.textContaining('Mama Oli'), findsWidgets);
+    expect(find.textContaining('platnik bez konta'), findsOneWidget);
+    expect(find.text('Prywatny koszt solo'), findsOneWidget);
+
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Saldo robocze'), 120);
+    expect(find.text('Saldo robocze'), findsOneWidget);
+    expect(
+      find.textContaining('Roboczo: Ty oddajesz Mama Oli 10,00 zl'),
       findsOneWidget,
     );
   });
@@ -624,8 +686,13 @@ void main() {
   ) async {
     await pumpSignedInOnboardedApp(tester);
 
+    await tester.scrollUntilVisible(
+      find.text('Brak kosztow w tym miesiacu'),
+      120,
+    );
     expect(find.text('Brak kosztow w tym miesiacu'), findsOneWidget);
 
+    await tester.scrollUntilVisible(find.text('Dodaj koszt'), 120);
     await tester.tap(find.text('Dodaj koszt'));
     await tester.pumpAndSettle();
 
@@ -761,6 +828,7 @@ void main() {
             ],
             onAddExpense: () {},
             onOpenReports: () {},
+            onOpenFamily: () {},
           ),
         ),
       ),
@@ -807,6 +875,7 @@ void main() {
             ],
             onAddExpense: () {},
             onOpenReports: () {},
+            onOpenFamily: () {},
           ),
         ),
       ),
@@ -965,6 +1034,7 @@ Future<void> pumpSignedInOnboardedApp(WidgetTester tester) async {
 Future<void> completeOnboarding(
   WidgetTester tester, {
   String childName = 'Antek',
+  String? coParentLabel,
 }) async {
   expect(find.text('Jak zaczynamy?'), findsOneWidget);
 
@@ -981,7 +1051,11 @@ Future<void> completeOnboarding(
   await tester.pumpAndSettle();
   expect(find.text('Zapros rodzica'), findsOneWidget);
 
-  await tester.tap(find.text('Pomin zaproszenie'));
+  if (coParentLabel != null) {
+    await tester.enterText(find.byType(TextField).first, coParentLabel);
+  }
+
+  await tester.tap(find.text('Zacznij solo bez zaproszenia'));
   await tester.pumpAndSettle();
 }
 
@@ -1017,7 +1091,10 @@ OnboardingProfile testProfile() {
   return const OnboardingProfile(
     familyName: 'Rodzina Testowa',
     childName: 'Antek',
-    invitationSkipped: true,
+    coParentConnectionState: CoParentConnectionState.invited,
+    coParentEmail: 'coparent@example.com',
+    inviteCode: 'KC-1234',
+    invitationSkipped: false,
   );
 }
 

@@ -340,6 +340,8 @@ class _ExpenseCard extends StatelessWidget {
                 expense.childName,
                 expense.expenseDate,
                 'Zaplacil: ${expense.paidBy.label}',
+                if (expense.paidBy.isManual) 'platnik bez konta',
+                expense.visibility.label,
                 if (expense.attachment != null)
                   expense.attachment!.status == AttachmentStatus.uploaded
                       ? 'Zalacznik: ${expense.attachment!.fileName}'
@@ -354,7 +356,14 @@ class _ExpenseCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: _ExpenseStatusBadge(status: expense.status),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _ExpenseStatusBadge(status: expense.status),
+                _ExpenseVisibilityBadge(visibility: expense.visibility),
+              ],
+            ),
           ),
         ],
       ),
@@ -390,6 +399,10 @@ class _ExpenseCard extends StatelessWidget {
                   _DetailRow(label: 'Kategoria', value: expense.category.label),
                   _DetailRow(label: 'Dziecko', value: expense.childName),
                   _DetailRow(label: 'Placacy', value: expense.paidBy.label),
+                  _DetailRow(
+                    label: 'Widocznosc',
+                    value: expense.visibility.description,
+                  ),
                   _DetailRow(label: 'Data', value: expense.expenseDate),
                   const SizedBox(height: 12),
                   _AttachmentPreview(attachment: expense.attachment),
@@ -403,6 +416,30 @@ class _ExpenseCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ExpenseVisibilityBadge extends StatelessWidget {
+  const _ExpenseVisibilityBadge({required this.visibility});
+
+  final ExpenseVisibility visibility;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = visibility == ExpenseVisibility.privateAuthor
+        ? Colors.deepPurple
+        : Theme.of(context).colorScheme.primary;
+    return Semantics(
+      label: 'Widocznosc kosztu: ${visibility.label}',
+      child: Chip(
+        avatar: Icon(Icons.visibility_outlined, color: color, size: 18),
+        label: Text(visibility.label),
+        side: BorderSide(color: color.withValues(alpha: 0.32)),
+        backgroundColor: color.withValues(alpha: 0.1),
+        labelStyle: TextStyle(color: color),
+        visualDensity: VisualDensity.compact,
+      ),
     );
   }
 }
