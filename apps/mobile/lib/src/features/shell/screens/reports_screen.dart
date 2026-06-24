@@ -314,6 +314,13 @@ class _ReportSummaryCard extends StatelessWidget {
             trailing: Text(formatCents(report.currentUserShareCents)),
           ),
           ListTile(
+            leading: const Icon(Icons.rule_folder_outlined),
+            title: const Text('Reguly rodzinne'),
+            subtitle: Text(
+              domain.kidCostSharedExpenseAgreement.reportDisclaimer,
+            ),
+          ),
+          ListTile(
             leading: const Icon(Icons.compare_arrows_outlined),
             title: const Text('Roznica'),
             subtitle: Text(report.differenceText),
