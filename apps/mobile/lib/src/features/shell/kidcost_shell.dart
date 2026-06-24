@@ -44,6 +44,9 @@ class _KidCostShellState extends State<KidCostShell> {
       screen: DashboardScreen(
         profile: widget.onboardingProfile,
         expenses: widget.expenses,
+        onAddExpense: () {
+          setState(() => _selectedIndex = 2);
+        },
       ),
     ),
     _Destination(

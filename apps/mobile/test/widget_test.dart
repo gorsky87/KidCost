@@ -5,6 +5,8 @@ import 'package:kidcost_mobile/src/app.dart';
 import 'package:kidcost_mobile/src/features/auth/auth_repository.dart';
 import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
+import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
 
 void main() {
@@ -217,9 +219,12 @@ void main() {
     await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Wydatki razem'), findsOneWidget);
+    expect(find.text('Wydatki w tym miesiacu'), findsOneWidget);
     expect(find.text('12,50 zl'), findsOneWidget);
-    expect(find.text('Drugi rodzic oddaje 6,25 zl'), findsOneWidget);
+    expect(
+      find.textContaining('Drugi rodzic oddaje Tobie 6,25 zl'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('optional PDF attachment is saved with the expense', (
@@ -364,6 +369,106 @@ void main() {
     expect(find.text('Brak zalacznika'), findsOneWidget);
     expect(find.text('Edycja zablokowana przez status'), findsOneWidget);
   });
+
+  testWidgets('dashboard shows empty state and CTA opens add expense', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+
+    expect(find.text('Brak kosztow w tym miesiacu'), findsOneWidget);
+
+    await tester.tap(find.text('Dodaj koszt'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nowy koszt'), findsOneWidget);
+  });
+
+  testWidgets('dashboard summarizes current month balance and recent costs', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardScreen(
+            profile: testProfile(),
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+              testExpense(
+                id: '2',
+                title: 'Lekarz',
+                amountCents: 6000,
+                expenseDate: '2026-06-20',
+                category: expenseCategories[3],
+                paidBy: const ExpensePayer(
+                  id: 'co-parent',
+                  label: 'Drugi rodzic',
+                  isCurrentUser: false,
+                ),
+              ),
+              testExpense(
+                id: '3',
+                title: 'Majowy koszt',
+                amountCents: 9900,
+                expenseDate: '2026-05-20',
+              ),
+            ],
+            onAddExpense: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Wydatki w tym miesiacu'), findsOneWidget);
+    expect(find.text('180,00 zl\n2026-06'), findsOneWidget);
+    expect(find.text('Ty zaplaciles'), findsOneWidget);
+    expect(find.text('120,00 zl'), findsWidgets);
+    expect(find.text('Drugi rodzic zaplacil'), findsOneWidget);
+    expect(find.text('60,00 zl'), findsWidgets);
+    expect(
+      find.textContaining('Drugi rodzic oddaje Tobie 30,00 zl'),
+      findsOneWidget,
+    );
+    expect(find.text('Ostatnie koszty'), findsOneWidget);
+    expect(find.text('Lekarz'), findsOneWidget);
+    expect(find.text('Obiad'), findsOneWidget);
+    expect(find.text('Majowy koszt'), findsNothing);
+  });
+
+  testWidgets('dashboard explains when only co-parent paid this month', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardScreen(
+            profile: testProfile(),
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(
+                id: '1',
+                title: 'Dentysta',
+                amountCents: 8000,
+                paidBy: const ExpensePayer(
+                  id: 'co-parent',
+                  label: 'Drugi rodzic',
+                  isCurrentUser: false,
+                ),
+              ),
+            ],
+            onAddExpense: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.textContaining('Ty oddajesz drugiemu rodzicowi 40,00 zl'),
+      findsOneWidget,
+    );
+    expect(find.text('Drugi rodzic zaplacil'), findsOneWidget);
+    expect(find.text('80,00 zl'), findsWidgets);
+  });
 }
 
 Future<void> pumpSignedInOnboardedApp(WidgetTester tester) async {
@@ -410,6 +515,11 @@ ExpenseEntry testExpense({
   int amountCents = 1000,
   String expenseDate = '2026-06-24',
   ExpenseCategory? category,
+  ExpensePayer paidBy = const ExpensePayer(
+    id: 'self',
+    label: 'parent@example.com',
+    isCurrentUser: true,
+  ),
   ExpenseStatus status = ExpenseStatus.pending,
   ExpenseAttachment? attachment,
 }) {
@@ -419,14 +529,18 @@ ExpenseEntry testExpense({
     expenseDate: expenseDate,
     childName: 'Antek',
     category: category ?? expenseCategories.first,
-    paidBy: const ExpensePayer(
-      id: 'self',
-      label: 'parent@example.com',
-      isCurrentUser: true,
-    ),
+    paidBy: paidBy,
     title: title,
     status: status,
     createdAt: DateTime.utc(2026, 6, 24),
     attachment: attachment,
+  );
+}
+
+OnboardingProfile testProfile() {
+  return const OnboardingProfile(
+    familyName: 'Rodzina Testowa',
+    childName: 'Antek',
+    invitationSkipped: true,
   );
 }
