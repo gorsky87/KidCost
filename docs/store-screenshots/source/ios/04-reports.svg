@@ -1,0 +1,69 @@
+<svg width="1290" height="2796" viewBox="0 0 1290 2796" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1290" height="2796" fill="#FAFAF7"/>
+  <circle cx="1160" cy="170" r="322.5" fill="#E7ECE7" opacity="0.42"/>
+
+  <g transform="translate(96.0 135.0) scale(0.7500)">
+    <rect x="12" y="12" width="104" height="104" rx="28" fill="#0F766E"/>
+    <path d="M39 34C39 30.686 41.686 28 45 28H83C86.314 28 89 30.686 89 34V94C89 97.314 86.314 100 83 100H45C41.686 100 39 97.314 39 94V34Z" fill="#FAFAF7"/>
+    <path d="M51 43H77" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+    <path d="M51 58H70" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+    <path d="M51 73H77" stroke="#0F766E" stroke-width="6" stroke-linecap="round"/>
+    <path d="M51 88H66" stroke="#C76F3D" stroke-width="6" stroke-linecap="round"/>
+    <path d="M45 30L78 64L45 98" stroke="#0F766E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M78 64L91 51" stroke="#C76F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="220.0" y="200.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800" text-anchor="start" letter-spacing="0">KidCost</text>
+  <text x="645.0" y="360.0" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="800" text-anchor="middle" letter-spacing="0">Spokojne rozliczenia rodzicow</text>
+  <text x="645.0" y="425.0" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="500" text-anchor="middle" letter-spacing="0">Raport miesieczny porzadkuje koszty dziecka.</text>
+
+  <rect x="180.0" y="832.2" width="930.0" height="1810.0" rx="72.0" fill="#172326" opacity="0.1"/>
+  <rect x="192.0" y="844.2" width="906.0" height="1786.0" rx="64.0" fill="#FFFFFF"/>
+  <rect x="228.0" y="860.2" width="834.0" height="34.0" rx="17.0" fill="#172326" opacity="0.08"/>
+  <text x="222.0" y="944.2" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700" text-anchor="start" letter-spacing="0">Raporty</text>
+
+
+  <rect x="222.0" y="992.2" width="846.0" height="150.0" rx="18.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <text x="248.0" y="1048.2" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" text-anchor="start" letter-spacing="0">Czerwiec 2026</text>
+  <text x="1042.0" y="1056.2" fill="#0F766E" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" text-anchor="end" letter-spacing="0">412,00 zl</text>
+  <text x="248.0" y="1093.2" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="500" text-anchor="start" letter-spacing="0">Koszty dziecka w tym miesiacu</text>
+  <rect x="222.0" y="1182.2" width="846.0" height="360.0" rx="18.0" fill="#FFFFFF" stroke="#E7ECE7" stroke-width="3"/>
+  <text x="248.0" y="1236.2" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" text-anchor="start" letter-spacing="0">Kategorie</text>
+
+  <text x="274.0" y="1287.2" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" text-anchor="start" letter-spacing="0">Lekarze i leki</text>
+  <text x="1016.0" y="1287.2" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="500" text-anchor="end" letter-spacing="0">120,00 zl</text>
+  <rect x="274.0" y="1309.2" width="742.0" height="20.0" rx="10.0" fill="#E7ECE7"/>
+  <rect x="274.0" y="1309.2" width="534.2" height="20.0" rx="10.0" fill="#B42318"/>
+
+  <text x="274.0" y="1372.2" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" text-anchor="start" letter-spacing="0">Ubrania</text>
+  <text x="1016.0" y="1372.2" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="500" text-anchor="end" letter-spacing="0">154,00 zl</text>
+  <rect x="274.0" y="1394.2" width="742.0" height="20.0" rx="10.0" fill="#E7ECE7"/>
+  <rect x="274.0" y="1394.2" width="408.1" height="20.0" rx="10.0" fill="#7C5CBA"/>
+
+  <text x="274.0" y="1457.2" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" text-anchor="start" letter-spacing="0">Jedzenie</text>
+  <text x="1016.0" y="1457.2" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="500" text-anchor="end" letter-spacing="0">84,00 zl</text>
+  <rect x="274.0" y="1479.2" width="742.0" height="20.0" rx="10.0" fill="#E7ECE7"/>
+  <rect x="274.0" y="1479.2" width="282.0" height="20.0" rx="10.0" fill="#C76F3D"/>
+  <rect x="222.0" y="1582.2" width="846.0" height="250.0" rx="18.0" fill="#F6FBFA" stroke="#E7ECE7" stroke-width="3"/>
+  <text x="248.0" y="1640.2" fill="#172326" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" text-anchor="start" letter-spacing="0">Eksport</text>
+  <text x="248.0" y="1688.2" fill="#5B676A" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="500" text-anchor="start" letter-spacing="0">CSV i PDF beda gotowe do spokojnej rozmowy</text>
+  <rect x="248.0" y="1730.2" width="210.0" height="56.0" rx="16.0" fill="#0F766E"/>
+  <text x="353.0" y="1767.2" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700" text-anchor="middle" letter-spacing="0">Eksport CSV</text>
+  <line x1="222.0" y1="2487.2" x2="1068.0" y2="2487.2" stroke="#E7ECE7" stroke-width="3"/>
+  <g>
+    <rect x="247.0" y="2513.2" width="34.0" height="8.0" rx="4.0" fill="#879194" opacity="0"/>
+  <circle cx="264.0" cy="2538.2" r="13" fill="none" stroke="#879194" stroke-width="5"/>
+<text x="264.0" y="2581.2" fill="#879194" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" text-anchor="middle" letter-spacing="0">Start</text>
+    <rect x="416.2" y="2513.2" width="34.0" height="8.0" rx="4.0" fill="#879194" opacity="0"/>
+  <circle cx="433.2" cy="2538.2" r="13" fill="none" stroke="#879194" stroke-width="5"/>
+<text x="433.2" y="2581.2" fill="#879194" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" text-anchor="middle" letter-spacing="0">Koszty</text>
+    <rect x="585.4" y="2513.2" width="34.0" height="8.0" rx="4.0" fill="#879194" opacity="0"/>
+  <circle cx="602.4" cy="2538.2" r="13" fill="none" stroke="#879194" stroke-width="5"/>
+<text x="602.4" y="2581.2" fill="#879194" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" text-anchor="middle" letter-spacing="0">Dodaj</text>
+    <rect x="754.6" y="2513.2" width="34.0" height="8.0" rx="4.0" fill="#879194" opacity="0"/>
+  <circle cx="771.6" cy="2538.2" r="13" fill="none" stroke="#879194" stroke-width="5"/>
+<text x="771.6" y="2581.2" fill="#879194" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500" text-anchor="middle" letter-spacing="0">Opieka</text>
+    <rect x="923.8" y="2513.2" width="34.0" height="8.0" rx="4.0" fill="#0F766E" opacity="0.22"/>
+  <circle cx="940.8" cy="2538.2" r="13" fill="none" stroke="#0F766E" stroke-width="5"/>
+<text x="940.8" y="2581.2" fill="#0F766E" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="600" text-anchor="middle" letter-spacing="0">Raporty</text>
+  </g>
+</svg>
