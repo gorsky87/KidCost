@@ -76,6 +76,9 @@ class _KidCostShellState extends State<KidCostShell> {
         onAddExpense: () {
           setState(() => _selectedIndex = 2);
         },
+        onOpenExpenses: () {
+          setState(() => _selectedIndex = 1);
+        },
         onOpenReports: () {
           setState(() => _selectedIndex = 5);
         },

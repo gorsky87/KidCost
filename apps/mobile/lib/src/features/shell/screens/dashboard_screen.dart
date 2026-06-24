@@ -10,6 +10,7 @@ class DashboardScreen extends StatelessWidget {
     required this.expenses,
     required this.custodyDays,
     required this.onAddExpense,
+    required this.onOpenExpenses,
     required this.onOpenReports,
     required this.onOpenFamily,
     this.currentDate,
@@ -20,6 +21,7 @@ class DashboardScreen extends StatelessWidget {
   final List<ExpenseEntry> expenses;
   final List<CustodyDay> custodyDays;
   final VoidCallback onAddExpense;
+  final VoidCallback onOpenExpenses;
   final VoidCallback onOpenReports;
   final VoidCallback onOpenFamily;
   final DateTime? currentDate;
@@ -79,6 +81,12 @@ class DashboardScreen extends StatelessWidget {
               ? 'Prywatny szkic 50/50 widoczny tylko dla Ciebie.'
               : 'Liczymy prosty podzial 50/50.',
         ),
+        const SizedBox(height: 8),
+        _NeedsAttentionCard(
+          expenses: monthExpenses,
+          onAddExpense: onAddExpense,
+          onOpenExpenses: onOpenExpenses,
+        ),
         if (monthExpenses.isEmpty) ...[
           const SizedBox(height: 8),
           _EmptyDashboardState(onAddExpense: onAddExpense),
@@ -114,6 +122,222 @@ String _coParentPaidTitle(String label) {
     return 'Drugi rodzic zaplacil';
   }
   return '$label zaplacil(a)';
+}
+
+class _NeedsAttentionCard extends StatelessWidget {
+  const _NeedsAttentionCard({
+    required this.expenses,
+    required this.onAddExpense,
+    required this.onOpenExpenses,
+  });
+
+  final List<ExpenseEntry> expenses;
+  final VoidCallback onAddExpense;
+  final VoidCallback onOpenExpenses;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _AttentionItem.fromExpenses(expenses).take(3).toList();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.notifications_active_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Wymaga uwagi',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (items.isEmpty)
+              _AttentionEmptyState(
+                hasExpenses: expenses.isNotEmpty,
+                onAddExpense: onAddExpense,
+                onOpenExpenses: onOpenExpenses,
+              )
+            else
+              for (final item in items) ...[
+                _AttentionRow(item: item, onPressed: onOpenExpenses),
+                if (item != items.last) const Divider(height: 16),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AttentionEmptyState extends StatelessWidget {
+  const _AttentionEmptyState({
+    required this.hasExpenses,
+    required this.onAddExpense,
+    required this.onOpenExpenses,
+  });
+
+  final bool hasExpenses;
+  final VoidCallback onAddExpense;
+  final VoidCallback onOpenExpenses;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          hasExpenses
+              ? 'Nie ma teraz kosztow blokujacych rozliczenie.'
+              : 'Dodaj pierwszy koszt, aby zobaczyc tu sprawy do sprawdzenia.',
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: hasExpenses ? onOpenExpenses : onAddExpense,
+          icon: Icon(
+            hasExpenses
+                ? Icons.receipt_long_outlined
+                : Icons.add_circle_outline,
+          ),
+          label: Text(hasExpenses ? 'Przejrzyj koszty' : 'Dodaj koszt'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AttentionRow extends StatelessWidget {
+  const _AttentionRow({required this.item, required this.onPressed});
+
+  final _AttentionItem item;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(item.icon),
+            title: Text(item.title),
+            subtitle: Text('${item.reason}\n${item.expense.expenseDate}'),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonal(
+              onPressed: onPressed,
+              child: Text(item.actionLabel),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttentionItem {
+  const _AttentionItem({
+    required this.expense,
+    required this.priority,
+    required this.icon,
+    required this.title,
+    required this.reason,
+    required this.actionLabel,
+  });
+
+  final ExpenseEntry expense;
+  final int priority;
+  final IconData icon;
+  final String title;
+  final String reason;
+  final String actionLabel;
+
+  static List<_AttentionItem> fromExpenses(List<ExpenseEntry> expenses) {
+    final items = <_AttentionItem>[];
+
+    for (final expense in expenses) {
+      final item = _AttentionItem._fromExpense(expense);
+      if (item != null) {
+        items.add(item);
+      }
+    }
+
+    items.sort((first, second) {
+      final priority = first.priority.compareTo(second.priority);
+      if (priority != 0) {
+        return priority;
+      }
+      final date = second.expense.expenseDate.compareTo(
+        first.expense.expenseDate,
+      );
+      if (date != 0) {
+        return date;
+      }
+      return second.expense.createdAt.compareTo(first.expense.createdAt);
+    });
+
+    return items;
+  }
+
+  static _AttentionItem? _fromExpense(ExpenseEntry expense) {
+    if (expense.status == ExpenseStatus.disputed) {
+      return _AttentionItem(
+        expense: expense,
+        priority: 0,
+        icon: Icons.report_problem_outlined,
+        title: expense.title,
+        reason: 'Spor wymaga wyjasnienia',
+        actionLabel: 'Otworz',
+      );
+    }
+
+    if (expense.status == ExpenseStatus.pending &&
+        !expense.paidBy.isCurrentUser) {
+      return _AttentionItem(
+        expense: expense,
+        priority: 1,
+        icon: Icons.fact_check_outlined,
+        title: expense.title,
+        reason: 'Koszt od drugiego rodzica czeka na decyzje',
+        actionLabel: 'Sprawdz',
+      );
+    }
+
+    if (expense.status == ExpenseStatus.accepted) {
+      return _AttentionItem(
+        expense: expense,
+        priority: 2,
+        icon: Icons.payments_outlined,
+        title: expense.title,
+        reason: 'Zaakceptowany koszt czeka na rozliczenie',
+        actionLabel: 'Rozlicz',
+      );
+    }
+
+    if (expense.status == ExpenseStatus.pending &&
+        expense.attachment == null &&
+        expense.paidBy.isCurrentUser) {
+      return _AttentionItem(
+        expense: expense,
+        priority: 3,
+        icon: Icons.attach_file_outlined,
+        title: expense.title,
+        reason: 'Brakuje dowodu kosztu',
+        actionLabel: 'Uzupelnij',
+      );
+    }
+
+    return null;
+  }
 }
 
 class _SoloFamilyCard extends StatelessWidget {

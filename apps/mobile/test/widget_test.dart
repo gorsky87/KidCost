@@ -91,6 +91,7 @@ void main() {
               custodyDays: const [],
               currentDate: DateTime.utc(2026, 6, 24),
               onAddExpense: () {},
+              onOpenExpenses: () {},
               onOpenReports: () {},
               onOpenFamily: () {},
             ),
@@ -1238,11 +1239,141 @@ void main() {
     );
     expect(find.text('Brak kosztow w tym miesiacu'), findsOneWidget);
 
-    await tester.scrollUntilVisible(find.text('Dodaj koszt'), 120);
-    await tester.tap(find.text('Dodaj koszt'));
+    final firstCostButton = find.widgetWithText(
+      OutlinedButton,
+      'Dodaj pierwszy koszt',
+    );
+    await tester.ensureVisible(firstCostButton);
+    await tester.pumpAndSettle();
+    await tester.tap(firstCostButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Nowy koszt'), findsOneWidget);
+  });
+
+  testWidgets('dashboard attention queue prioritizes actionable expenses', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var openedExpenses = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardScreen(
+            profile: testProfile(),
+            currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: const [],
+            expenses: [
+              testExpense(
+                id: 'missing-proof',
+                title: 'Basen',
+                amountCents: 3000,
+                paidBy: const ExpensePayer(
+                  id: 'current',
+                  label: 'Ty',
+                  isCurrentUser: true,
+                ),
+              ),
+              testExpense(
+                id: 'needs-review',
+                title: 'Wycieczka',
+                amountCents: 9000,
+                paidBy: const ExpensePayer(
+                  id: 'co-parent',
+                  label: 'Drugi rodzic',
+                  isCurrentUser: false,
+                ),
+              ),
+              testExpense(
+                id: 'disputed',
+                title: 'Apteka',
+                amountCents: 4500,
+                status: ExpenseStatus.disputed,
+              ),
+              testExpense(
+                id: 'settled',
+                title: 'Rozliczony obiad',
+                amountCents: 2500,
+                status: ExpenseStatus.settled,
+              ),
+            ],
+            onAddExpense: () {},
+            onOpenExpenses: () => openedExpenses = true,
+            onOpenReports: () {},
+            onOpenFamily: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Wymaga uwagi'), findsOneWidget);
+    expect(find.text('Apteka'), findsOneWidget);
+    expect(find.textContaining('Spor wymaga wyjasnienia'), findsOneWidget);
+    expect(find.text('Wycieczka'), findsOneWidget);
+    expect(
+      find.textContaining('Koszt od drugiego rodzica czeka na decyzje'),
+      findsOneWidget,
+    );
+    expect(find.text('Basen'), findsOneWidget);
+    expect(find.textContaining('Brakuje dowodu kosztu'), findsOneWidget);
+    expect(find.text('Rozliczony obiad'), findsNothing);
+
+    final disputedTop = tester.getTopLeft(find.text('Apteka')).dy;
+    final reviewTop = tester.getTopLeft(find.text('Wycieczka')).dy;
+    final proofTop = tester.getTopLeft(find.text('Basen')).dy;
+    expect(disputedTop, lessThan(reviewTop));
+    expect(reviewTop, lessThan(proofTop));
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Otworz'));
+    expect(openedExpenses, isTrue);
+  });
+
+  testWidgets('dashboard attention queue empty state has one useful action', (
+    WidgetTester tester,
+  ) async {
+    var openedExpenses = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardScreen(
+            profile: testProfile(),
+            currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: const [],
+            expenses: [
+              testExpense(
+                id: 'settled',
+                title: 'Rozliczony obiad',
+                amountCents: 2500,
+                status: ExpenseStatus.settled,
+              ),
+            ],
+            onAddExpense: () {},
+            onOpenExpenses: () => openedExpenses = true,
+            onOpenReports: () {},
+            onOpenFamily: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Nie ma teraz kosztow blokujacych rozliczenie.'),
+      findsOneWidget,
+    );
+    expect(
+      find.widgetWithText(OutlinedButton, 'Przejrzyj koszty'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(OutlinedButton, 'Dodaj koszt'), findsNothing);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Przejrzyj koszty'));
+    expect(openedExpenses, isTrue);
   });
 
   testWidgets('dashboard CTA opens monthly reports', (
@@ -1495,6 +1626,7 @@ void main() {
               ),
             ],
             onAddExpense: () {},
+            onOpenExpenses: () {},
             onOpenReports: () {},
             onOpenFamily: () {},
           ),
@@ -1502,20 +1634,23 @@ void main() {
       ),
     );
 
-    expect(find.text('Wydatki w tym miesiacu'), findsOneWidget);
-    expect(find.text('180,00 zl\n2026-06'), findsOneWidget);
-    expect(find.text('Ty zaplaciles'), findsOneWidget);
-    expect(find.text('120,00 zl'), findsWidgets);
-    expect(find.text('Drugi rodzic zaplacil'), findsOneWidget);
-    expect(find.text('60,00 zl'), findsWidgets);
     expect(
       find.textContaining('Drugi rodzic oddaje Tobie 30,00 zl'),
       findsOneWidget,
     );
+    await tester.scrollUntilVisible(find.text('Wydatki w tym miesiacu'), 120);
+    expect(find.text('Wydatki w tym miesiacu'), findsOneWidget);
+    expect(find.text('180,00 zl\n2026-06'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Ty zaplaciles'), 120);
+    expect(find.text('Ty zaplaciles'), findsOneWidget);
+    expect(find.text('120,00 zl'), findsWidgets);
+    await tester.scrollUntilVisible(find.text('Drugi rodzic zaplacil'), 120);
+    expect(find.text('Drugi rodzic zaplacil'), findsOneWidget);
+    expect(find.text('60,00 zl'), findsWidgets);
     await tester.scrollUntilVisible(find.text('Ostatnie koszty'), 120);
     expect(find.text('Ostatnie koszty'), findsOneWidget);
-    expect(find.text('Lekarz'), findsOneWidget);
-    expect(find.text('Obiad'), findsOneWidget);
+    expect(find.text('Lekarz'), findsWidgets);
+    expect(find.text('Obiad'), findsWidgets);
     expect(find.text('Majowy koszt'), findsNothing);
   });
 
@@ -1542,6 +1677,7 @@ void main() {
               ),
             ],
             onAddExpense: () {},
+            onOpenExpenses: () {},
             onOpenReports: () {},
             onOpenFamily: () {},
           ),
@@ -1553,6 +1689,7 @@ void main() {
       find.textContaining('Ty oddajesz drugiemu rodzicowi 40,00 zl'),
       findsOneWidget,
     );
+    await tester.scrollUntilVisible(find.text('Drugi rodzic zaplacil'), 120);
     expect(find.text('Drugi rodzic zaplacil'), findsOneWidget);
     expect(find.text('80,00 zl'), findsWidgets);
   });
