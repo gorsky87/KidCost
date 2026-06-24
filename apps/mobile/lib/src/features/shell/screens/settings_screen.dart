@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({required this.onSignOut, super.key});
+  const SettingsScreen({
+    required this.userEmail,
+    required this.isDemoSession,
+    required this.onSignOut,
+    super.key,
+  });
 
-  final VoidCallback onSignOut;
+  final String userEmail;
+  final bool isDemoSession;
+  final Future<void> Function() onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -17,10 +24,19 @@ class SettingsScreen extends StatelessWidget {
             'Dane beda ograniczone przez RLS i aktywne czlonkostwo w rodzinie.',
           ),
         ),
+        ListTile(
+          leading: const Icon(Icons.account_circle_outlined),
+          title: Text(userEmail),
+          subtitle: Text(
+            isDemoSession
+                ? 'Sesja demo w tym uruchomieniu aplikacji.'
+                : 'Sesja Supabase zapisana lokalnie.',
+          ),
+        ),
         const Divider(),
         ListTile(
           leading: const Icon(Icons.logout),
-          title: const Text('Wyloguj demo'),
+          title: const Text('Wyloguj'),
           onTap: onSignOut,
         ),
       ],
