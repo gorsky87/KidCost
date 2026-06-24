@@ -28,6 +28,7 @@ class ExpenseEntry {
     required this.paidBy,
     required this.title,
     required this.createdAt,
+    this.status = ExpenseStatus.pending,
     this.attachment,
   });
 
@@ -39,6 +40,7 @@ class ExpenseEntry {
   final ExpensePayer paidBy;
   final String title;
   final DateTime createdAt;
+  final ExpenseStatus status;
   final ExpenseAttachment? attachment;
 }
 
@@ -83,6 +85,31 @@ class ExpenseAttachment {
 }
 
 enum AttachmentStatus { uploaded, failed }
+
+enum ExpenseStatus { pending, accepted, disputed }
+
+extension ExpenseStatusDetails on ExpenseStatus {
+  String get label {
+    switch (this) {
+      case ExpenseStatus.pending:
+        return 'Do rozliczenia';
+      case ExpenseStatus.accepted:
+        return 'Zaakceptowany';
+      case ExpenseStatus.disputed:
+        return 'Spor';
+    }
+  }
+
+  bool get canEdit {
+    switch (this) {
+      case ExpenseStatus.pending:
+        return true;
+      case ExpenseStatus.accepted:
+      case ExpenseStatus.disputed:
+        return false;
+    }
+  }
+}
 
 String formatCents(int cents) {
   final whole = cents ~/ 100;

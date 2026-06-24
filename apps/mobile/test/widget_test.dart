@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kidcost_mobile/src/app.dart';
 import 'package:kidcost_mobile/src/features/auth/auth_repository.dart';
 import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
+import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
 
 void main() {
   testWidgets('opens the KidCost shell after email sign in', (
@@ -246,6 +248,122 @@ void main() {
     expect(find.text('Faktura'), findsOneWidget);
     expect(find.textContaining('Zalacznik: rachunek.pdf'), findsOneWidget);
   });
+
+  testWidgets('expenses list exposes loading and error states', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: ExpensesScreen(expenses: [], isLoading: true)),
+      ),
+    );
+
+    expect(find.text('Ladowanie kosztow'), findsOneWidget);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            expenses: [],
+            errorMessage: 'Brak polaczenia z API.',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Nie udalo sie pobrac kosztow'), findsOneWidget);
+    expect(find.text('Brak polaczenia z API.'), findsOneWidget);
+  });
+
+  testWidgets('expenses list filters costs and can clear filters', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 1250),
+              testExpense(
+                id: '2',
+                title: 'Lekarz',
+                amountCents: 9000,
+                expenseDate: '2026-05-03',
+                category: expenseCategories[3],
+                status: ExpenseStatus.accepted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Obiad'), findsOneWidget);
+    expect(find.text('Lekarz'), findsOneWidget);
+
+    await tester.tap(find.text('Pokaz filtry i sortowanie'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expense-category-filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lekarze i leki').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lekarz'), findsOneWidget);
+    expect(find.text('Obiad'), findsNothing);
+
+    await tester.tap(find.text('Wyczysc'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Obiad'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Lekarz'), 120);
+    expect(find.text('Lekarz'), findsOneWidget);
+  });
+
+  testWidgets('expense details show attachment preview and edit lock', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            expenses: [
+              testExpense(
+                id: '1',
+                title: 'Faktura',
+                attachment: const ExpenseAttachment(
+                  fileName: 'rachunek.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  storagePath: 'expenses/rachunek.pdf',
+                ),
+              ),
+              testExpense(
+                id: '2',
+                title: 'Sporne leki',
+                category: expenseCategories[3],
+                status: ExpenseStatus.disputed,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Faktura'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Szczegoly kosztu'), findsOneWidget);
+    expect(find.text('Podglad PDF: rachunek.pdf'), findsOneWidget);
+    expect(find.text('Edytuj koszt'), findsOneWidget);
+
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sporne leki'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Brak zalacznika'), findsOneWidget);
+    expect(find.text('Edycja zablokowana przez status'), findsOneWidget);
+  });
 }
 
 Future<void> pumpSignedInOnboardedApp(WidgetTester tester) async {
@@ -284,4 +402,31 @@ Future<void> completeOnboarding(
 
   await tester.tap(find.text('Pomin zaproszenie'));
   await tester.pumpAndSettle();
+}
+
+ExpenseEntry testExpense({
+  required String id,
+  required String title,
+  int amountCents = 1000,
+  String expenseDate = '2026-06-24',
+  ExpenseCategory? category,
+  ExpenseStatus status = ExpenseStatus.pending,
+  ExpenseAttachment? attachment,
+}) {
+  return ExpenseEntry(
+    id: id,
+    amountCents: amountCents,
+    expenseDate: expenseDate,
+    childName: 'Antek',
+    category: category ?? expenseCategories.first,
+    paidBy: const ExpensePayer(
+      id: 'self',
+      label: 'parent@example.com',
+      isCurrentUser: true,
+    ),
+    title: title,
+    status: status,
+    createdAt: DateTime.utc(2026, 6, 24),
+    attachment: attachment,
+  );
 }
