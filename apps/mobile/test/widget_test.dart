@@ -9,6 +9,7 @@ import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_visuals.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
 import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/add_expense_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
@@ -65,6 +66,72 @@ void main() {
       Theme.of(tester.element(find.byType(Text))).scaffoldBackgroundColor,
       KidCostTheme.surface,
     );
+  });
+
+  testWidgets('core MVP screens stay usable with large text and tap targets', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KidCostTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            textScaler: TextScaler.linear(2),
+          ),
+          child: Scaffold(
+            body: DashboardScreen(
+              profile: testProfile(),
+              expenses: [testExpense(id: '1', title: 'Obiad')],
+              custodyDays: const [],
+              currentDate: DateTime.utc(2026, 6, 24),
+              onAddExpense: () {},
+              onOpenReports: () {},
+              onOpenFamily: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final addExpenseButton = find.widgetWithText(FilledButton, 'Dodaj koszt');
+    expect(addExpenseButton, findsOneWidget);
+    expect(tester.getSize(addExpenseButton).height, greaterThanOrEqualTo(48));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KidCostTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            textScaler: TextScaler.linear(2),
+          ),
+          child: Scaffold(
+            body: AddExpenseScreen(
+              profile: testProfile(),
+              userEmail: 'parent@example.com',
+              attachmentStorage: InMemoryAttachmentStorage(),
+              onExpenseSaved: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final saveExpenseButton = find.widgetWithText(FilledButton, 'Zapisz koszt');
+    await tester.ensureVisible(saveExpenseButton);
+    await tester.pumpAndSettle();
+
+    expect(saveExpenseButton, findsOneWidget);
+    expect(tester.getSize(saveExpenseButton).height, greaterThanOrEqualTo(48));
   });
 
   testWidgets('expense visuals cover MVP categories and statuses', (_) async {
