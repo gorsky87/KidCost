@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:kidcost_mobile/src/app.dart';
 import 'package:kidcost_mobile/src/features/auth/auth_repository.dart';
+import 'package:kidcost_mobile/src/features/custody/custody_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
 
@@ -396,6 +398,89 @@ void main() {
     expect(find.text('Eksport'), findsOneWidget);
   });
 
+  testWidgets('custody calendar adds a date range and edits a day', (
+    WidgetTester tester,
+  ) async {
+    var custodyDays = <CustodyDay>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              return CustodyCalendarScreen(
+                profile: testProfile(),
+                userEmail: 'parent@example.com',
+                currentDate: DateTime.utc(2026, 6, 24),
+                custodyDays: custodyDays,
+                onCustodyDaysChanged: (updated) {
+                  setState(() => custodyDays = updated);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Kalendarz opieki'), findsOneWidget);
+    expect(find.text('2026-06'), findsOneWidget);
+    expect(
+      find.textContaining('MVP zapisuje plan dla jednej rodziny'),
+      findsOneWidget,
+    );
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, -800));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), '2026-06-24');
+    await tester.enterText(find.byType(TextField).at(1), '2026-06-26');
+    await tester.ensureVisible(find.text('Zapisz opieke'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz opieke'));
+    await tester.pumpAndSettle();
+
+    expect(custodyDays, hasLength(3));
+    expect(find.text('Plan opieki zapisany.'), findsOneWidget);
+    expect(find.text('parent@example.com'), findsWidgets);
+
+    await tester.drag(find.byType(ListView).first, const Offset(0, 800));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, '24'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, '24'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Drugi rodzic').last);
+    await tester.pumpAndSettle();
+
+    expect(custodyDays.first.parent.label, 'Drugi rodzic');
+  });
+
+  testWidgets('custody calendar is reachable from navigation and dashboard', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+
+    await tester.tap(find.text('Opieka'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kalendarz opieki'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView).last, const Offset(0, -800));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '2026-06-24');
+    await tester.ensureVisible(find.text('Zapisz opieke'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz opieke'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Najblizsza opieka'), 120);
+    expect(find.text('Najblizsza opieka'), findsOneWidget);
+    expect(find.text('2026-06-24'), findsOneWidget);
+  });
+
   testWidgets('dashboard summarizes current month balance and recent costs', (
     WidgetTester tester,
   ) async {
@@ -405,6 +490,7 @@ void main() {
           body: DashboardScreen(
             profile: testProfile(),
             currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: const [],
             expenses: [
               testExpense(id: '1', title: 'Obiad', amountCents: 12000),
               testExpense(
@@ -443,6 +529,7 @@ void main() {
       find.textContaining('Drugi rodzic oddaje Tobie 30,00 zl'),
       findsOneWidget,
     );
+    await tester.scrollUntilVisible(find.text('Ostatnie koszty'), 120);
     expect(find.text('Ostatnie koszty'), findsOneWidget);
     expect(find.text('Lekarz'), findsOneWidget);
     expect(find.text('Obiad'), findsOneWidget);
@@ -458,6 +545,7 @@ void main() {
           body: DashboardScreen(
             profile: testProfile(),
             currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: const [],
             expenses: [
               testExpense(
                 id: '1',

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../custody/custody_models.dart';
 import '../expenses/attachment_storage.dart';
 import '../expenses/expense_models.dart';
 import '../onboarding/onboarding_profile.dart';
 import 'screens/add_expense_screen.dart';
+import 'screens/custody_calendar_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/expenses_screen.dart';
 import 'screens/family_screen.dart';
@@ -17,7 +19,9 @@ class KidCostShell extends StatefulWidget {
     required this.onboardingProfile,
     required this.attachmentStorage,
     required this.expenses,
+    required this.custodyDays,
     required this.onExpenseSaved,
+    required this.onCustodyDaysChanged,
     required this.onSignOut,
     super.key,
   });
@@ -27,7 +31,9 @@ class KidCostShell extends StatefulWidget {
   final OnboardingProfile onboardingProfile;
   final AttachmentStorage attachmentStorage;
   final List<ExpenseEntry> expenses;
+  final List<CustodyDay> custodyDays;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
+  final ValueChanged<List<CustodyDay>> onCustodyDaysChanged;
   final Future<void> Function() onSignOut;
 
   @override
@@ -45,11 +51,12 @@ class _KidCostShellState extends State<KidCostShell> {
       screen: DashboardScreen(
         profile: widget.onboardingProfile,
         expenses: widget.expenses,
+        custodyDays: widget.custodyDays,
         onAddExpense: () {
           setState(() => _selectedIndex = 2);
         },
         onOpenReports: () {
-          setState(() => _selectedIndex = 3);
+          setState(() => _selectedIndex = 4);
         },
       ),
     ),
@@ -68,6 +75,17 @@ class _KidCostShellState extends State<KidCostShell> {
         userEmail: widget.userEmail,
         attachmentStorage: widget.attachmentStorage,
         onExpenseSaved: widget.onExpenseSaved,
+      ),
+    ),
+    _Destination(
+      label: 'Opieka',
+      icon: Icons.event_available_outlined,
+      selectedIcon: Icons.event_available,
+      screen: CustodyCalendarScreen(
+        profile: widget.onboardingProfile,
+        userEmail: widget.userEmail,
+        custodyDays: widget.custodyDays,
+        onCustodyDaysChanged: widget.onCustodyDaysChanged,
       ),
     ),
     _Destination(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
 
@@ -7,6 +8,7 @@ class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
     required this.profile,
     required this.expenses,
+    required this.custodyDays,
     required this.onAddExpense,
     required this.onOpenReports,
     this.currentDate,
@@ -15,6 +17,7 @@ class DashboardScreen extends StatelessWidget {
 
   final OnboardingProfile profile;
   final List<ExpenseEntry> expenses;
+  final List<CustodyDay> custodyDays;
   final VoidCallback onAddExpense;
   final VoidCallback onOpenReports;
   final DateTime? currentDate;
@@ -34,6 +37,10 @@ class DashboardScreen extends StatelessWidget {
         }
         return second.createdAt.compareTo(first.createdAt);
       });
+    final upcomingCustodyDays = _upcomingCustodyDays(
+      custodyDays,
+      currentDate ?? DateTime.now(),
+    );
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -85,9 +92,48 @@ class DashboardScreen extends StatelessWidget {
           value: formatCents(summary.coParentPaidCents),
         ),
         const SizedBox(height: 8),
+        _UpcomingCustodyCard(custodyDays: upcomingCustodyDays),
+        const SizedBox(height: 8),
         if (monthExpenses.isNotEmpty)
           _RecentExpenses(expenses: recentExpenses.take(5).toList()),
       ],
+    );
+  }
+}
+
+class _UpcomingCustodyCard extends StatelessWidget {
+  const _UpcomingCustodyCard({required this.custodyDays});
+
+  final List<CustodyDay> custodyDays;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Najblizsza opieka',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            if (custodyDays.isEmpty)
+              const Text(
+                'Dodaj dni opieki w zakladce Opieka, aby widziec plan na start.',
+              )
+            else
+              for (final day in custodyDays)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.event_available_outlined),
+                  title: Text(day.date),
+                  subtitle: Text('${day.childName} • ${day.parent.label}'),
+                ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -247,4 +293,25 @@ class _DashboardMonth {
   bool contains(String expenseDate) {
     return expenseDate.startsWith(label);
   }
+}
+
+List<CustodyDay> _upcomingCustodyDays(
+  List<CustodyDay> custodyDays,
+  DateTime currentDate,
+) {
+  final today = DateTime.utc(
+    currentDate.year,
+    currentDate.month,
+    currentDate.day,
+  );
+  final sorted = [...custodyDays]
+    ..sort((first, second) => first.date.compareTo(second.date));
+
+  return sorted
+      .where((day) {
+        final parsed = parseCustodyDate(day.date);
+        return parsed != null && !parsed.isBefore(today);
+      })
+      .take(5)
+      .toList();
 }
