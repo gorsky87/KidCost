@@ -480,7 +480,11 @@ class _FamilyDataExportCard extends StatelessWidget {
                 'Dla zalogowanego czlonka rodziny, bez danych innych rodzin.',
               ),
             ),
-            Text(statusText),
+            Semantics(
+              liveRegion: true,
+              label: 'Status eksportu danych rodziny: $statusText',
+              child: Text(statusText),
+            ),
             const SizedBox(height: 8),
             Text(
               'Zalaczniki w MVP sa opisane metadanymi; same prywatne pliki nie sa kopiowane do eksportu.',
@@ -489,15 +493,20 @@ class _FamilyDataExportCard extends StatelessWidget {
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
-              child: FilledButton.icon(
-                onPressed: isRequested ? null : onRequestExport,
-                icon: Icon(
-                  isRequested
-                      ? Icons.check_circle_outline
-                      : Icons.file_download_outlined,
-                ),
-                label: Text(
-                  isRequested ? 'Eksport zlecony' : 'Przygotuj eksport',
+              child: Tooltip(
+                message: isRequested
+                    ? 'Eksport danych rodziny jest juz zlecony.'
+                    : 'Przygotuj eksport danych tej rodziny.',
+                child: FilledButton.icon(
+                  onPressed: isRequested ? null : onRequestExport,
+                  icon: Icon(
+                    isRequested
+                        ? Icons.check_circle_outline
+                        : Icons.file_download_outlined,
+                  ),
+                  label: Text(
+                    isRequested ? 'Eksport zlecony' : 'Przygotuj eksport',
+                  ),
                 ),
               ),
             ),

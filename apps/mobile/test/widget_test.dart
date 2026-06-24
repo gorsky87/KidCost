@@ -592,6 +592,15 @@ void main() {
       find.textContaining('Pliki zalacznikow pozostaja poza paczka MVP'),
       findsOneWidget,
     );
+
+    final submittedExportButton = find.widgetWithText(
+      FilledButton,
+      'Eksport zlecony',
+    );
+    await tester.ensureVisible(submittedExportButton);
+    await tester.tap(submittedExportButton);
+    await tester.pumpAndSettle();
+    expect(exportRequests, 1);
   });
 
   testWidgets('premium discovery stays calm and dismissible', (
