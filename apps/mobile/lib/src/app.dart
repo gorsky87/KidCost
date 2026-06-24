@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'config/app_config.dart';
 import 'features/auth/auth_repository.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/custody/custody_models.dart';
 import 'features/expenses/attachment_storage.dart';
 import 'features/expenses/expense_models.dart';
 import 'features/onboarding/family_onboarding_screen.dart';
@@ -34,6 +35,7 @@ class _KidCostAppState extends State<KidCostApp> {
   AuthSession? _session;
   OnboardingProfile? _onboardingProfile;
   List<ExpenseEntry> _expenses = const [];
+  List<CustodyDay> _custodyDays = const [];
   bool _isLoading = true;
   String? _startupMessage;
 
@@ -94,8 +96,12 @@ class _KidCostAppState extends State<KidCostApp> {
         onboardingProfile: profile,
         attachmentStorage: widget.attachmentStorage,
         expenses: _expenses,
+        custodyDays: _custodyDays,
         onExpenseSaved: (expense) {
           setState(() => _expenses = [..._expenses, expense]);
+        },
+        onCustodyDaysChanged: (custodyDays) {
+          setState(() => _custodyDays = custodyDays);
         },
         onSignOut: _signOut,
       );
@@ -146,6 +152,7 @@ class _KidCostAppState extends State<KidCostApp> {
         _session = null;
         _onboardingProfile = null;
         _expenses = const [];
+        _custodyDays = const [];
         _isLoading = false;
       });
     } on AuthFailure catch (error) {
