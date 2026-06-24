@@ -348,6 +348,8 @@ class _ExpenseCard extends StatelessWidget {
                   expense.attachment!.status == AttachmentStatus.uploaded
                       ? 'Zalacznik: ${expense.attachment!.fileName}'
                       : 'Zalacznik: blad uploadu',
+                if (expense.attachment?.evidence?.type != null)
+                  'Dowod: ${expense.attachment!.evidence!.type!.label}',
               ].join(' • '),
             ),
             trailing: Text(
@@ -413,6 +415,10 @@ class _ExpenseCard extends StatelessWidget {
                   _DetailRow(label: 'Data', value: expense.expenseDate),
                   const SizedBox(height: 12),
                   _AttachmentPreview(attachment: expense.attachment),
+                  if (expense.attachment?.evidence?.hasDetails == true) ...[
+                    const SizedBox(height: 12),
+                    _EvidenceDetails(attachment: expense.attachment!),
+                  ],
                   const SizedBox(height: 16),
                   _StatusActionsSection(status: expense.status),
                   const SizedBox(height: 16),
@@ -626,11 +632,70 @@ class _AttachmentPreview extends StatelessWidget {
             : 'Podglad PDF: ${attachment.fileName}',
       ),
       subtitle: Text(
-        attachment.storagePath == null
-            ? 'Plik zapisany.'
-            : 'Upload zakonczony: ${attachment.storagePath}',
+        [
+          if (attachment.evidence?.type != null)
+            'Typ dowodu: ${attachment.evidence!.type!.label}',
+          attachment.storagePath == null
+              ? 'Plik zapisany.'
+              : 'Upload zakonczony: ${attachment.storagePath}',
+        ].join(' • '),
       ),
     );
+  }
+}
+
+class _EvidenceDetails extends StatelessWidget {
+  const _EvidenceDetails({required this.attachment});
+
+  final ExpenseAttachment attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final evidence = attachment.evidence;
+    if (evidence == null || !evidence.hasDetails) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Dowod kosztu',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'To pomaga uporzadkowac dokumenty; nie jest porada prawna.',
+            ),
+            const SizedBox(height: 8),
+            if (evidence.type != null)
+              _DetailRow(label: 'Typ', value: evidence.type!.label),
+            if (_hasValue(evidence.documentDate))
+              _DetailRow(label: 'Data dok.', value: evidence.documentDate!),
+            if (_hasValue(evidence.merchant))
+              _DetailRow(label: 'Wystawca', value: evidence.merchant!),
+            if (_hasValue(evidence.documentNumber))
+              _DetailRow(label: 'Numer', value: evidence.documentNumber!),
+            if (_hasValue(evidence.paymentMethod))
+              _DetailRow(label: 'Platnosc', value: evidence.paymentMethod!),
+            if (evidence.buyerNamePresent != null)
+              _DetailRow(
+                label: 'Kupujacy',
+                value: evidence.buyerNamePresent!
+                    ? 'Jest na dokumencie'
+                    : 'Nie zaznaczono',
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _hasValue(String? value) {
+    return value != null && value.trim().isNotEmpty;
   }
 }
 

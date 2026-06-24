@@ -154,6 +154,7 @@ class ExpenseAttachment {
     required this.fileName,
     required this.contentType,
     required this.status,
+    this.evidence,
     this.storagePath,
     this.errorMessage,
   });
@@ -161,11 +162,92 @@ class ExpenseAttachment {
   final String fileName;
   final String contentType;
   final AttachmentStatus status;
+  final EvidenceMetadata? evidence;
   final String? storagePath;
   final String? errorMessage;
 }
 
 enum AttachmentStatus { uploaded, failed }
+
+class EvidenceMetadata {
+  const EvidenceMetadata({
+    this.type,
+    this.documentDate,
+    this.merchant,
+    this.documentNumber,
+    this.paymentMethod,
+    this.buyerNamePresent,
+  });
+
+  final EvidenceType? type;
+  final String? documentDate;
+  final String? merchant;
+  final String? documentNumber;
+  final String? paymentMethod;
+  final bool? buyerNamePresent;
+
+  bool get hasDetails {
+    return type != null ||
+        _hasText(documentDate) ||
+        _hasText(merchant) ||
+        _hasText(documentNumber) ||
+        _hasText(paymentMethod) ||
+        buyerNamePresent != null;
+  }
+
+  static bool _hasText(String? value) {
+    return value != null && value.trim().isNotEmpty;
+  }
+}
+
+enum EvidenceType { receipt, invoice, bankConfirmation, onlineOrder, other }
+
+extension EvidenceTypeDetails on EvidenceType {
+  String get id {
+    switch (this) {
+      case EvidenceType.receipt:
+        return 'receipt';
+      case EvidenceType.invoice:
+        return 'invoice';
+      case EvidenceType.bankConfirmation:
+        return 'bank_confirmation';
+      case EvidenceType.onlineOrder:
+        return 'online_order';
+      case EvidenceType.other:
+        return 'other';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case EvidenceType.receipt:
+        return 'Paragon';
+      case EvidenceType.invoice:
+        return 'Faktura imienna';
+      case EvidenceType.bankConfirmation:
+        return 'Potwierdzenie przelewu';
+      case EvidenceType.onlineOrder:
+        return 'Zamowienie online';
+      case EvidenceType.other:
+        return 'Inny dowod';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case EvidenceType.receipt:
+        return 'Pomaga pokazac skale wydatkow.';
+      case EvidenceType.invoice:
+        return 'Porzadkuje dokument wystawiony na konkretnego kupujacego.';
+      case EvidenceType.bankConfirmation:
+        return 'Laczy koszt z przeplywem platnosci.';
+      case EvidenceType.onlineOrder:
+        return 'Przydatne przy zakupach internetowych.';
+      case EvidenceType.other:
+        return 'Uzyj, gdy dokument nie pasuje do listy.';
+    }
+  }
+}
 
 enum ExpenseStatus { pending, accepted, disputed, settled }
 
