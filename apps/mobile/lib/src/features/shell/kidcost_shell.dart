@@ -27,6 +27,7 @@ class KidCostShell extends StatefulWidget {
     required this.expenseTemplates,
     required this.custodyDays,
     required this.onExpenseSaved,
+    required this.onExpenseChanged,
     required this.onExpenseTemplateSaved,
     required this.onCustodyDaysChanged,
     required this.onSignOut,
@@ -42,6 +43,7 @@ class KidCostShell extends StatefulWidget {
   final List<ExpenseTemplate> expenseTemplates;
   final List<CustodyDay> custodyDays;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
+  final ValueChanged<ExpenseEntry> onExpenseChanged;
   final ValueChanged<ExpenseTemplate> onExpenseTemplateSaved;
   final ValueChanged<List<CustodyDay>> onCustodyDaysChanged;
   final Future<void> Function() onSignOut;
@@ -88,6 +90,7 @@ class _KidCostShellState extends State<KidCostShell> {
       selectedIcon: Icons.receipt_long,
       screen: ExpensesScreen(
         expenses: widget.expenses,
+        onExpenseChanged: widget.onExpenseChanged,
         showExpenseHistoryPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.expenseHistory,
         ),

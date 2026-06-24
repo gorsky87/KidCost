@@ -147,6 +147,17 @@ class _KidCostAppState extends State<KidCostApp> {
           }
           setState(() => _expenses = [..._expenses, expense]);
         },
+        onExpenseChanged: (expense) {
+          final existingIndex = _expenses.indexWhere(
+            (item) => item.id == expense.id,
+          );
+          if (existingIndex == -1) {
+            return;
+          }
+          final updatedExpenses = [..._expenses];
+          updatedExpenses[existingIndex] = expense;
+          setState(() => _expenses = updatedExpenses);
+        },
         onExpenseTemplateSaved: (template) {
           final existingIndex = _expenseTemplates.indexWhere(
             (item) => item.id == template.id,
