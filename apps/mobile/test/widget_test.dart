@@ -11,8 +11,37 @@ import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart'
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
+import 'package:kidcost_mobile/src/theme/kidcost_theme.dart';
 
 void main() {
+  testWidgets('theme exposes the Calm Ledger brand palette', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KidCostTheme.light(),
+        home: Builder(
+          builder: (context) {
+            return const Text('brand theme');
+          },
+        ),
+      ),
+    );
+
+    expect(
+      Theme.of(tester.element(find.byType(Text))).colorScheme.primary,
+      KidCostTheme.primary,
+    );
+    expect(
+      Theme.of(tester.element(find.byType(Text))).colorScheme.secondary,
+      KidCostTheme.secondary,
+    );
+    expect(
+      Theme.of(tester.element(find.byType(Text))).scaffoldBackgroundColor,
+      KidCostTheme.surface,
+    );
+  });
+
   testWidgets('opens the KidCost shell after email sign in', (
     WidgetTester tester,
   ) async {
