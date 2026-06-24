@@ -472,6 +472,15 @@ void main() {
     expect(find.text('Platnik rodzinny'), findsOneWidget);
     expect(find.textContaining('zalaczniki do limitu'), findsOneWidget);
     expect(find.textContaining('platnosc nie daje wylacznej'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Fee-waiver i dostep po lapse'),
+      120,
+    );
+    expect(
+      find.textContaining('Premium automatyzacje sa wstrzymane'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('minimalnego formularza'), findsOneWidget);
 
     final paywallPreviewButton = find.widgetWithText(
       TextButton,

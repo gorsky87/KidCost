@@ -94,6 +94,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
         ],
         _PlanComparisonCard(onPreviewPaywall: _showPremiumPaywallPreview),
+        const SizedBox(height: 8),
+        const _FeeWaiverPolicyCard(),
         const Divider(),
         const ListTile(
           leading: Icon(Icons.security_outlined),
@@ -212,6 +214,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _FeeWaiverPolicyCard extends StatelessWidget {
+  const _FeeWaiverPolicyCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final policy = domain.kidCostFeeWaiverPolicy;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.volunteer_activism_outlined),
+              title: Text('Fee-waiver i dostep po lapse'),
+              subtitle: Text('Platnosc nie blokuje historii rodziny.'),
+            ),
+            Text(policy.copy.paymentFailure),
+            const SizedBox(height: 8),
+            Text(policy.copy.requestHelp),
+            const SizedBox(height: 8),
+            Text(
+              policy.copy.privacy,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
