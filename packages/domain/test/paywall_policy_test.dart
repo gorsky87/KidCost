@@ -1,10 +1,13 @@
 import 'package:kidcost_domain/domain.dart';
+import 'package:test/test.dart' as t;
 
 void main() {
-  testApprovedPaywallTriggersFollowValueMoments();
-  testRejectedTriggersProtectCoreLedger();
-  testPremiumAnalyticsTaxonomyUsesSafeProperties();
-  testTrialMessagingAvoidsPressureAndOwnershipConfusion();
+  t.test('domain assertions pass', () {
+    testApprovedPaywallTriggersFollowValueMoments();
+    testRejectedTriggersProtectCoreLedger();
+    testPremiumAnalyticsTaxonomyUsesSafeProperties();
+    testTrialMessagingAvoidsPressureAndOwnershipConfusion();
+  });
 }
 
 void testApprovedPaywallTriggersFollowValueMoments() {

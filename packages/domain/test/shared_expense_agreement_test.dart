@@ -1,10 +1,13 @@
 import 'package:kidcost_domain/domain.dart';
+import 'package:test/test.dart' as t;
 
 void main() {
-  testDefaultRulesCoverExpenseCategories();
-  testApprovalThresholdRequiresPriorAgreement();
-  testNonShareableCategoriesAskForSeparateAgreement();
-  testAgreementDocumentsBalanceAndStatusDependencies();
+  t.test('domain assertions pass', () {
+    testDefaultRulesCoverExpenseCategories();
+    testApprovalThresholdRequiresPriorAgreement();
+    testNonShareableCategoriesAskForSeparateAgreement();
+    testAgreementDocumentsBalanceAndStatusDependencies();
+  });
 }
 
 void testDefaultRulesCoverExpenseCategories() {

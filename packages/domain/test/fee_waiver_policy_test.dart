@@ -1,10 +1,13 @@
 import 'package:kidcost_domain/domain.dart';
+import 'package:test/test.dart' as t;
 
 void main() {
-  testLapsedSubscriptionKeepsHistoricalRecordsReadable();
-  testFeeWaiverHasManualReviewDurationAndRenewal();
-  testApplicationMinimizesSensitiveEvidence();
-  testFollowUpTasksCoverEntitlementsAndAdminTooling();
+  t.test('domain assertions pass', () {
+    testLapsedSubscriptionKeepsHistoricalRecordsReadable();
+    testFeeWaiverHasManualReviewDurationAndRenewal();
+    testApplicationMinimizesSensitiveEvidence();
+    testFollowUpTasksCoverEntitlementsAndAdminTooling();
+  });
 }
 
 void testLapsedSubscriptionKeepsHistoricalRecordsReadable() {
