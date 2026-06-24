@@ -6,6 +6,7 @@ This directory contains Supabase schema artifacts for the KidCost MVP.
 
 - `migrations/` - versioned PostgreSQL migrations for Supabase.
 - `config.toml` - local Supabase CLI project configuration.
+- `seed.sql` - deterministic local demo/test data loaded by `supabase db reset`.
 
 ## First migration
 
@@ -30,7 +31,14 @@ psql --version
 supabase db reset
 ```
 
-`supabase db reset` starts from the migrations in `supabase/migrations/`. Seed loading is disabled until the repository has a committed `supabase/seed.sql`.
+`supabase db reset` starts from the migrations in `supabase/migrations/` and then loads `supabase/seed.sql`.
+
+The seed creates a fake family with two parents, one child, sample expenses, a settlement, and a pending invitation. The demo users are:
+
+- `demo.parent.one@example.test`
+- `demo.parent.two@example.test`
+
+Both use the local-only password `KidCostDemo123!`.
 
 RLS policies are defined in `migrations/20260624005127_enable_mvp_rls.sql`.
 
@@ -74,3 +82,15 @@ Manual verification:
 supabase db reset
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/storage_manual_check.sql
 ```
+
+## Operations and backups
+
+Supabase environment decisions, reset rules, and backup steps live in `docs/SUPABASE_OPERATIONS.md`.
+
+Create a database backup and Storage manifest with:
+
+```sh
+DATABASE_URL="$DATABASE_URL" KIDCOST_BACKUP_ENV=beta scripts/supabase_backup.sh
+```
+
+The script writes to `backups/supabase/` by default. Do not commit backup output because it may contain private family and financial data.
