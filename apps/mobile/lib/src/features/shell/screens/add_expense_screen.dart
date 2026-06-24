@@ -40,10 +40,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _dateController = TextEditingController();
   final _titleController = TextEditingController();
   final _manualPayerController = TextEditingController();
+  final _documentDateController = TextEditingController();
+  final _merchantController = TextEditingController();
+  final _documentNumberController = TextEditingController();
+  final _paymentMethodController = TextEditingController();
   late final List<ExpensePayer> _payers;
   ExpenseCategory _category = expenseCategories.first;
   ExpensePayer? _payer;
   AttachmentDraft? _attachmentDraft;
+  EvidenceType? _evidenceType;
+  bool? _buyerNamePresent;
   bool _isSaving = false;
   bool _attachmentFailedOnLastSave = false;
   String? _amountError;
@@ -74,6 +80,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _dateController.dispose();
     _titleController.dispose();
     _manualPayerController.dispose();
+    _documentDateController.dispose();
+    _merchantController.dispose();
+    _documentNumberController.dispose();
+    _paymentMethodController.dispose();
     super.dispose();
   }
 
@@ -203,6 +213,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               onRemove: _removeAttachment,
               onAddAnother: _explainSingleAttachmentMvp,
               onSaveWithoutReceipt: _removeAttachment,
+              evidenceType: _evidenceType,
+              documentDateController: _documentDateController,
+              merchantController: _merchantController,
+              documentNumberController: _documentNumberController,
+              paymentMethodController: _paymentMethodController,
+              buyerNamePresent: _buyerNamePresent,
+              onEvidenceTypeChanged: (type) {
+                setState(() => _evidenceType = type);
+              },
+              onBuyerNamePresentChanged: (value) {
+                setState(() => _buyerNamePresent = value);
+              },
             ),
           ] else ...[
             const SizedBox(height: 8),
@@ -355,6 +377,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           fileName: draft.fileName,
           contentType: draft.contentType,
           status: AttachmentStatus.uploaded,
+          evidence: _currentEvidenceMetadata(),
           storagePath: upload.storagePath,
         );
       } catch (_) {
@@ -363,6 +386,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           fileName: draft.fileName,
           contentType: draft.contentType,
           status: AttachmentStatus.failed,
+          evidence: _currentEvidenceMetadata(),
           errorMessage: 'Nie udalo sie wyslac zalacznika.',
         );
       }
@@ -400,6 +424,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _payer = _payers.first;
       _manualPayerController.text = widget.profile.coParentLabel;
       _attachmentDraft = null;
+      _clearEvidenceFields();
       _attachmentFailedOnLastSave = uploadFailed;
     });
 
@@ -454,6 +479,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void _removeAttachment() {
     setState(() {
       _attachmentDraft = null;
+      _clearEvidenceFields();
       _attachmentFailedOnLastSave = false;
     });
   }
@@ -503,6 +529,32 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     );
   }
 
+  EvidenceMetadata? _currentEvidenceMetadata() {
+    final metadata = EvidenceMetadata(
+      type: _evidenceType,
+      documentDate: _trimmedOrNull(_documentDateController.text),
+      merchant: _trimmedOrNull(_merchantController.text),
+      documentNumber: _trimmedOrNull(_documentNumberController.text),
+      paymentMethod: _trimmedOrNull(_paymentMethodController.text),
+      buyerNamePresent: _buyerNamePresent,
+    );
+    return metadata.hasDetails ? metadata : null;
+  }
+
+  String? _trimmedOrNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  void _clearEvidenceFields() {
+    _evidenceType = null;
+    _buyerNamePresent = null;
+    _documentDateController.clear();
+    _merchantController.clear();
+    _documentNumberController.clear();
+    _paymentMethodController.clear();
+  }
+
   String _formatDate(DateTime date) {
     return [
       date.year.toString().padLeft(4, '0'),
@@ -540,6 +592,14 @@ class _AttachmentReviewTray extends StatelessWidget {
     required this.onRemove,
     required this.onAddAnother,
     required this.onSaveWithoutReceipt,
+    required this.evidenceType,
+    required this.documentDateController,
+    required this.merchantController,
+    required this.documentNumberController,
+    required this.paymentMethodController,
+    required this.buyerNamePresent,
+    required this.onEvidenceTypeChanged,
+    required this.onBuyerNamePresentChanged,
   });
 
   final AttachmentDraft attachment;
@@ -549,6 +609,14 @@ class _AttachmentReviewTray extends StatelessWidget {
   final VoidCallback onRemove;
   final VoidCallback onAddAnother;
   final VoidCallback onSaveWithoutReceipt;
+  final EvidenceType? evidenceType;
+  final TextEditingController documentDateController;
+  final TextEditingController merchantController;
+  final TextEditingController documentNumberController;
+  final TextEditingController paymentMethodController;
+  final bool? buyerNamePresent;
+  final ValueChanged<EvidenceType?> onEvidenceTypeChanged;
+  final ValueChanged<bool?> onBuyerNamePresentChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -592,6 +660,90 @@ class _AttachmentReviewTray extends StatelessWidget {
               text: status.guidanceText,
             ),
             const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<EvidenceType?>(
+              key: const Key('evidence-type-picker'),
+              initialValue: evidenceType,
+              decoration: const InputDecoration(
+                labelText: 'Typ dowodu',
+                prefixIcon: Icon(Icons.fact_check_outlined),
+              ),
+              items: [
+                const DropdownMenuItem<EvidenceType?>(
+                  value: null,
+                  child: Text('Nie wybrano'),
+                ),
+                for (final type in EvidenceType.values)
+                  DropdownMenuItem<EvidenceType?>(
+                    value: type,
+                    child: Text(type.label),
+                  ),
+              ],
+              onChanged: onEvidenceTypeChanged,
+            ),
+            if (evidenceType != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                evidenceType!.description,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: 8),
+            const _AttachmentSaveNotice(
+              icon: Icons.info_outline,
+              text: 'To pomaga uporzadkowac dokumenty; nie jest porada prawna.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: documentDateController,
+              keyboardType: TextInputType.datetime,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Data dokumentu',
+                hintText: 'RRRR-MM-DD',
+                prefixIcon: Icon(Icons.event_note_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: merchantController,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Sprzedawca lub wystawca',
+                prefixIcon: Icon(Icons.storefront_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: documentNumberController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Numer dokumentu',
+                prefixIcon: Icon(Icons.tag_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: paymentMethodController,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                labelText: 'Metoda platnosci',
+                prefixIcon: Icon(Icons.credit_card_outlined),
+              ),
+            ),
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              tristate: true,
+              value: buyerNamePresent,
+              onChanged: onBuyerNamePresentChanged,
+              title: const Text('Na dokumencie jest imie/nazwisko kupujacego'),
+              subtitle: Text(_buyerNameStateLabel(buyerNamePresent)),
+            ),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -631,6 +783,13 @@ class _AttachmentReviewTray extends StatelessWidget {
       ),
     );
   }
+}
+
+String _buyerNameStateLabel(bool? value) {
+  if (value == null) {
+    return 'Nie zaznaczono';
+  }
+  return value ? 'Tak' : 'Nie';
 }
 
 class _AttachmentThumbnail extends StatelessWidget {

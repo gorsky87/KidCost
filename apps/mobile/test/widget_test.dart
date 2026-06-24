@@ -596,6 +596,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('rachunek.pdf'), findsOneWidget);
     expect(find.text('Gotowy do wyslania'), findsOneWidget);
+    expect(find.text('Typ dowodu'), findsOneWidget);
+    expect(
+      find.textContaining('To pomaga uporzadkowac dokumenty'),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.byKey(const Key('evidence-type-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('evidence-type-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Faktura imienna').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Faktura imienna'), findsOneWidget);
+    expect(find.textContaining('konkretnego kupujacego'), findsOneWidget);
     expect(find.text('Podejrzyj'), findsOneWidget);
     expect(find.text('Zamien'), findsOneWidget);
     expect(find.text('Usun'), findsOneWidget);
@@ -620,6 +633,7 @@ void main() {
 
     expect(find.text('Faktura'), findsOneWidget);
     expect(find.textContaining('Zalacznik: rachunek.pdf'), findsOneWidget);
+    expect(find.textContaining('Dowod: Faktura imienna'), findsOneWidget);
   });
 
   testWidgets('attachment upload failure keeps the expense saved', (
@@ -771,6 +785,14 @@ void main() {
                   contentType: 'application/pdf',
                   status: AttachmentStatus.uploaded,
                   storagePath: 'expenses/rachunek.pdf',
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    documentDate: '2026-06-20',
+                    merchant: 'Apteka Testowa',
+                    documentNumber: 'FV/20/06',
+                    paymentMethod: 'karta',
+                    buyerNamePresent: true,
+                  ),
                 ),
               ),
               testExpense(
@@ -795,6 +817,11 @@ void main() {
 
     expect(find.text('Szczegoly kosztu'), findsOneWidget);
     expect(find.text('Podglad PDF: rachunek.pdf'), findsOneWidget);
+    expect(find.text('Dowod kosztu'), findsOneWidget);
+    expect(find.text('Faktura imienna'), findsOneWidget);
+    expect(find.text('Apteka Testowa'), findsOneWidget);
+    expect(find.text('FV/20/06'), findsOneWidget);
+    expect(find.textContaining('nie jest porada prawna'), findsOneWidget);
     expect(find.text('Edytuj koszt'), findsOneWidget);
     expect(find.text('Oznacz jako sporne'), findsOneWidget);
     expect(find.text('Historia statusu'), findsOneWidget);
@@ -1169,6 +1196,12 @@ void main() {
                   isCurrentUser: false,
                 ),
                 status: ExpenseStatus.disputed,
+                attachment: const ExpenseAttachment(
+                  fileName: 'faktura.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(type: EvidenceType.invoice),
+                ),
               ),
               testExpense(
                 id: '3',
@@ -1234,8 +1267,9 @@ void main() {
 
     expect(find.text('Eksport CSV'), findsOneWidget);
     expect(find.text('kidcost-report-2026-06.csv'), findsOneWidget);
-    expect(find.textContaining('"data","tytul","dziecko"'), findsOneWidget);
+    expect(find.textContaining('"typ_dowodu"'), findsOneWidget);
     expect(find.textContaining('"2026-06-20","Lekarz"'), findsOneWidget);
+    expect(find.textContaining('"Faktura imienna"'), findsOneWidget);
   });
 
   testWidgets('monthly reports handle empty selected month', (

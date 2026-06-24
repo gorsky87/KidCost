@@ -220,7 +220,16 @@ class MonthlyExpenseReport {
 
   String toCsv() {
     final rows = [
-      ['data', 'tytul', 'dziecko', 'kategoria', 'placacy', 'status', 'kwota'],
+      [
+        'data',
+        'tytul',
+        'dziecko',
+        'kategoria',
+        'placacy',
+        'status',
+        'typ_dowodu',
+        'kwota',
+      ],
       for (final expense in expenses)
         [
           expense.expenseDate,
@@ -229,6 +238,7 @@ class MonthlyExpenseReport {
           expense.category.label,
           expense.paidBy.label,
           expense.status.label,
+          expense.attachment?.evidence?.type?.label ?? '',
           formatCents(expense.amountCents),
         ],
     ];

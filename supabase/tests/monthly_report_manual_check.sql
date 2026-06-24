@@ -30,7 +30,9 @@ values
   ('family_id', gen_random_uuid()),
   ('outsider_family_id', gen_random_uuid()),
   ('child_a', gen_random_uuid()),
-  ('child_b', gen_random_uuid());
+  ('child_b', gen_random_uuid()),
+  ('expense_books', gen_random_uuid()),
+  ('attachment_books', gen_random_uuid());
 
 grant select on monthly_report_ids to authenticated;
 
@@ -94,6 +96,7 @@ values
   );
 
 insert into public.expenses (
+  id,
   family_id,
   child_id,
   paid_by,
@@ -106,6 +109,7 @@ insert into public.expenses (
 )
 values
   (
+    (select id from monthly_report_ids where name = 'expense_books'),
     (select id from monthly_report_ids where name = 'family_id'),
     (select id from monthly_report_ids where name = 'child_a'),
     (select id from monthly_report_ids where name = 'owner'),
@@ -117,6 +121,7 @@ values
     (select id from monthly_report_ids where name = 'owner')
   ),
   (
+    gen_random_uuid(),
     (select id from monthly_report_ids where name = 'family_id'),
     (select id from monthly_report_ids where name = 'child_b'),
     (select id from monthly_report_ids where name = 'co_parent'),
@@ -128,6 +133,7 @@ values
     (select id from monthly_report_ids where name = 'co_parent')
   ),
   (
+    gen_random_uuid(),
     (select id from monthly_report_ids where name = 'family_id'),
     null,
     (select id from monthly_report_ids where name = 'owner'),
@@ -139,6 +145,7 @@ values
     (select id from monthly_report_ids where name = 'owner')
   ),
   (
+    gen_random_uuid(),
     (select id from monthly_report_ids where name = 'family_id'),
     (select id from monthly_report_ids where name = 'child_a'),
     (select id from monthly_report_ids where name = 'owner'),
@@ -149,6 +156,37 @@ values
     'accepted',
     (select id from monthly_report_ids where name = 'owner')
   );
+
+insert into storage.objects (bucket_id, name)
+values (
+  'expense-attachments',
+  'families/' || (select id from monthly_report_ids where name = 'family_id') || '/expenses/' || (select id from monthly_report_ids where name = 'expense_books') || '/books.pdf'
+);
+
+insert into public.expense_attachments (
+  id,
+  expense_id,
+  storage_path,
+  file_type,
+  original_filename,
+  uploaded_by,
+  evidence_type,
+  merchant,
+  document_number,
+  buyer_name_present
+)
+values (
+  (select id from monthly_report_ids where name = 'attachment_books'),
+  (select id from monthly_report_ids where name = 'expense_books'),
+  'families/' || (select id from monthly_report_ids where name = 'family_id') || '/expenses/' || (select id from monthly_report_ids where name = 'expense_books') || '/books.pdf',
+  'pdf',
+  'books.pdf',
+  (select id from monthly_report_ids where name = 'owner'),
+  'invoice',
+  'Bookstore',
+  'FV/BOOKS/2026',
+  true
+);
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', (select id::text from monthly_report_ids where name = 'owner'), true);
@@ -205,18 +243,27 @@ begin
     '2026-06-01'
   );
 
-  if position('data,dziecko,kategoria,opis,płacący,kwota,status' in csv_export) <> 1 then
+  if position('data,dziecko,kategoria,opis,płacący,kwota,status,typ_dowodu' in csv_export) <> 1 then
     raise exception 'monthly report CSV header is wrong: %', csv_export;
   end if;
 
-  if position('"2026-06-03","Child A","school","Books","Owner","120.00","accepted"' in csv_export) = 0 then
+  if position('"2026-06-03","Child A","school","Books","Owner","120.00","accepted","invoice"' in csv_export) = 0 then
     raise exception 'monthly report CSV row is missing: %', csv_export;
+  end if;
+
+  if not exists (
+    select 1
+    from jsonb_array_elements(report->'expenses') item
+    where item->>'description' = 'Books'
+      and item->>'evidenceType' = 'invoice'
+  ) then
+    raise exception 'monthly report JSON should include evidenceType';
   end if;
 
   if public.monthly_expense_report_csv(
     (select id from monthly_report_ids where name = 'family_id'),
     '2026-07-01'
-  ) <> 'data,dziecko,kategoria,opis,płacący,kwota,status' then
+  ) <> 'data,dziecko,kategoria,opis,płacący,kwota,status,typ_dowodu' then
     raise exception 'empty monthly report CSV should contain only a header';
   end if;
 end $$;

@@ -72,13 +72,31 @@ values (
   'families/' || (select id from storage_ids where name = 'family_id') || '/expenses/' || (select id from storage_ids where name = 'expense_id') || '/receipt.pdf'
 );
 
-insert into public.expense_attachments (id, expense_id, storage_path, file_type, uploaded_by)
+insert into public.expense_attachments (
+  id,
+  expense_id,
+  storage_path,
+  file_type,
+  uploaded_by,
+  evidence_type,
+  document_date,
+  merchant,
+  document_number,
+  payment_method,
+  buyer_name_present
+)
 values (
   (select id from storage_ids where name = 'attachment_id'),
   (select id from storage_ids where name = 'expense_id'),
   'families/' || (select id from storage_ids where name = 'family_id') || '/expenses/' || (select id from storage_ids where name = 'expense_id') || '/receipt.pdf',
   'pdf',
-  (select id from storage_ids where name = 'owner')
+  (select id from storage_ids where name = 'owner'),
+  'invoice',
+  current_date,
+  'Apteka Testowa',
+  'FV/2026/06',
+  'card',
+  true
 );
 
 do $$
@@ -91,6 +109,17 @@ begin
 
   if visible_objects <> 1 or visible_metadata <> 1 then
     raise exception 'family owner cannot see uploaded attachment object and metadata';
+  end if;
+
+  if not exists (
+    select 1
+    from public.expense_attachments
+    where id = (select id from storage_ids where name = 'attachment_id')
+      and evidence_type = 'invoice'
+      and merchant = 'Apteka Testowa'
+      and buyer_name_present is true
+  ) then
+    raise exception 'family owner cannot read expense evidence metadata';
   end if;
 end $$;
 
