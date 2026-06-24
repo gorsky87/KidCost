@@ -1,0 +1,12 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">KidCost app icon</title>
+  <desc id="desc">Calm Ledger app icon with a simple KidCost K ledger mark for mobile stores.</desc>
+  <rect width="1024" height="1024" fill="#0F766E"/>
+  <path d="M324 238C324 214.804 342.804 196 366 196H658C681.196 196 700 214.804 700 238V786C700 809.196 681.196 828 658 828H366C342.804 828 324 809.196 324 786V238Z" fill="#FAFAF7"/>
+  <path d="M420 334H604" stroke="#0F766E" stroke-width="44" stroke-linecap="round"/>
+  <path d="M420 450H566" stroke="#0F766E" stroke-width="44" stroke-linecap="round"/>
+  <path d="M420 566H604" stroke="#0F766E" stroke-width="44" stroke-linecap="round"/>
+  <path d="M420 682H532" stroke="#C76F3D" stroke-width="44" stroke-linecap="round"/>
+  <path d="M368 224L610 512L368 800" stroke="#0F766E" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M610 512L724 398" stroke="#C76F3D" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

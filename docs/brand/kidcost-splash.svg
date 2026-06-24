@@ -1,0 +1,15 @@
+<svg width="504" height="555" viewBox="0 0 504 555" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">KidCost splash mark</title>
+  <desc id="desc">Centered KidCost Calm Ledger mark for the mobile splash screen.</desc>
+  <rect width="504" height="555" fill="#FAFAF7"/>
+  <rect x="168" y="150" width="168" height="168" rx="42" fill="#0F766E"/>
+  <path d="M212 192C212 186.477 216.477 182 222 182H282C287.523 182 292 186.477 292 192V276C292 281.523 287.523 286 282 286H222C216.477 286 212 281.523 212 276V192Z" fill="#FAFAF7"/>
+  <path d="M232 209H272" stroke="#0F766E" stroke-width="10" stroke-linecap="round"/>
+  <path d="M232 232H262" stroke="#0F766E" stroke-width="10" stroke-linecap="round"/>
+  <path d="M232 255H272" stroke="#0F766E" stroke-width="10" stroke-linecap="round"/>
+  <path d="M232 278H255" stroke="#C76F3D" stroke-width="10" stroke-linecap="round"/>
+  <path d="M222 186L272 234L222 282" stroke="#0F766E" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M272 234L296 212" stroke="#C76F3D" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="252" y="374" fill="#172326" font-family="Inter, SF Pro Display, Segoe UI, Arial, sans-serif" font-size="44" font-weight="700" text-anchor="middle" letter-spacing="0">KidCost</text>
+  <path d="M171 402H333" stroke="#E7ECE7" stroke-width="5" stroke-linecap="round"/>
+</svg>
