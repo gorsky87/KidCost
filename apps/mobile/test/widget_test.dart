@@ -1650,6 +1650,100 @@ void main() {
     expect(find.text('PDF wymaga generatora'), findsOneWidget);
   });
 
+  testWidgets(
+    'annual reports summarize a selected year and expose CSV export',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ReportsScreen(
+              currentDate: DateTime.utc(2026, 6, 24, 10),
+              expenses: [
+                testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+                testExpense(
+                  id: '2',
+                  title: 'Lekarz',
+                  amountCents: 6000,
+                  expenseDate: '2026-02-20',
+                  category: expenseCategories[3],
+                  paidBy: const ExpensePayer(
+                    id: 'co-parent',
+                    label: 'Drugi rodzic',
+                    isCurrentUser: false,
+                  ),
+                  status: ExpenseStatus.disputed,
+                ),
+                testExpense(
+                  id: '3',
+                  title: 'Wycieczka',
+                  amountCents: 3000,
+                  expenseDate: '2026-03-10',
+                  category: expenseCategories[5],
+                  status: ExpenseStatus.settled,
+                ),
+                testExpense(
+                  id: '4',
+                  title: 'Poprzedni rok',
+                  amountCents: 9900,
+                  expenseDate: '2025-12-20',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Rok'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Raport roczny'), findsOneWidget);
+      expect(find.text('Suma roczna'), findsOneWidget);
+      expect(find.text('2026'), findsWidgets);
+      expect(find.text('210,00 zl'), findsWidgets);
+      expect(find.text('Zaplaciles Ty'), findsOneWidget);
+      expect(find.text('150,00 zl'), findsWidgets);
+      expect(find.text('Zaplacil drugi rodzic'), findsOneWidget);
+      expect(find.text('60,00 zl'), findsWidgets);
+      expect(find.text('Sporne koszty'), findsOneWidget);
+      expect(find.text('Oczekujace koszty'), findsOneWidget);
+      expect(find.text('Nierozliczone koszty'), findsOneWidget);
+      expect(find.text('180,00 zl'), findsWidgets);
+
+      await tester.scrollUntilVisible(
+        find.text('Rocznie zaplacone przez rodzicow'),
+        180,
+      );
+      expect(find.text('Rocznie zaplacone przez rodzicow'), findsOneWidget);
+      expect(find.text('Roczne koszty dzieci'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Statusy kosztow'), 180);
+      expect(find.text('Statusy kosztow'), findsOneWidget);
+      expect(find.text('Do akceptacji'), findsWidgets);
+      expect(find.text('Wymaga wyjasnienia'), findsWidgets);
+      expect(find.text('Rozliczony'), findsOneWidget);
+      expect(find.text('Poprzedni rok'), findsNothing);
+
+      final annualExportButton = find.widgetWithText(
+        FilledButton,
+        'CSV: kidcost-annual-report-2026.csv',
+      );
+      await tester.scrollUntilVisible(annualExportButton, 180);
+      await tester.ensureVisible(annualExportButton);
+      await tester.pumpAndSettle();
+      await tester.tap(annualExportButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Eksport CSV'), findsOneWidget);
+      expect(find.text('kidcost-annual-report-2026.csv'), findsOneWidget);
+      expect(
+        find.textContaining('"generated_at","2026-06-24T10:00:00.000Z"'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('"year","2026"'), findsOneWidget);
+      expect(find.textContaining('"2026-02-20","Lekarz"'), findsOneWidget);
+      expect(find.textContaining('Poprzedni rok'), findsNothing);
+    },
+  );
+
   testWidgets('monthly reports expose professional access guardrails', (
     WidgetTester tester,
   ) async {

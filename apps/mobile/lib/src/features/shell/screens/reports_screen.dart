@@ -4,6 +4,8 @@ import 'package:kidcost_domain/domain.dart' as domain;
 import '../../expenses/expense_models.dart';
 import '../../premium/premium_discovery.dart';
 
+enum _ReportMode { monthly, annual }
+
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({
     required this.expenses,
@@ -23,25 +25,134 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
+  _ReportMode _reportMode = _ReportMode.monthly;
   String? _selectedMonth;
+  int? _selectedYear;
 
   @override
   Widget build(BuildContext context) {
     final months = _reportMonths();
     final month = _selectedMonth ?? months.first;
-    final report = MonthlyExpenseReport.fromExpenses(
+    final monthlyReport = MonthlyExpenseReport.fromExpenses(
       month: month,
       expenses: widget.expenses,
+    );
+    final years = _reportYears();
+    final year = _selectedYear ?? years.first;
+    final annualReport = AnnualExpenseReport.fromExpenses(
+      year: year,
+      expenses: widget.expenses,
+      generatedAt: widget.currentDate ?? DateTime.now(),
     );
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          'Raport miesieczny',
+          _reportMode == _ReportMode.monthly
+              ? 'Raport miesieczny'
+              : 'Raport roczny',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 8),
+        SegmentedButton<_ReportMode>(
+          segments: const [
+            ButtonSegment(
+              value: _ReportMode.monthly,
+              icon: Icon(Icons.calendar_month_outlined),
+              label: Text('Miesiac'),
+            ),
+            ButtonSegment(
+              value: _ReportMode.annual,
+              icon: Icon(Icons.event_note_outlined),
+              label: Text('Rok'),
+            ),
+          ],
+          selected: {_reportMode},
+          onSelectionChanged: (selection) {
+            setState(() => _reportMode = selection.first);
+          },
+        ),
+        const SizedBox(height: 12),
+        if (_reportMode == _ReportMode.monthly)
+          _MonthlyReportView(
+            months: months,
+            month: month,
+            report: monthlyReport,
+            showPremiumHint: widget.showReportExportPremiumHint,
+            onMonthChanged: (value) => setState(() => _selectedMonth = value),
+            onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+              PremiumDiscoveryPoint.reportExport,
+            ),
+          )
+        else
+          _AnnualReportView(
+            years: years,
+            year: year,
+            report: annualReport,
+            showPremiumHint: widget.showReportExportPremiumHint,
+            onYearChanged: (value) => setState(() => _selectedYear = value),
+            onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+              PremiumDiscoveryPoint.reportExport,
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<String> _reportMonths() {
+    final months = <String>{
+      _monthLabel(widget.currentDate ?? DateTime.now()),
+      for (final expense in widget.expenses)
+        _monthFromDate(expense.expenseDate),
+    }.toList()..sort((first, second) => second.compareTo(first));
+    return months;
+  }
+
+  List<int> _reportYears() {
+    final years = <int>{
+      (widget.currentDate ?? DateTime.now()).year,
+      for (final expense in widget.expenses)
+        int.tryParse(expense.expenseDate.split('-').first) ??
+            (widget.currentDate ?? DateTime.now()).year,
+    }.toList()..sort((first, second) => second.compareTo(first));
+    return years;
+  }
+
+  String _monthLabel(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}';
+  }
+
+  String _monthFromDate(String date) {
+    if (date.length < 7) {
+      return date;
+    }
+    return date.substring(0, 7);
+  }
+}
+
+class _MonthlyReportView extends StatelessWidget {
+  const _MonthlyReportView({
+    required this.months,
+    required this.month,
+    required this.report,
+    required this.showPremiumHint,
+    required this.onMonthChanged,
+    required this.onPremiumHintDismissed,
+  });
+
+  final List<String> months;
+  final String month;
+  final MonthlyExpenseReport report;
+  final bool showPremiumHint;
+  final ValueChanged<String> onMonthChanged;
+  final VoidCallback onPremiumHintDismissed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
         DropdownButtonFormField<String>(
           key: const Key('report-month-picker'),
           initialValue: month,
@@ -55,7 +166,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ],
           onChanged: (value) {
             if (value != null) {
-              setState(() => _selectedMonth = value);
+              onMonthChanged(value);
             }
           },
         ),
@@ -77,36 +188,88 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ],
         const SizedBox(height: 12),
         _ExportCard(
-          report: report,
-          showPremiumHint: widget.showReportExportPremiumHint,
-          onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
-            PremiumDiscoveryPoint.reportExport,
-          ),
+          title: 'Eksport',
+          fileName: report.fileName,
+          csv: report.toCsv(),
+          showPremiumHint: showPremiumHint,
+          onPremiumHintDismissed: onPremiumHintDismissed,
         ),
         const SizedBox(height: 12),
-        _ProfessionalAccessCard(report: report),
+        _ProfessionalAccessCard(periodLabel: report.month),
       ],
     );
   }
+}
 
-  List<String> _reportMonths() {
-    final months = <String>{
-      _monthLabel(widget.currentDate ?? DateTime.now()),
-      for (final expense in widget.expenses)
-        _monthFromDate(expense.expenseDate),
-    }.toList()..sort((first, second) => second.compareTo(first));
-    return months;
-  }
+class _AnnualReportView extends StatelessWidget {
+  const _AnnualReportView({
+    required this.years,
+    required this.year,
+    required this.report,
+    required this.showPremiumHint,
+    required this.onYearChanged,
+    required this.onPremiumHintDismissed,
+  });
 
-  String _monthLabel(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}';
-  }
+  final List<int> years;
+  final int year;
+  final AnnualExpenseReport report;
+  final bool showPremiumHint;
+  final ValueChanged<int> onYearChanged;
+  final VoidCallback onPremiumHintDismissed;
 
-  String _monthFromDate(String date) {
-    if (date.length < 7) {
-      return date;
-    }
-    return date.substring(0, 7);
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<int>(
+          key: const Key('report-year-picker'),
+          initialValue: year,
+          decoration: const InputDecoration(
+            labelText: 'Rok raportu',
+            prefixIcon: Icon(Icons.event_note_outlined),
+          ),
+          items: [
+            for (final item in years)
+              DropdownMenuItem(value: item, child: Text(item.toString())),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              onYearChanged(value);
+            }
+          },
+        ),
+        const SizedBox(height: 16),
+        _AnnualReportSummaryCard(report: report),
+        const SizedBox(height: 12),
+        if (report.expenses.isEmpty)
+          const _EmptyAnnualReportCard()
+        else ...[
+          _BreakdownCard(
+            title: 'Rocznie zaplacone przez rodzicow',
+            values: report.byPayer,
+          ),
+          _BreakdownCard(title: 'Roczne koszty dzieci', values: report.byChild),
+          _BreakdownCard(
+            title: 'Roczne kategorie kosztow',
+            values: report.byCategory,
+          ),
+          _BreakdownCard(title: 'Statusy kosztow', values: report.byStatus),
+          _AnnualExpenseListCard(report: report),
+        ],
+        const SizedBox(height: 12),
+        _ExportCard(
+          title: 'Eksport roczny',
+          fileName: report.fileName,
+          csv: report.toCsv(),
+          showPremiumHint: showPremiumHint,
+          onPremiumHintDismissed: onPremiumHintDismissed,
+        ),
+        const SizedBox(height: 12),
+        _ProfessionalAccessCard(periodLabel: report.year.toString()),
+      ],
+    );
   }
 }
 
@@ -344,6 +507,151 @@ class MonthlyExpenseReport {
   }
 }
 
+class AnnualExpenseReport {
+  const AnnualExpenseReport({
+    required this.year,
+    required this.generatedAt,
+    required this.expenses,
+    required this.totalCents,
+    required this.byPayer,
+    required this.byChild,
+    required this.byCategory,
+    required this.byStatus,
+    required this.disputedCents,
+    required this.pendingCents,
+    required this.unsettledCents,
+    required this.currentUserPaidCents,
+    required this.coParentPaidCents,
+  });
+
+  factory AnnualExpenseReport.fromExpenses({
+    required int year,
+    required List<ExpenseEntry> expenses,
+    required DateTime generatedAt,
+  }) {
+    final yearPrefix = '$year-';
+    final yearExpenses =
+        expenses
+            .where((expense) => expense.expenseDate.startsWith(yearPrefix))
+            .toList()
+          ..sort(
+            (first, second) => first.expenseDate.compareTo(second.expenseDate),
+          );
+
+    final byPayer = <String, int>{};
+    final byChild = <String, int>{};
+    final byCategory = <String, int>{};
+    final byStatus = <String, int>{};
+    var totalCents = 0;
+    var disputedCents = 0;
+    var pendingCents = 0;
+    var settledCents = 0;
+    var currentUserPaidCents = 0;
+
+    for (final expense in yearExpenses) {
+      totalCents += expense.amountCents;
+      if (expense.paidBy.isCurrentUser) {
+        currentUserPaidCents += expense.amountCents;
+      }
+      byPayer.update(
+        expense.paidBy.label,
+        (value) => value + expense.amountCents,
+        ifAbsent: () => expense.amountCents,
+      );
+      byChild.update(
+        expense.childName,
+        (value) => value + expense.amountCents,
+        ifAbsent: () => expense.amountCents,
+      );
+      byCategory.update(
+        expense.category.label,
+        (value) => value + expense.amountCents,
+        ifAbsent: () => expense.amountCents,
+      );
+      byStatus.update(
+        expense.status.label,
+        (value) => value + expense.amountCents,
+        ifAbsent: () => expense.amountCents,
+      );
+
+      if (expense.status == ExpenseStatus.disputed) {
+        disputedCents += expense.amountCents;
+      }
+      if (expense.status == ExpenseStatus.pending) {
+        pendingCents += expense.amountCents;
+      }
+      if (expense.status == ExpenseStatus.settled) {
+        settledCents += expense.amountCents;
+      }
+    }
+
+    return AnnualExpenseReport(
+      year: year,
+      generatedAt: generatedAt.toUtc(),
+      expenses: yearExpenses,
+      totalCents: totalCents,
+      byPayer: MonthlyExpenseReport._sortedTotals(byPayer),
+      byChild: MonthlyExpenseReport._sortedTotals(byChild),
+      byCategory: MonthlyExpenseReport._sortedTotals(byCategory),
+      byStatus: MonthlyExpenseReport._sortedTotals(byStatus),
+      disputedCents: disputedCents,
+      pendingCents: pendingCents,
+      unsettledCents: totalCents - settledCents,
+      currentUserPaidCents: currentUserPaidCents,
+      coParentPaidCents: totalCents - currentUserPaidCents,
+    );
+  }
+
+  final int year;
+  final DateTime generatedAt;
+  final List<ExpenseEntry> expenses;
+  final int totalCents;
+  final Map<String, int> byPayer;
+  final Map<String, int> byChild;
+  final Map<String, int> byCategory;
+  final Map<String, int> byStatus;
+  final int disputedCents;
+  final int pendingCents;
+  final int unsettledCents;
+  final int currentUserPaidCents;
+  final int coParentPaidCents;
+
+  String get fileName => 'kidcost-annual-report-$year.csv';
+
+  String toCsv() {
+    final rows = [
+      ['generated_at', generatedAt.toIso8601String()],
+      ['year', year.toString()],
+      const <String>[],
+      [
+        'data',
+        'tytul',
+        'dziecko',
+        'kategoria',
+        'placacy',
+        'status',
+        'typ_dowodu',
+        'kwota',
+      ],
+      for (final expense in expenses)
+        [
+          expense.expenseDate,
+          expense.title,
+          expense.childName,
+          expense.category.label,
+          expense.paidBy.label,
+          expense.status.label,
+          expense.attachment?.evidence?.type?.label ?? '',
+          formatCents(expense.amountCents),
+        ],
+    ];
+
+    return rows
+        .map((row) => row.map(MonthlyExpenseReport._csvCell).join(','))
+        .join('\n');
+  }
+}
+
 class _ReportSummaryCard extends StatelessWidget {
   const _ReportSummaryCard({required this.report});
 
@@ -414,6 +722,61 @@ class _ReportSummaryCard extends StatelessWidget {
   }
 }
 
+class _AnnualReportSummaryCard extends StatelessWidget {
+  const _AnnualReportSummaryCard({required this.report});
+
+  final AnnualExpenseReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.event_note_outlined),
+            title: const Text('Suma roczna'),
+            subtitle: Text(
+              'Wygenerowano ${report.generatedAt.toIso8601String()}',
+            ),
+            trailing: Text(report.year.toString()),
+          ),
+          ListTile(
+            leading: const Icon(Icons.payments_outlined),
+            title: const Text('Zaplacone razem'),
+            trailing: Text(formatCents(report.totalCents)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('Zaplaciles Ty'),
+            trailing: Text(formatCents(report.currentUserPaidCents)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.group_outlined),
+            title: const Text('Zaplacil drugi rodzic'),
+            trailing: Text(formatCents(report.coParentPaidCents)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.warning_amber_outlined),
+            title: const Text('Sporne koszty'),
+            trailing: Text(formatCents(report.disputedCents)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.pending_actions_outlined),
+            title: const Text('Oczekujace koszty'),
+            trailing: Text(formatCents(report.pendingCents)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.rule_folder_outlined),
+            title: const Text('Nierozliczone koszty'),
+            subtitle: const Text('Suma statusow innych niz rozliczone.'),
+            trailing: Text(formatCents(report.unsettledCents)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BreakdownCard extends StatelessWidget {
   const _BreakdownCard({required this.title, required this.values});
 
@@ -435,6 +798,40 @@ class _BreakdownCard extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 title: Text(entry.key),
                 trailing: Text(formatCents(entry.value)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AnnualExpenseListCard extends StatelessWidget {
+  const _AnnualExpenseListCard({required this.report});
+
+  final AnnualExpenseReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Koszty w roku',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            for (final expense in report.expenses)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(expense.title),
+                subtitle: Text(
+                  '${expense.expenseDate} • ${expense.status.label}',
+                ),
+                trailing: Text(formatCents(expense.amountCents)),
               ),
           ],
         ),
@@ -494,14 +891,35 @@ class _EmptyReportCard extends StatelessWidget {
   }
 }
 
+class _EmptyAnnualReportCard extends StatelessWidget {
+  const _EmptyAnnualReportCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: ListTile(
+        leading: Icon(Icons.inbox_outlined),
+        title: Text('Brak kosztow w tym roku'),
+        subtitle: Text(
+          'Raport roczny jest gotowy, ale nie ma jeszcze danych do pokazania.',
+        ),
+      ),
+    );
+  }
+}
+
 class _ExportCard extends StatelessWidget {
   const _ExportCard({
-    required this.report,
+    required this.title,
+    required this.fileName,
+    required this.csv,
     required this.showPremiumHint,
     required this.onPremiumHintDismissed,
   });
 
-  final MonthlyExpenseReport report;
+  final String title;
+  final String fileName;
+  final String csv;
   final bool showPremiumHint;
   final VoidCallback onPremiumHintDismissed;
 
@@ -513,12 +931,12 @@ class _ExportCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Eksport', style: Theme.of(context).textTheme.titleMedium),
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             FilledButton.icon(
               onPressed: () => _showCsvPreview(context),
               icon: const Icon(Icons.table_view_outlined),
-              label: Text('CSV: ${report.fileName}'),
+              label: Text('CSV: $fileName'),
             ),
             if (showPremiumHint) ...[
               const SizedBox(height: 8),
@@ -556,9 +974,9 @@ class _ExportCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 8),
-                SelectableText(report.fileName),
+                SelectableText(fileName),
                 const SizedBox(height: 12),
-                SelectableText(report.toCsv()),
+                SelectableText(csv),
               ],
             ),
           ),
@@ -569,9 +987,9 @@ class _ExportCard extends StatelessWidget {
 }
 
 class _ProfessionalAccessCard extends StatelessWidget {
-  const _ProfessionalAccessCard({required this.report});
+  const _ProfessionalAccessCard({required this.periodLabel});
 
-  final MonthlyExpenseReport report;
+  final String periodLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -588,7 +1006,7 @@ class _ProfessionalAccessCard extends StatelessWidget {
               leading: const Icon(Icons.verified_user_outlined),
               title: const Text('Dostep mediatora lub prawnika'),
               subtitle: Text(
-                'Tylko raport ${report.month}, read-only, wygasa po ${policy.defaultExpiryDays} dniach.',
+                'Tylko raport $periodLabel, read-only, wygasa po ${policy.defaultExpiryDays} dniach.',
               ),
             ),
             Text(policy.copy.body),
@@ -628,7 +1046,7 @@ class _ProfessionalAccessCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 8),
-                Text('Zakres: raport ${report.month}.'),
+                Text('Zakres: raport $periodLabel.'),
                 Text('Wygasa po ${policy.defaultExpiryDays} dniach.'),
                 const SizedBox(height: 16),
                 _AccessPreviewSection(
