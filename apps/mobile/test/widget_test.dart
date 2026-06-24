@@ -317,10 +317,7 @@ void main() {
       find.text('Kod nie ujawnia kosztow ani danych dziecka.'),
       findsOneWidget,
     );
-    await tester.drag(
-      find.byType(SingleChildScrollView),
-      const Offset(0, -500),
-    );
+    await tester.ensureVisible(find.text('Prywatnosc i zaufanie'));
     await tester.pumpAndSettle();
     expect(find.text('Prywatnosc i zaufanie'), findsWidgets);
     expect(
@@ -513,9 +510,10 @@ void main() {
     await tester.enterText(find.byType(TextField).at(1), '');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
-    await tester.drag(
-      find.byType(SingleChildScrollView),
-      const Offset(0, -500),
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      180,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
@@ -547,6 +545,27 @@ void main() {
 
     expect(find.text('Lekarze i leki'), findsWidgets);
     expect(find.text('30,00 zl'), findsOneWidget);
+  });
+
+  testWidgets('add expense previews shared agreement rules and thresholds', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Regula kosztu: Jedzenie'), findsOneWidget);
+    expect(find.text('Domyslny podzial 50/50.'), findsOneWidget);
+    expect(find.textContaining('nie jest porada prawna'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(0), '250');
+    await tester.ensureVisible(find.text('Zajecia dodatkowe'));
+    await tester.tap(find.text('Zajecia dodatkowe'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Regula kosztu: Zajecia dodatkowe'), findsOneWidget);
+    expect(find.textContaining('prog uprzedniej zgody'), findsOneWidget);
+    expect(find.textContaining('pending'), findsOneWidget);
   });
 
   testWidgets('saved expense appears on list and changes balance', (
@@ -1477,6 +1496,8 @@ void main() {
     expect(find.text('60,00 zl'), findsWidgets);
     expect(find.text('Twoj udzial'), findsOneWidget);
     expect(find.text('100,00 zl'), findsWidgets);
+    expect(find.text('Reguly rodzinne'), findsOneWidget);
+    expect(find.textContaining('nie wnioski prawne'), findsOneWidget);
     expect(find.text('Roznica'), findsOneWidget);
     expect(
       find.text('Zaplaciles o 40,00 zl wiecej niz Twoj udzial.'),
