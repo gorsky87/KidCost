@@ -27,4 +27,15 @@ Supabase CLI is not yet committed as a project dependency. Once installed locall
 supabase db reset
 ```
 
-RLS policies are intentionally handled in issue #7.
+RLS policies are defined in `migrations/20260624005127_enable_mvp_rls.sql`.
+
+## RLS verification
+
+Issue #7 adds RLS policies and a manual smoke test:
+
+```sh
+supabase db reset
+psql "$DATABASE_URL" -f supabase/tests/rls_manual_check.sql
+```
+
+The smoke test checks that a user can see and write their own family data, cannot see another family expense, cannot insert an expense into another family, and cannot see another family's attachment metadata.
