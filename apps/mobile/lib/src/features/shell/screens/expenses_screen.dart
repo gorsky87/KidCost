@@ -487,14 +487,17 @@ class _ExpenseVisibilityBadge extends StatelessWidget {
         ? Colors.deepPurple
         : Theme.of(context).colorScheme.primary;
     return Semantics(
+      container: true,
       label: 'Widocznosc kosztu: ${visibility.label}',
-      child: Chip(
-        avatar: Icon(Icons.visibility_outlined, color: color, size: 18),
-        label: Text(visibility.label),
-        side: BorderSide(color: color.withValues(alpha: 0.32)),
-        backgroundColor: color.withValues(alpha: 0.1),
-        labelStyle: TextStyle(color: color),
-        visualDensity: VisualDensity.compact,
+      child: ExcludeSemantics(
+        child: Chip(
+          avatar: Icon(Icons.visibility_outlined, color: color, size: 18),
+          label: Text(visibility.label),
+          side: BorderSide(color: color.withValues(alpha: 0.32)),
+          backgroundColor: color.withValues(alpha: 0.1),
+          labelStyle: TextStyle(color: color),
+          visualDensity: VisualDensity.compact,
+        ),
       ),
     );
   }
@@ -538,14 +541,17 @@ class _ExpenseStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = status.accentColor;
     return Semantics(
+      container: true,
       label: 'Status kosztu: ${status.label}',
-      child: Chip(
-        avatar: Icon(status.icon, color: color, size: 18),
-        label: Text(status.label),
-        side: BorderSide(color: color.withValues(alpha: 0.32)),
-        backgroundColor: color.withValues(alpha: 0.1),
-        labelStyle: TextStyle(color: color),
-        visualDensity: VisualDensity.compact,
+      child: ExcludeSemantics(
+        child: Chip(
+          avatar: Icon(status.icon, color: color, size: 18),
+          label: Text(status.label),
+          side: BorderSide(color: color.withValues(alpha: 0.32)),
+          backgroundColor: color.withValues(alpha: 0.1),
+          labelStyle: TextStyle(color: color),
+          visualDensity: VisualDensity.compact,
+        ),
       ),
     );
   }

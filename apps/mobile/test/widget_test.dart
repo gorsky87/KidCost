@@ -968,6 +968,52 @@ void main() {
     expect(find.text('Brak polaczenia z API.'), findsOneWidget);
   });
 
+  testWidgets('expenses list exposes status and privacy semantics', (
+    WidgetTester tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            expenses: [
+              testExpense(
+                id: '1',
+                title: 'Prywatna faktura',
+                amountCents: 7599,
+                category: expenseCategories[3],
+                status: ExpenseStatus.disputed,
+                visibility: ExpenseVisibility.privateAuthor,
+                attachment: const ExpenseAttachment(
+                  fileName: 'rachunek.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  storagePath: 'expenses/rachunek.pdf',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Prywatna faktura'), findsOneWidget);
+    expect(find.text('75,99 zl'), findsOneWidget);
+    expect(find.textContaining('Zalacznik: rachunek.pdf'), findsOneWidget);
+    expect(find.text('Wymaga wyjasnienia'), findsOneWidget);
+    expect(find.text('Prywatny koszt solo'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Status kosztu: Wymaga wyjasnienia'),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel('Widocznosc kosztu: Prywatny koszt solo'),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
   testWidgets('expenses list filters costs and can clear filters', (
     WidgetTester tester,
   ) async {
@@ -1860,6 +1906,7 @@ ExpenseEntry testExpense({
     isCurrentUser: true,
   ),
   ExpenseStatus status = ExpenseStatus.pending,
+  ExpenseVisibility visibility = ExpenseVisibility.sharedFamily,
   ExpenseAttachment? attachment,
 }) {
   return ExpenseEntry(
@@ -1871,6 +1918,7 @@ ExpenseEntry testExpense({
     paidBy: paidBy,
     title: title,
     status: status,
+    visibility: visibility,
     createdAt: DateTime.utc(2026, 6, 24),
     attachment: attachment,
   );
