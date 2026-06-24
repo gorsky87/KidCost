@@ -55,12 +55,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
         if (report.expenses.isEmpty)
           const _EmptyReportCard()
         else ...[
-          _BreakdownCard(title: 'Suma per rodzic', values: report.byPayer),
-          _BreakdownCard(title: 'Suma per dziecko', values: report.byChild),
           _BreakdownCard(
-            title: 'Suma per kategoria',
-            values: report.byCategory,
+            title: 'Zaplacone przez rodzicow',
+            values: report.byPayer,
           ),
+          _BreakdownCard(title: 'Koszty dzieci', values: report.byChild),
+          _BreakdownCard(title: 'Kategorie kosztow', values: report.byCategory),
           _ExpenseStatusCard(report: report),
         ],
         const SizedBox(height: 12),
@@ -100,6 +100,9 @@ class MonthlyExpenseReport {
     required this.byCategory,
     required this.disputedCents,
     required this.pendingCents,
+    required this.settledCents,
+    required this.currentUserPaidCents,
+    required this.coParentPaidCents,
   });
 
   factory MonthlyExpenseReport.fromExpenses({
@@ -120,9 +123,14 @@ class MonthlyExpenseReport {
     var totalCents = 0;
     var disputedCents = 0;
     var pendingCents = 0;
+    var settledCents = 0;
+    var currentUserPaidCents = 0;
 
     for (final expense in monthExpenses) {
       totalCents += expense.amountCents;
+      if (expense.paidBy.isCurrentUser) {
+        currentUserPaidCents += expense.amountCents;
+      }
       byPayer.update(
         expense.paidBy.label,
         (value) => value + expense.amountCents,
@@ -145,6 +153,9 @@ class MonthlyExpenseReport {
       if (expense.status == ExpenseStatus.pending) {
         pendingCents += expense.amountCents;
       }
+      if (expense.status == ExpenseStatus.settled) {
+        settledCents += expense.amountCents;
+      }
     }
 
     return MonthlyExpenseReport(
@@ -156,6 +167,9 @@ class MonthlyExpenseReport {
       byCategory: _sortedTotals(byCategory),
       disputedCents: disputedCents,
       pendingCents: pendingCents,
+      settledCents: settledCents,
+      currentUserPaidCents: currentUserPaidCents,
+      coParentPaidCents: totalCents - currentUserPaidCents,
     );
   }
 
@@ -167,8 +181,42 @@ class MonthlyExpenseReport {
   final Map<String, int> byCategory;
   final int disputedCents;
   final int pendingCents;
+  final int settledCents;
+  final int currentUserPaidCents;
+  final int coParentPaidCents;
 
   String get fileName => 'kidcost-report-$month.csv';
+
+  int get currentUserShareCents => totalCents ~/ 2;
+
+  int get currentUserDifferenceCents =>
+      currentUserPaidCents - currentUserShareCents;
+
+  String get balanceText {
+    if (totalCents == 0) {
+      return 'Brak kosztow do wyrownania';
+    }
+
+    final difference = currentUserDifferenceCents;
+    if (difference == 0) {
+      return 'Jestescie rozliczeni na zero';
+    }
+    if (difference > 0) {
+      return 'Drugi rodzic oddaje Tobie ${formatCents(difference)}';
+    }
+    return 'Ty oddajesz drugiemu rodzicowi ${formatCents(-difference)}';
+  }
+
+  String get differenceText {
+    final difference = currentUserDifferenceCents;
+    if (difference == 0) {
+      return 'Twoje platnosci sa rowne Twojemu udzialowi.';
+    }
+    if (difference > 0) {
+      return 'Zaplaciles o ${formatCents(difference)} wiecej niz Twoj udzial.';
+    }
+    return 'Zaplaciles o ${formatCents(-difference)} mniej niz Twoj udzial.';
+  }
 
   String toCsv() {
     final rows = [
@@ -211,20 +259,51 @@ class _ReportSummaryCard extends StatelessWidget {
       child: Column(
         children: [
           ListTile(
+            leading: const Icon(Icons.swap_horiz),
+            title: const Text('Do wyrownania'),
+            subtitle: Text(report.balanceText),
+            trailing: Text(report.month),
+          ),
+          ListTile(
             leading: const Icon(Icons.payments_outlined),
-            title: const Text('Suma kosztow'),
-            subtitle: Text(report.month),
+            title: const Text('Zaplacone razem'),
             trailing: Text(formatCents(report.totalCents)),
           ),
           ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('Zaplaciles Ty'),
+            trailing: Text(formatCents(report.currentUserPaidCents)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.group_outlined),
+            title: const Text('Zaplacil drugi rodzic'),
+            trailing: Text(formatCents(report.coParentPaidCents)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.pie_chart_outline),
+            title: const Text('Twoj udzial'),
+            subtitle: const Text('Liczymy prosty podzial 50/50.'),
+            trailing: Text(formatCents(report.currentUserShareCents)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.compare_arrows_outlined),
+            title: const Text('Roznica'),
+            subtitle: Text(report.differenceText),
+          ),
+          ListTile(
             leading: const Icon(Icons.warning_amber_outlined),
-            title: const Text('Koszty sporne'),
+            title: const Text('Wymaga wyjasnienia'),
             trailing: Text(formatCents(report.disputedCents)),
           ),
           ListTile(
             leading: const Icon(Icons.pending_actions_outlined),
-            title: const Text('Koszty nierozliczone'),
+            title: const Text('Do akceptacji'),
             trailing: Text(formatCents(report.pendingCents)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.task_alt_outlined),
+            title: const Text('Rozliczone'),
+            trailing: Text(formatCents(report.settledCents)),
           ),
         ],
       ),
