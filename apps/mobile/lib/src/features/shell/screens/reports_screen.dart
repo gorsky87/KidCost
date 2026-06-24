@@ -62,6 +62,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
         const SizedBox(height: 16),
         _ReportSummaryCard(report: report),
         const SizedBox(height: 12),
+        _SettlementStatusCard(report: report),
+        const SizedBox(height: 12),
         if (report.expenses.isEmpty)
           const _EmptyReportCard()
         else ...[
@@ -105,6 +107,72 @@ class _ReportsScreenState extends State<ReportsScreen> {
       return date;
     }
     return date.substring(0, 7);
+  }
+}
+
+class _SettlementStatusCard extends StatelessWidget {
+  const _SettlementStatusCard({required this.report});
+
+  final MonthlyExpenseReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    final openAmount = report.currentUserDifferenceCents.abs();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.payments_outlined),
+              title: Text('Zwroty i zaleglosci'),
+              subtitle: Text(
+                'MVP pokazuje otwarta kwote; alokacje platnosci beda przypinane do kosztow lub okresow.',
+              ),
+            ),
+            _SettlementStateRow(
+              label:
+                  domain.partialSettlementUiStates[domain
+                      .SettlementAllocationState
+                      .partiallyPaid]!,
+              body:
+                  'Czesc zwrotu zaplacona, ale pozostala kwota dalej widoczna jako arrears.',
+            ),
+            _SettlementStateRow(
+              label:
+                  domain.partialSettlementUiStates[domain
+                      .SettlementAllocationState
+                      .settled]!,
+              body: 'Pelna kwota przypisana do kosztu lub zestawu kosztow.',
+            ),
+            _SettlementStateRow(
+              label: 'Otwarta kwota w tym raporcie',
+              body: formatCents(openAmount),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettlementStateRow extends StatelessWidget {
+  const _SettlementStateRow({required this.label, required this.body});
+
+  final String label;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.check_circle_outline),
+      title: Text(label),
+      subtitle: Text(body),
+    );
   }
 }
 

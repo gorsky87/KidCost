@@ -1564,6 +1564,10 @@ void main() {
       find.textContaining('Drugi rodzic oddaje Tobie 40,00 zl'),
       findsOneWidget,
     );
+    await tester.scrollUntilVisible(find.text('Zwroty i zaleglosci'), 120);
+    expect(find.text('Zwroty i zaleglosci'), findsOneWidget);
+    expect(find.text('Czesciowo zaplacone'), findsOneWidget);
+    expect(find.text('Otwarta kwota w tym raporcie'), findsOneWidget);
     expect(find.text('Zaplacone razem'), findsOneWidget);
     expect(find.text('200,00 zl'), findsWidgets);
     expect(find.text('Zaplaciles Ty'), findsOneWidget);
@@ -1581,7 +1585,7 @@ void main() {
     );
     expect(find.text('Wymaga wyjasnienia'), findsOneWidget);
     expect(find.text('Do akceptacji'), findsOneWidget);
-    expect(find.text('Rozliczone'), findsOneWidget);
+    expect(find.text('Rozliczone'), findsWidgets);
     expect(find.text('20,00 zl'), findsWidgets);
     await tester.scrollUntilVisible(find.text('Zaplacone przez rodzicow'), 180);
     expect(find.text('Zaplacone przez rodzicow'), findsOneWidget);
