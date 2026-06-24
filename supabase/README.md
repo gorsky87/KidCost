@@ -50,3 +50,22 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/family_bootstrap_manua
 ```
 
 The smoke test checks that `auth.users` inserts create `profiles`, a user can create their default family, a pending invitation does not reveal family data, and accepting the token creates an active `family_members` row.
+
+## Expense attachment Storage
+
+Issue #9 configures the private `expense-attachments` bucket:
+
+- path format: `families/<family_id>/expenses/<expense_id>/<file_id>.<ext>`
+- file size limit: 10 MB
+- allowed MIME types: `image/jpeg`, `image/png`, `application/pdf`
+- allowed extensions in paths and metadata: `jpg`, `jpeg`, `png`, `pdf`
+- access is limited to active members of the expense family
+- metadata in `expense_attachments` must point to an uploaded object in the bucket
+- client-side delete is intentionally not granted in MVP; attachment removal/replacement needs a follow-up audit/soft-delete flow so evidence does not disappear without trace
+
+Manual verification:
+
+```sh
+supabase db reset
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/storage_manual_check.sql
+```
