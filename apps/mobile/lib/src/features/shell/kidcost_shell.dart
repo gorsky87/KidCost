@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../onboarding/onboarding_profile.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/expenses_screen.dart';
@@ -10,12 +11,14 @@ class KidCostShell extends StatefulWidget {
   const KidCostShell({
     required this.userEmail,
     required this.isDemoSession,
+    required this.onboardingProfile,
     required this.onSignOut,
     super.key,
   });
 
   final String userEmail;
   final bool isDemoSession;
+  final OnboardingProfile onboardingProfile;
   final Future<void> Function() onSignOut;
 
   @override
@@ -26,29 +29,29 @@ class _KidCostShellState extends State<KidCostShell> {
   int _selectedIndex = 0;
 
   late final List<_Destination> _destinations = [
-    const _Destination(
+    _Destination(
       label: 'Start',
       icon: Icons.dashboard_outlined,
       selectedIcon: Icons.dashboard,
-      screen: DashboardScreen(),
+      screen: DashboardScreen(profile: widget.onboardingProfile),
     ),
-    const _Destination(
+    _Destination(
       label: 'Koszty',
       icon: Icons.receipt_long_outlined,
       selectedIcon: Icons.receipt_long,
       screen: ExpensesScreen(),
     ),
-    const _Destination(
+    _Destination(
       label: 'Dodaj',
       icon: Icons.add_circle_outline,
       selectedIcon: Icons.add_circle,
       screen: AddExpenseScreen(),
     ),
-    const _Destination(
+    _Destination(
       label: 'Rodzina',
       icon: Icons.group_outlined,
       selectedIcon: Icons.group,
-      screen: FamilyScreen(),
+      screen: FamilyScreen(profile: widget.onboardingProfile),
     ),
     _Destination(
       label: 'Ustawienia',

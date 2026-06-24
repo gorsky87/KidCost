@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../onboarding/onboarding_profile.dart';
+
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({required this.profile, super.key});
+
+  final OnboardingProfile profile;
 
   @override
   Widget build(BuildContext context) {
@@ -12,6 +16,9 @@ class DashboardScreen extends StatelessWidget {
           'Podsumowanie miesiaca',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
+        const SizedBox(height: 8),
+        Text('Rodzina: ${profile.familyName}'),
+        Text('Dziecko: ${profile.childName}'),
         const SizedBox(height: 16),
         const _MetricTile(
           icon: Icons.account_balance_wallet_outlined,
@@ -25,8 +32,9 @@ class DashboardScreen extends StatelessWidget {
         ),
         const _MetricTile(
           icon: Icons.receipt_long_outlined,
-          title: 'Ostatnie koszty',
-          value: 'Dodaj pierwszy koszt, aby zobaczyc demo przeplywu.',
+          title: 'Dodaj pierwszy koszt',
+          value:
+              'Onboarding gotowy. Zapisz pierwszy koszt, aby zobaczyc saldo i historie.',
         ),
       ],
     );
