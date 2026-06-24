@@ -6,6 +6,8 @@ void main() {
   testNoExpenses();
   testMultipleChildrenAreAggregated();
   testDifferentStatuses();
+  testSettlementReducesOpenTransfer();
+  testSettlementCanFullyCloseTransfer();
   testCustomSplit();
   testRoundingIsDeterministic();
   testDecimalParser();
@@ -139,6 +141,71 @@ void testDifferentStatuses() {
 
   expectEqual(result.totalCents, 6000);
   expectEqual(result.transfers.length, 0);
+}
+
+void testSettlementReducesOpenTransfer() {
+  final result = calculateBalance(
+    splitRule: SplitRule.equal(['dad', 'mom']),
+    expenses: const [
+      ExpenseInput(
+        id: 'e1',
+        amountCents: 6000,
+        paidBy: 'dad',
+        status: 'accepted',
+      ),
+    ],
+    settlements: const [
+      SettlementInput(
+        id: 's1',
+        amountCents: 1000,
+        paidBy: 'mom',
+        paidTo: 'dad',
+      ),
+    ],
+  );
+
+  expectEqual(result.transfers.length, 1);
+  expectEqual(result.transfers.single.fromParticipantId, 'mom');
+  expectEqual(result.transfers.single.toParticipantId, 'dad');
+  expectEqual(result.transfers.single.amountCents, 2000);
+}
+
+void testSettlementCanFullyCloseTransfer() {
+  final result = calculateBalance(
+    splitRule: SplitRule.equal(['dad', 'mom']),
+    expenses: const [
+      ExpenseInput(
+        id: 'e1',
+        amountCents: 6000,
+        paidBy: 'dad',
+        status: 'accepted',
+      ),
+    ],
+    settlements: const [
+      SettlementInput(
+        id: 's1',
+        amountCents: 3000,
+        paidBy: 'mom',
+        paidTo: 'dad',
+      ),
+    ],
+  );
+
+  expectEqual(result.transfers.length, 0);
+  expectEqual(
+    result.participantBalances
+        .where((balance) => balance.participantId == 'mom')
+        .single
+        .netCents,
+    0,
+  );
+  expectEqual(
+    result.participantBalances
+        .where((balance) => balance.participantId == 'dad')
+        .single
+        .netCents,
+    0,
+  );
 }
 
 void testCustomSplit() {
