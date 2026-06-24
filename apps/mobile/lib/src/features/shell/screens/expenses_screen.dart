@@ -12,6 +12,7 @@ class ExpensesScreen extends StatefulWidget {
     this.isLoading = false,
     this.errorMessage,
     this.showExpenseHistoryPremiumHint = false,
+    this.onExpenseChanged,
     this.onPremiumHintDismissed,
     super.key,
   });
@@ -20,6 +21,7 @@ class ExpensesScreen extends StatefulWidget {
   final bool isLoading;
   final String? errorMessage;
   final bool showExpenseHistoryPremiumHint;
+  final ValueChanged<ExpenseEntry>? onExpenseChanged;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
@@ -99,6 +101,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           for (final expense in filteredExpenses)
             _ExpenseCard(
               expense: expense,
+              onExpenseChanged: widget.onExpenseChanged,
               showExpenseHistoryPremiumHint:
                   widget.showExpenseHistoryPremiumHint,
               onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
@@ -332,11 +335,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 class _ExpenseCard extends StatelessWidget {
   const _ExpenseCard({
     required this.expense,
+    required this.onExpenseChanged,
     required this.showExpenseHistoryPremiumHint,
     required this.onPremiumHintDismissed,
   });
 
   final ExpenseEntry expense;
+  final ValueChanged<ExpenseEntry>? onExpenseChanged;
   final bool showExpenseHistoryPremiumHint;
   final VoidCallback onPremiumHintDismissed;
 
@@ -431,6 +436,15 @@ class _ExpenseCard extends StatelessWidget {
                     value: expense.visibility.description,
                   ),
                   _DetailRow(label: 'Data', value: expense.expenseDate),
+                  if (!expense.status.canEdit)
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.lock_outline),
+                      title: Text('Edycja zablokowana'),
+                      subtitle: Text(
+                        'Kwota, data i kategoria sa zamrozone po reakcji na koszt.',
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   _AttachmentPreview(attachment: expense.attachment),
                   if (expense.attachment?.evidence?.hasDetails == true) ...[
@@ -438,9 +452,12 @@ class _ExpenseCard extends StatelessWidget {
                     _EvidenceDetails(attachment: expense.attachment!),
                   ],
                   const SizedBox(height: 16),
-                  _StatusActionsSection(status: expense.status),
+                  _StatusActionsSection(
+                    expense: expense,
+                    onExpenseChanged: onExpenseChanged,
+                  ),
                   const SizedBox(height: 16),
-                  _StatusHistoryPlaceholder(status: expense.status),
+                  _StatusHistoryPlaceholder(expense: expense),
                   if (showExpenseHistoryPremiumHint) ...[
                     const SizedBox(height: 12),
                     PremiumDiscoveryCard(
@@ -534,77 +551,203 @@ class _ExpenseStatusBadge extends StatelessWidget {
 }
 
 class _StatusActionsSection extends StatelessWidget {
-  const _StatusActionsSection({required this.status});
+  const _StatusActionsSection({
+    required this.expense,
+    required this.onExpenseChanged,
+  });
 
-  final ExpenseStatus status;
+  final ExpenseEntry expense;
+  final ValueChanged<ExpenseEntry>? onExpenseChanged;
 
   @override
   Widget build(BuildContext context) {
-    final authorActions = status.authorActions;
-    final counterpartyActions = status.counterpartyActions;
+    final isAuthor = expense.paidBy.isCurrentUser;
+    final actions = _actionsForCurrentUser(isAuthor);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Akcje', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        _ActionGroup(title: 'Autor kosztu', actions: authorActions),
+        Text(
+          isAuthor ? 'Twoja rola: autor kosztu' : 'Twoja rola: drugi rodzic',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         const SizedBox(height: 8),
-        _ActionGroup(title: 'Drugi rodzic', actions: counterpartyActions),
+        _ActionGroup(
+          actions: actions,
+          onSelected: onExpenseChanged == null
+              ? null
+              : (action) => _applyAction(context, action),
+        ),
       ],
+    );
+  }
+
+  List<_StatusAction> _actionsForCurrentUser(bool isAuthor) {
+    switch (expense.status) {
+      case ExpenseStatus.pending:
+        if (isAuthor) {
+          return const [
+            _StatusAction(
+              label: 'Edytuj koszt',
+              icon: Icons.edit_outlined,
+              targetStatus: ExpenseStatus.pending,
+            ),
+          ];
+        }
+        return const [
+          _StatusAction(
+            label: 'Zaakceptuj koszt',
+            icon: Icons.check_circle_outline,
+            targetStatus: ExpenseStatus.accepted,
+          ),
+          _StatusAction(
+            label: 'Oznacz jako sporne',
+            icon: Icons.report_problem_outlined,
+            targetStatus: ExpenseStatus.disputed,
+            requiresComment: true,
+          ),
+        ];
+      case ExpenseStatus.accepted:
+        return const [
+          _StatusAction(
+            label: 'Oznacz jako rozliczone',
+            icon: Icons.task_alt_outlined,
+            targetStatus: ExpenseStatus.settled,
+          ),
+        ];
+      case ExpenseStatus.disputed:
+        return const [
+          _StatusAction(
+            label: 'Potwierdz po wyjasnieniu',
+            icon: Icons.check_circle_outline,
+            targetStatus: ExpenseStatus.accepted,
+          ),
+        ];
+      case ExpenseStatus.settled:
+        return const [];
+    }
+  }
+
+  Future<void> _applyAction(BuildContext context, _StatusAction action) async {
+    if (action.targetStatus == expense.status) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Edycja kosztu zostanie dodana osobno.')),
+      );
+      return;
+    }
+
+    final comment = action.requiresComment
+        ? await _askForDisputeComment(context)
+        : null;
+    if (!context.mounted) {
+      return;
+    }
+    if (action.requiresComment && comment == null) {
+      return;
+    }
+
+    onExpenseChanged!(
+      expense.copyWith(status: action.targetStatus, statusComment: comment),
+    );
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Status zmieniony: ${action.targetStatus.label}.'),
+      ),
+    );
+  }
+
+  Future<String?> _askForDisputeComment(BuildContext context) async {
+    var comment = '';
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Komentarz do sporu'),
+          content: TextField(
+            key: const Key('expense-dispute-comment'),
+            autofocus: true,
+            minLines: 2,
+            maxLines: 4,
+            onChanged: (value) => comment = value,
+            decoration: const InputDecoration(
+              labelText: 'Co wymaga wyjasnienia?',
+              hintText: 'Np. brakuje potwierdzenia platnosci',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Anuluj'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final normalizedComment = comment.trim();
+                if (normalizedComment.isEmpty) {
+                  return;
+                }
+                Navigator.of(context).pop(normalizedComment);
+              },
+              child: const Text('Zapisz spor'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _ActionGroup extends StatelessWidget {
-  const _ActionGroup({required this.title, required this.actions});
+  const _ActionGroup({required this.actions, required this.onSelected});
 
-  final String title;
-  final List<String> actions;
+  final List<_StatusAction> actions;
+  final ValueChanged<_StatusAction>? onSelected;
 
   @override
   Widget build(BuildContext context) {
     if (actions.isEmpty) {
-      return ListTile(
+      return const ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.lock_outline),
-        title: Text(title),
-        subtitle: const Text('Brak dostepnych akcji w tym statusie.'),
+        leading: Icon(Icons.lock_outline),
+        title: Text('Brak dostepnych akcji'),
+        subtitle: Text('Ten status nie pozwala na kolejna akcje w MVP.'),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        Text(title, style: Theme.of(context).textTheme.bodySmall),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final action in actions)
-              OutlinedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '$action bedzie dostepne po podpieciu backendu.',
-                      ),
-                    ),
-                  );
-                },
-                child: Text(action),
-              ),
-          ],
-        ),
+        for (final action in actions)
+          OutlinedButton.icon(
+            onPressed: onSelected == null ? null : () => onSelected!(action),
+            icon: Icon(action.icon),
+            label: Text(action.label),
+          ),
       ],
     );
   }
 }
 
-class _StatusHistoryPlaceholder extends StatelessWidget {
-  const _StatusHistoryPlaceholder({required this.status});
+class _StatusAction {
+  const _StatusAction({
+    required this.label,
+    required this.icon,
+    required this.targetStatus,
+    this.requiresComment = false,
+  });
 
-  final ExpenseStatus status;
+  final String label;
+  final IconData icon;
+  final ExpenseStatus targetStatus;
+  final bool requiresComment;
+}
+
+class _StatusHistoryPlaceholder extends StatelessWidget {
+  const _StatusHistoryPlaceholder({required this.expense});
+
+  final ExpenseEntry expense;
 
   @override
   Widget build(BuildContext context) {
@@ -612,7 +755,13 @@ class _StatusHistoryPlaceholder extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.history_outlined),
       title: const Text('Historia statusu'),
-      subtitle: Text(status.historyPlaceholder),
+      subtitle: Text(
+        [
+          expense.status.historyPlaceholder,
+          if (expense.statusComment != null)
+            'Komentarz: ${expense.statusComment}',
+        ].join('\n'),
+      ),
     );
   }
 }

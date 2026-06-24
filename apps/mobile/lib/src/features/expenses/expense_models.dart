@@ -29,6 +29,7 @@ class ExpenseEntry {
     required this.title,
     required this.createdAt,
     this.status = ExpenseStatus.pending,
+    this.statusComment,
     this.visibility = ExpenseVisibility.sharedFamily,
     this.attachment,
     this.sourceTemplateId,
@@ -44,10 +45,43 @@ class ExpenseEntry {
   final String title;
   final DateTime createdAt;
   final ExpenseStatus status;
+  final String? statusComment;
   final ExpenseVisibility visibility;
   final ExpenseAttachment? attachment;
   final String? sourceTemplateId;
   final String? sourceTemplateName;
+
+  ExpenseEntry copyWith({
+    int? amountCents,
+    String? expenseDate,
+    String? childName,
+    ExpenseCategory? category,
+    ExpensePayer? paidBy,
+    String? title,
+    ExpenseStatus? status,
+    String? statusComment,
+    ExpenseVisibility? visibility,
+    ExpenseAttachment? attachment,
+    String? sourceTemplateId,
+    String? sourceTemplateName,
+  }) {
+    return ExpenseEntry(
+      id: id,
+      amountCents: amountCents ?? this.amountCents,
+      expenseDate: expenseDate ?? this.expenseDate,
+      childName: childName ?? this.childName,
+      category: category ?? this.category,
+      paidBy: paidBy ?? this.paidBy,
+      title: title ?? this.title,
+      createdAt: createdAt,
+      status: status ?? this.status,
+      statusComment: statusComment ?? this.statusComment,
+      visibility: visibility ?? this.visibility,
+      attachment: attachment ?? this.attachment,
+      sourceTemplateId: sourceTemplateId ?? this.sourceTemplateId,
+      sourceTemplateName: sourceTemplateName ?? this.sourceTemplateName,
+    );
+  }
 }
 
 class ExpenseTemplate {

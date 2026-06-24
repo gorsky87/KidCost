@@ -883,8 +883,9 @@ void main() {
     expect(find.text('Apteka Testowa'), findsOneWidget);
     expect(find.text('FV/20/06'), findsOneWidget);
     expect(find.textContaining('nie jest porada prawna'), findsOneWidget);
+    expect(find.text('Twoja rola: autor kosztu'), findsOneWidget);
     expect(find.text('Edytuj koszt'), findsOneWidget);
-    expect(find.text('Oznacz jako sporne'), findsOneWidget);
+    expect(find.text('Oznacz jako sporne'), findsNothing);
     expect(find.text('Historia statusu'), findsOneWidget);
     expect(find.text('Pelniejsza historia kosztu'), findsOneWidget);
     expect(
@@ -907,7 +908,84 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Rozliczony'), findsWidgets);
-    expect(find.text('Brak dostepnych akcji w tym statusie.'), findsWidgets);
+    expect(find.text('Brak dostepnych akcji'), findsWidgets);
+  });
+
+  testWidgets('counterparty can accept or dispute a pending expense', (
+    WidgetTester tester,
+  ) async {
+    var expenses = [
+      testExpense(
+        id: '1',
+        title: 'Kolonie',
+        paidBy: const ExpensePayer(
+          id: 'coparent',
+          label: 'coparent@example.com',
+          isCurrentUser: false,
+        ),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return Scaffold(
+              body: ExpensesScreen(
+                expenses: expenses,
+                onExpenseChanged: (expense) {
+                  setState(() {
+                    expenses = [
+                      for (final item in expenses)
+                        if (item.id == expense.id) expense else item,
+                    ];
+                  });
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Kolonie'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Twoja rola: drugi rodzic'), findsOneWidget);
+    expect(find.text('Zaakceptuj koszt'), findsOneWidget);
+    expect(find.text('Oznacz jako sporne'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Oznacz jako sporne'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Oznacz jako sporne'));
+    await tester.pumpAndSettle();
+    expect(find.text('Komentarz do sporu'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('expense-dispute-comment')),
+      'Brakuje potwierdzenia platnosci.',
+    );
+    await tester.tap(find.text('Zapisz spor'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Wymaga wyjasnienia'), findsWidgets);
+    expect(expenses.single.status, ExpenseStatus.disputed);
+    expect(expenses.single.statusComment, 'Brakuje potwierdzenia platnosci.');
+
+    await tester.tap(find.text('Kolonie'));
+    await tester.pumpAndSettle();
+    expect(find.text('Potwierdz po wyjasnieniu'), findsOneWidget);
+    expect(
+      find.textContaining('Brakuje potwierdzenia platnosci.'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(find.text('Potwierdz po wyjasnieniu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Potwierdz po wyjasnieniu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zaakceptowany'), findsWidgets);
+    expect(expenses.single.status, ExpenseStatus.accepted);
   });
 
   testWidgets('dashboard shows empty state and CTA opens add expense', (
