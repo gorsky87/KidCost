@@ -187,13 +187,42 @@ void main() {
     await tester.tap(find.text('Dodaj'));
     await tester.pumpAndSettle();
 
+    expect(find.text('2026-06-24'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).at(1), '');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -500),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Podaj kwote wieksza od 0.'), findsOneWidget);
+    expect(find.text('Podaj date kosztu.'), findsOneWidget);
+  });
+
+  testWidgets('add expense uses quick categories and optional description', (
+    WidgetTester tester,
+  ) async {
+    await pumpSignedInOnboardedApp(tester);
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), '30');
+    await tester.tap(find.text('Lekarze i leki'));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Zapisz koszt'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Zapisz koszt'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Podaj kwote wieksza od 0.'), findsOneWidget);
-    expect(find.text('Podaj date kosztu.'), findsOneWidget);
+    await tester.tap(find.text('Koszty'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lekarze i leki'), findsWidgets);
+    expect(find.text('30,00 zl'), findsOneWidget);
   });
 
   testWidgets('saved expense appears on list and changes balance', (
@@ -244,6 +273,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dodaj paragon lub PDF'));
     await tester.pumpAndSettle();
+    expect(find.text('Aparat'), findsOneWidget);
+    expect(find.text('Galeria'), findsOneWidget);
     await tester.tap(find.text('PDF'));
     await tester.pumpAndSettle();
     expect(find.text('rachunek.pdf'), findsOneWidget);
