@@ -154,6 +154,24 @@ class _KidCostAppState extends State<KidCostApp> {
           if (existingIndex == -1) {
             return;
           }
+          final existingExpense = _expenses[existingIndex];
+          if (existingExpense.status != expense.status) {
+            unawaited(
+              widget.telemetry.track(
+                TelemetryEvent.expenseStatusChanged,
+                parameters: {
+                  'from_status': existingExpense.status.name,
+                  'to_status': expense.status.name,
+                  'actor': existingExpense.paidBy.isCurrentUser
+                      ? 'author'
+                      : 'counterparty',
+                  'has_status_comment':
+                      expense.statusComment?.trim().isNotEmpty ?? false,
+                  'release_channel': _config.releaseChannel,
+                },
+              ),
+            );
+          }
           final updatedExpenses = [..._expenses];
           updatedExpenses[existingIndex] = expense;
           setState(() => _expenses = updatedExpenses);

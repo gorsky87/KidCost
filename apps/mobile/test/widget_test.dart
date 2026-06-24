@@ -106,6 +106,10 @@ void main() {
     final sanitized = sanitizeTelemetryParameters({
       'screen': 'dashboard',
       'category_id': 'school',
+      'from_status': 'pending',
+      'to_status': 'accepted',
+      'actor': 'counterparty',
+      'has_status_comment': false,
       'email': 'parent@example.com',
       'child_name': 'Antek',
       'amount': '42.99',
@@ -121,6 +125,10 @@ void main() {
     expect(sanitized, {
       'screen': 'dashboard',
       'category_id': 'school',
+      'from_status': 'pending',
+      'to_status': 'accepted',
+      'actor': 'counterparty',
+      'has_status_comment': false,
       'content_type': 'application/pdf',
       'release_channel': 'beta',
       'trigger': 'after_first_balance_viewed',
@@ -667,6 +675,50 @@ void main() {
       find.textContaining('Roboczo: Ty oddajesz Mama Oli 10,00 zl'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('expense status action emits sanitized telemetry', (
+    WidgetTester tester,
+  ) async {
+    final telemetry = RecordingTelemetry();
+    await pumpSignedInOnboardedApp(tester, telemetry: telemetry);
+
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), '45');
+    await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
+    await tester.enterText(find.byType(TextField).at(2), 'Basen');
+    await tester.ensureVisible(find.byKey(const Key('expense-payer-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expense-payer-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Drugi rodzic').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Koszty'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Basen'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Zaakceptuj koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zaakceptuj koszt'));
+    await tester.pumpAndSettle();
+
+    final statusEvents = telemetry.events
+        .where((event) => event.event == TelemetryEvent.expenseStatusChanged)
+        .toList();
+    expect(statusEvents, hasLength(1));
+    expect(statusEvents.single.parameters, {
+      'from_status': 'pending',
+      'to_status': 'accepted',
+      'actor': 'counterparty',
+      'has_status_comment': false,
+      'release_channel': 'demo',
+    });
   });
 
   testWidgets('optional PDF attachment is saved with the expense', (
@@ -1488,11 +1540,15 @@ void main() {
   });
 }
 
-Future<void> pumpSignedInOnboardedApp(WidgetTester tester) async {
+Future<void> pumpSignedInOnboardedApp(
+  WidgetTester tester, {
+  AppTelemetry? telemetry,
+}) async {
   await tester.pumpWidget(
     KidCostApp(
       authRepository: InMemoryAuthRepository(),
       attachmentStorage: InMemoryAttachmentStorage(),
+      telemetry: telemetry,
     ),
   );
   await tester.pump();
