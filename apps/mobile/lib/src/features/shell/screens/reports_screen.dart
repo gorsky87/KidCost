@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../expenses/expense_models.dart';
 import '../../premium/premium_discovery.dart';
@@ -80,6 +81,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             PremiumDiscoveryPoint.reportExport,
           ),
         ),
+        const SizedBox(height: 12),
+        _ProfessionalAccessCard(report: report),
       ],
     );
   }
@@ -486,6 +489,132 @@ class _ExportCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ProfessionalAccessCard extends StatelessWidget {
+  const _ProfessionalAccessCard({required this.report});
+
+  final MonthlyExpenseReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    final policy = domain.kidCostProfessionalAccessPolicy;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.verified_user_outlined),
+              title: const Text('Dostep mediatora lub prawnika'),
+              subtitle: Text(
+                'Tylko raport ${report.month}, read-only, wygasa po ${policy.defaultExpiryDays} dniach.',
+              ),
+            ),
+            Text(policy.copy.body),
+            const SizedBox(height: 8),
+            Text(
+              policy.copy.noLegalAdvice,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: () => _showProfessionalAccessPreview(context),
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Podglad bezpiecznego linku'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showProfessionalAccessPreview(BuildContext context) {
+    final policy = domain.kidCostProfessionalAccessPolicy;
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.78,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Text(
+                  policy.copy.title,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text('Zakres: raport ${report.month}.'),
+                Text('Wygasa po ${policy.defaultExpiryDays} dniach.'),
+                const SizedBox(height: 16),
+                _AccessPreviewSection(
+                  title: 'Uprawnienia',
+                  children: [
+                    for (final permission in policy.permissions)
+                      domain.professionalPermissionLabel(permission),
+                  ],
+                ),
+                _AccessPreviewSection(
+                  title: 'Domyslna minimalizacja danych',
+                  children: [
+                    for (final rule in policy.dataMinimizationRules)
+                      domain.professionalDataRuleLabel(rule),
+                  ],
+                ),
+                _AccessPreviewSection(
+                  title: 'Audit widoczny dla rodzicow',
+                  children: const [
+                    'Utworzenie zaproszenia',
+                    'Akceptacja zaproszenia',
+                    'Kazdy podglad raportu',
+                    'Kazde pobranie PDF',
+                    'Cofniecie lub wygasniecie dostepu',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(policy.copy.noLegalAdvice),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AccessPreviewSection extends StatelessWidget {
+  const _AccessPreviewSection({required this.title, required this.children});
+
+  final String title;
+  final List<String> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 6),
+          for (final child in children)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.check_circle_outline),
+              title: Text(child),
+            ),
+        ],
+      ),
     );
   }
 }

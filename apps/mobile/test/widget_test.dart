@@ -120,6 +120,11 @@ void main() {
       'plan_context': 'family',
       'feature': 'receipt_ocr',
       'reason_code': 'too_early',
+      'access_scope': 'selected_report',
+      'audit_action': 'report_viewed',
+      'expires_in_days': 14,
+      'professional_role': 'mediator',
+      'report_month': '2026-06',
     });
 
     expect(sanitized, {
@@ -136,6 +141,11 @@ void main() {
       'plan_context': 'family',
       'feature': 'receipt_ocr',
       'reason_code': 'too_early',
+      'access_scope': 'selected_report',
+      'audit_action': 'report_viewed',
+      'expires_in_days': 14,
+      'professional_role': 'mediator',
+      'report_month': '2026-06',
     });
   });
 
@@ -1537,6 +1547,59 @@ void main() {
     );
     expect(find.text('CSV: kidcost-report-2026-06.csv'), findsOneWidget);
     expect(find.text('PDF wymaga generatora'), findsOneWidget);
+  });
+
+  testWidgets('monthly reports expose professional access guardrails', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Dostep mediatora lub prawnika'),
+      180,
+    );
+    expect(find.textContaining('read-only'), findsOneWidget);
+    expect(find.textContaining('nie udziela porad prawnych'), findsOneWidget);
+
+    final previewButton = find.widgetWithText(
+      OutlinedButton,
+      'Podglad bezpiecznego linku',
+    );
+    await tester.ensureVisible(previewButton);
+    await tester.pumpAndSettle();
+    await tester.tap(previewButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Udostepnij wybrany raport profesjonaliscie'),
+      findsOneWidget,
+    );
+    expect(find.text('Zakres: raport 2026-06.'), findsOneWidget);
+    expect(find.text('Uprawnienia'), findsOneWidget);
+    expect(find.text('Podglad wybranego raportu'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Prywatne notatki poza pakietem'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Prywatne notatki poza pakietem'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Kazdy podglad raportu'),
+      160,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Kazdy podglad raportu'), findsOneWidget);
   });
 }
 

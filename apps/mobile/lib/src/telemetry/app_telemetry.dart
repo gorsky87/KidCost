@@ -13,7 +13,13 @@ enum TelemetryEvent {
   premiumTrialCancelled('premium_trial_cancelled'),
   premiumUpgraded('premium_upgraded'),
   premiumDowngraded('premium_downgraded'),
-  premiumFeatureIntent('premium_feature_intent');
+  premiumFeatureIntent('premium_feature_intent'),
+  professionalAccessInvited('professional_access_invited'),
+  professionalAccessAccepted('professional_access_accepted'),
+  professionalReportViewed('professional_report_viewed'),
+  professionalReportDownloaded('professional_report_downloaded'),
+  professionalAccessRevoked('professional_access_revoked'),
+  professionalAccessExpired('professional_access_expired');
 
   const TelemetryEvent(this.name);
 
@@ -83,6 +89,11 @@ const _allowedParameterKeys = {
   'reason_code',
   'surface',
   'trigger',
+  'access_scope',
+  'audit_action',
+  'expires_in_days',
+  'professional_role',
+  'report_month',
 };
 
 bool _looksSensitive(String value) {
