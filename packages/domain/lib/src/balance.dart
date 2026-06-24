@@ -14,6 +14,20 @@ class ExpenseInput {
   final String? childId;
 }
 
+class SettlementInput {
+  const SettlementInput({
+    required this.id,
+    required this.amountCents,
+    required this.paidBy,
+    required this.paidTo,
+  });
+
+  final String id;
+  final int amountCents;
+  final String paidBy;
+  final String paidTo;
+}
+
 class SplitRule {
   const SplitRule._(this.weights);
 
@@ -98,6 +112,7 @@ const ignoredBalanceStatuses = {'cancelled', 'deleted', 'removed', 'void'};
 BalanceResult calculateBalance({
   required Iterable<ExpenseInput> expenses,
   required SplitRule splitRule,
+  Iterable<SettlementInput> settlements = const [],
   Set<String> includedStatuses = defaultBalanceStatuses,
 }) {
   final participantIds = splitRule.participantIds;
@@ -127,6 +142,29 @@ BalanceResult calculateBalance({
     total += expense.amountCents;
   }
 
+  final settlementAdjustments = <String, int>{};
+  for (final settlement in settlements) {
+    if (settlement.amountCents <= 0) {
+      throw ArgumentError('Settlement amount must be greater than zero.');
+    }
+
+    final paidBy = settlement.paidBy.trim();
+    final paidTo = settlement.paidTo.trim();
+    if (paidBy.isEmpty || paidTo.isEmpty) {
+      throw ArgumentError('Settlement participants cannot be empty.');
+    }
+    if (paidBy == paidTo) {
+      throw ArgumentError('Settlement participants must be different.');
+    }
+
+    spent.putIfAbsent(paidBy, () => 0);
+    spent.putIfAbsent(paidTo, () => 0);
+    settlementAdjustments[paidBy] =
+        (settlementAdjustments[paidBy] ?? 0) + settlement.amountCents;
+    settlementAdjustments[paidTo] =
+        (settlementAdjustments[paidTo] ?? 0) - settlement.amountCents;
+  }
+
   final allParticipantIds = spent.keys.toList()..sort();
   final targetShares = _allocateTargetShares(
     totalCents: total,
@@ -140,7 +178,10 @@ BalanceResult calculateBalance({
         participantId: id,
         spentCents: spent[id] ?? 0,
         targetShareCents: targetShares[id] ?? 0,
-        netCents: (spent[id] ?? 0) - (targetShares[id] ?? 0),
+        netCents:
+            (spent[id] ?? 0) -
+            (targetShares[id] ?? 0) +
+            (settlementAdjustments[id] ?? 0),
       ),
   ];
 

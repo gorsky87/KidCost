@@ -10,6 +10,7 @@ Pure Dart domain logic shared by future Flutter UI and backend-facing code.
 - includes `pending`, `accepted`, and `settled` expenses by default
 - ignores `disputed`, `deleted`, `cancelled`, `removed`, and `void` unless callers pass a different included-status set
 - supports equal split and custom weighted split, such as 70/30
+- accepts manual settlements so an offline transfer can reduce or close the open balance
 - keeps all money as integer cents for deterministic rounding
 
 Rounding rule: target shares are floored to cents, then leftover cents are assigned by largest remainder, with participant id as the tie-breaker. This keeps target shares summing exactly to the total amount.
