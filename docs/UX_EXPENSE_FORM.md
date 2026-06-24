@@ -52,9 +52,29 @@ Opcje w MVP:
 - `Aparat` - zrob zdjecie paragonu.
 - `Galeria` - wybierz zdjecie z telefonu.
 - `PDF` - dodaj fakture lub rachunek.
+- `Zapisz bez paragonu` - swiadomie kontynuuj bez dowodu.
 
 Zalacznik jest opcjonalny. Blad uploadu nie blokuje kosztu; koszt zostaje
 zapisany ze statusem zalacznika wymagajacym ponowienia.
+
+### Receipt review tray
+
+Po wybraniu pliku formularz pokazuje inline tray zamiast samej nazwy pliku.
+Tray ma byc gotowy do implementacji Flutter bez dodatkowych decyzji UI:
+
+- miniatura 72x72 z ikona obrazu albo PDF,
+- nazwa pliku, typ MIME i rozmiar,
+- status: `Gotowy do wyslania`, `Wysylanie`, `Upload zakonczony`,
+  `Upload nieudany`, `Plik za duzy`, `Nieobslugiwany format`,
+- neutralna wskazowka jakosci: `Sprawdz, czy widac caly paragon, czytelna kwote i date.`,
+- akcje: `Podejrzyj`, `Zamien`, `Usun`, `Dodaj kolejny`, `Zapisz bez paragonu`.
+
+MVP mobilny zapisuje jeden zalacznik do kosztu. Akcja `Dodaj kolejny` pozostaje
+widoczna jako docelowy wzorzec UX, ale komunikuje, ze w tej wersji nalezy wybrac
+jeden najlepiej czytelny dowod.
+
+Teksty nie sugeruja winy drugiego rodzica. Mowimy o czytelnosci dowodu,
+ponowieniu uploadu i zapisie kosztu, nie o `udowodnieniu` albo `oskarzeniu`.
 
 ## Walidacje
 
@@ -64,7 +84,7 @@ zapisany ze statusem zalacznika wymagajacym ponowienia.
 | Data kosztu | wymagana, format `RRRR-MM-DD` | `Podaj date kosztu.` |
 | Kto zaplacil | wymagane | `Wybierz kto zaplacil.` |
 | Opis | opcjonalny | brak bledu |
-| Zalacznik | opcjonalny | snackbar po zapisie, jesli upload sie nie udal |
+| Zalacznik | opcjonalny, JPG/PNG/PDF, docelowo limit 8 MB | tray pokazuje status; snackbar po zapisie, jesli upload sie nie udal |
 
 ## Stany
 
@@ -82,6 +102,7 @@ zapisany ze statusem zalacznika wymagajacym ponowienia.
 
 - `Zapisz koszt` pokazuje loader.
 - Pola wyboru i zalacznik sa zablokowane.
+- Tray pokazuje status `Wysylanie`, jesli wybrano zalacznik.
 
 ### Error
 
@@ -92,7 +113,8 @@ zapisany ze statusem zalacznika wymagajacym ponowienia.
 
 - Koszt zostaje zapisany.
 - Uzytkownik widzi snackbar: `Koszt zapisany, ale zalacznik wymaga ponowienia.`
-- Lista i szczegoly pokazuja blad uploadu zalacznika.
+- Formularz pokazuje informacyjny stan po zapisie, a lista i szczegoly pokazuja
+  blad uploadu zalacznika.
 
 ### Success
 
@@ -100,6 +122,8 @@ zapisany ze statusem zalacznika wymagajacym ponowienia.
 - Formularz czysci kwote, opis i zalacznik.
 - Data wraca do dzisiejszej.
 - Kategoria wraca do `Jedzenie`.
+- Szczegoly kosztu pokazuja `Upload zakonczony`, sciezke lub neutralny opis
+  zapisanego pliku.
 
 ## Decyzje
 

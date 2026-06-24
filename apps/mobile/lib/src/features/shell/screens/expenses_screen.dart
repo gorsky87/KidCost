@@ -601,7 +601,9 @@ class _AttachmentPreview extends StatelessWidget {
         contentPadding: EdgeInsets.zero,
         leading: const Icon(Icons.cloud_off_outlined),
         title: Text('Zalacznik wymaga ponowienia'),
-        subtitle: Text(attachment.errorMessage ?? attachment.fileName),
+        subtitle: Text(
+          '${attachment.errorMessage ?? attachment.fileName} Koszt zostal zapisany.',
+        ),
       );
     }
 
@@ -616,7 +618,11 @@ class _AttachmentPreview extends StatelessWidget {
             ? 'Podglad zalacznika: ${attachment.fileName}'
             : 'Podglad PDF: ${attachment.fileName}',
       ),
-      subtitle: Text(attachment.storagePath ?? 'Plik zapisany.'),
+      subtitle: Text(
+        attachment.storagePath == null
+            ? 'Plik zapisany.'
+            : 'Upload zakonczony: ${attachment.storagePath}',
+      ),
     );
   }
 }
