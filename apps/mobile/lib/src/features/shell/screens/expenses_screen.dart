@@ -324,27 +324,35 @@ class _ExpenseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        leading: const Icon(Icons.receipt_long_outlined),
-        title: Text(expense.title),
-        subtitle: Text(
-          [
-            expense.category.label,
-            expense.childName,
-            expense.expenseDate,
-            'Zaplacil: ${expense.paidBy.label}',
-            'Status: ${expense.status.label}',
-            if (expense.attachment != null)
-              expense.attachment!.status == AttachmentStatus.uploaded
-                  ? 'Zalacznik: ${expense.attachment!.fileName}'
-                  : 'Zalacznik: blad uploadu',
-          ].join(' • '),
-        ),
-        trailing: Text(
-          formatCents(expense.amountCents),
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        onTap: () => _showExpenseDetails(context, expense),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.receipt_long_outlined),
+            title: Text(expense.title),
+            subtitle: Text(
+              [
+                expense.category.label,
+                expense.childName,
+                expense.expenseDate,
+                'Zaplacil: ${expense.paidBy.label}',
+                if (expense.attachment != null)
+                  expense.attachment!.status == AttachmentStatus.uploaded
+                      ? 'Zalacznik: ${expense.attachment!.fileName}'
+                      : 'Zalacznik: blad uploadu',
+              ].join(' • '),
+            ),
+            trailing: Text(
+              formatCents(expense.amountCents),
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            onTap: () => _showExpenseDetails(context, expense),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: _ExpenseStatusBadge(status: expense.status),
+          ),
+        ],
       ),
     );
   }
@@ -368,6 +376,8 @@ class _ExpenseCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 12),
+                  _ExpenseStatusPanel(status: expense.status),
+                  const SizedBox(height: 12),
                   _DetailRow(label: 'Nazwa', value: expense.title),
                   _DetailRow(
                     label: 'Kwota',
@@ -377,30 +387,12 @@ class _ExpenseCard extends StatelessWidget {
                   _DetailRow(label: 'Dziecko', value: expense.childName),
                   _DetailRow(label: 'Placacy', value: expense.paidBy.label),
                   _DetailRow(label: 'Data', value: expense.expenseDate),
-                  _DetailRow(label: 'Status', value: expense.status.label),
                   const SizedBox(height: 12),
                   _AttachmentPreview(attachment: expense.attachment),
                   const SizedBox(height: 16),
-                  if (expense.status.canEdit)
-                    FilledButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Edycja kosztu bedzie dostepna po podpieciu backendu.',
-                            ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Edytuj koszt'),
-                    )
-                  else
-                    OutlinedButton.icon(
-                      onPressed: null,
-                      icon: const Icon(Icons.lock_outline),
-                      label: const Text('Edycja zablokowana przez status'),
-                    ),
+                  _StatusActionsSection(status: expense.status),
+                  const SizedBox(height: 16),
+                  _StatusHistoryPlaceholder(status: expense.status),
                 ],
               ),
             ),
@@ -408,6 +400,166 @@ class _ExpenseCard extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class _ExpenseStatusPanel extends StatelessWidget {
+  const _ExpenseStatusPanel({required this.status});
+
+  final ExpenseStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: _statusColor(status).withValues(alpha: 0.08),
+        border: Border.all(color: _statusColor(status).withValues(alpha: 0.24)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ExpenseStatusBadge(status: status),
+            const SizedBox(height: 8),
+            Text(status.description),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpenseStatusBadge extends StatelessWidget {
+  const _ExpenseStatusBadge({required this.status});
+
+  final ExpenseStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor(status);
+    return Semantics(
+      label: 'Status kosztu: ${status.label}',
+      child: Chip(
+        avatar: Icon(_statusIcon(status), color: color, size: 18),
+        label: Text(status.label),
+        side: BorderSide(color: color.withValues(alpha: 0.32)),
+        backgroundColor: color.withValues(alpha: 0.1),
+        labelStyle: TextStyle(color: color),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+}
+
+class _StatusActionsSection extends StatelessWidget {
+  const _StatusActionsSection({required this.status});
+
+  final ExpenseStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final authorActions = status.authorActions;
+    final counterpartyActions = status.counterpartyActions;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Akcje', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        _ActionGroup(title: 'Autor kosztu', actions: authorActions),
+        const SizedBox(height: 8),
+        _ActionGroup(title: 'Drugi rodzic', actions: counterpartyActions),
+      ],
+    );
+  }
+}
+
+class _ActionGroup extends StatelessWidget {
+  const _ActionGroup({required this.title, required this.actions});
+
+  final String title;
+  final List<String> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    if (actions.isEmpty) {
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.lock_outline),
+        title: Text(title),
+        subtitle: const Text('Brak dostepnych akcji w tym statusie.'),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final action in actions)
+              OutlinedButton(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '$action bedzie dostepne po podpieciu backendu.',
+                      ),
+                    ),
+                  );
+                },
+                child: Text(action),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StatusHistoryPlaceholder extends StatelessWidget {
+  const _StatusHistoryPlaceholder({required this.status});
+
+  final ExpenseStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.history_outlined),
+      title: const Text('Historia statusu'),
+      subtitle: Text(status.historyPlaceholder),
+    );
+  }
+}
+
+Color _statusColor(ExpenseStatus status) {
+  switch (status) {
+    case ExpenseStatus.pending:
+      return Colors.deepOrange;
+    case ExpenseStatus.accepted:
+      return Colors.green;
+    case ExpenseStatus.disputed:
+      return Colors.indigo;
+    case ExpenseStatus.settled:
+      return Colors.blueGrey;
+  }
+}
+
+IconData _statusIcon(ExpenseStatus status) {
+  switch (status) {
+    case ExpenseStatus.pending:
+      return Icons.hourglass_top_outlined;
+    case ExpenseStatus.accepted:
+      return Icons.check_circle_outline;
+    case ExpenseStatus.disputed:
+      return Icons.report_problem_outlined;
+    case ExpenseStatus.settled:
+      return Icons.task_alt_outlined;
   }
 }
 
