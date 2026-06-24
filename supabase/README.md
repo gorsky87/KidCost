@@ -39,3 +39,14 @@ psql "$DATABASE_URL" -f supabase/tests/rls_manual_check.sql
 ```
 
 The smoke test checks that a user can see and write their own family data, cannot see another family expense, cannot insert an expense into another family, and cannot see another family's attachment metadata.
+
+## Family bootstrap verification
+
+Issue #8 adds profile bootstrap, default family creation, and copyable invitation tokens:
+
+```sh
+supabase db reset
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/family_bootstrap_manual_check.sql
+```
+
+The smoke test checks that `auth.users` inserts create `profiles`, a user can create their default family, a pending invitation does not reveal family data, and accepting the token creates an active `family_members` row.
