@@ -56,6 +56,7 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(height: 8),
         Text('Rodzina: ${profile.familyName}'),
         Text('Dziecko: ${profile.childName}'),
+        Text('Waluta rozliczen: ${profile.familyCurrency}'),
         const SizedBox(height: 16),
         if (profile.isSoloFamily) ...[
           _SoloFamilyCard(profile: profile, onOpenFamily: onOpenFamily),
@@ -79,7 +80,7 @@ class DashboardScreen extends StatelessWidget {
           value: summary.balanceText(profile),
           helper: profile.isSoloFamily
               ? 'Prywatny szkic 50/50 widoczny tylko dla Ciebie.'
-              : 'Liczymy prosty podzial 50/50.',
+              : 'Liczymy prosty podzial 50/50 w ${profile.familyCurrency}.',
         ),
         const SizedBox(height: 8),
         _NeedsAttentionCard(
@@ -93,19 +94,28 @@ class DashboardScreen extends StatelessWidget {
         ],
         _MetricTile(
           icon: Icons.calendar_month_outlined,
-          title: 'Wydatki w tym miesiacu',
-          value: formatCents(summary.totalCents),
+          title: 'Wydatki w tym miesiacu (${profile.familyCurrency})',
+          value: formatCents(
+            summary.totalCents,
+            currencyCode: profile.familyCurrency,
+          ),
           helper: month.label,
         ),
         _MetricTile(
           icon: Icons.person_outline,
           title: 'Ty zaplaciles',
-          value: formatCents(summary.currentUserPaidCents),
+          value: formatCents(
+            summary.currentUserPaidCents,
+            currencyCode: profile.familyCurrency,
+          ),
         ),
         _MetricTile(
           icon: Icons.group_outlined,
           title: _coParentPaidTitle(profile.coParentLabel),
-          value: formatCents(summary.coParentPaidCents),
+          value: formatCents(
+            summary.coParentPaidCents,
+            currencyCode: profile.familyCurrency,
+          ),
         ),
         const SizedBox(height: 8),
         _UpcomingCustodyCard(custodyDays: upcomingCustodyDays),
@@ -549,11 +559,11 @@ class _DashboardSummary {
 
     if (currentUserShare > 0) {
       final prefix = profile.isSoloFamily ? 'Roboczo: ' : '';
-      return '$prefix${profile.coParentLabel} oddaje Tobie ${formatCents(currentUserShare)}';
+      return '$prefix${profile.coParentLabel} oddaje Tobie ${formatCents(currentUserShare, currencyCode: profile.familyCurrency)}';
     }
 
     final prefix = profile.isSoloFamily ? 'Roboczo: ' : '';
-    return '${prefix}Ty oddajesz ${_coParentDativeLabel(profile.coParentLabel)} ${formatCents(-currentUserShare)}';
+    return '${prefix}Ty oddajesz ${_coParentDativeLabel(profile.coParentLabel)} ${formatCents(-currentUserShare, currencyCode: profile.familyCurrency)}';
   }
 }
 

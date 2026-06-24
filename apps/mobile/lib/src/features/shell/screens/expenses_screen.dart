@@ -368,6 +368,8 @@ class _ExpenseCard extends StatelessWidget {
                 expense.visibility.label,
                 if (expense.sourceTemplateName != null)
                   'Szablon: ${expense.sourceTemplateName}',
+                if (expense.originalReceiptAmountLabel != null)
+                  'Paragon: ${expense.originalReceiptAmountLabel}',
                 if (expense.attachment != null)
                   expense.attachment!.status == AttachmentStatus.uploaded
                       ? 'Zalacznik: ${expense.attachment!.fileName}'
@@ -421,9 +423,15 @@ class _ExpenseCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   _DetailRow(label: 'Nazwa', value: expense.title),
                   _DetailRow(
-                    label: 'Kwota',
+                    label: 'Kwota rozliczenia',
                     value: formatCents(expense.amountCents),
                   ),
+                  if (expense.originalReceiptAmountLabel != null)
+                    _DetailRow(
+                      label: 'Kwota na paragonie',
+                      value:
+                          '${expense.originalReceiptAmountLabel} (informacyjnie, bez przeliczenia kursu)',
+                    ),
                   _DetailRow(label: 'Kategoria', value: expense.category.label),
                   _DetailRow(label: 'Dziecko', value: expense.childName),
                   _DetailRow(label: 'Placacy', value: expense.paidBy.label),
