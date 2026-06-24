@@ -44,7 +44,10 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', (select id::text from rls_ids where name = 'user_a'), true);
 
 insert into public.profiles (id, display_name, email)
-values ((select id from rls_ids where name = 'user_a'), 'Parent A', 'parent-a@example.com');
+values ((select id from rls_ids where name = 'user_a'), 'Parent A', 'parent-a@example.com')
+on conflict (id) do update
+set display_name = excluded.display_name,
+    email = excluded.email;
 
 insert into public.families (id, name, created_by)
 values (
@@ -109,7 +112,10 @@ end $$;
 select set_config('request.jwt.claim.sub', (select id::text from rls_ids where name = 'user_b'), true);
 
 insert into public.profiles (id, display_name, email)
-values ((select id from rls_ids where name = 'user_b'), 'Parent B', 'parent-b@example.com');
+values ((select id from rls_ids where name = 'user_b'), 'Parent B', 'parent-b@example.com')
+on conflict (id) do update
+set display_name = excluded.display_name,
+    email = excluded.email;
 
 insert into public.families (id, name, created_by)
 values (
