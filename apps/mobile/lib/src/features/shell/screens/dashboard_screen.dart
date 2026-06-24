@@ -8,6 +8,7 @@ class DashboardScreen extends StatelessWidget {
     required this.profile,
     required this.expenses,
     required this.onAddExpense,
+    required this.onOpenReports,
     this.currentDate,
     super.key,
   });
@@ -15,6 +16,7 @@ class DashboardScreen extends StatelessWidget {
   final OnboardingProfile profile;
   final List<ExpenseEntry> expenses;
   final VoidCallback onAddExpense;
+  final VoidCallback onOpenReports;
   final DateTime? currentDate;
 
   @override
@@ -48,6 +50,12 @@ class DashboardScreen extends StatelessWidget {
           onPressed: onAddExpense,
           icon: const Icon(Icons.add_circle_outline),
           label: const Text('Dodaj koszt'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: onOpenReports,
+          icon: const Icon(Icons.summarize_outlined),
+          label: const Text('Raport miesiaca'),
         ),
         const SizedBox(height: 12),
         _MetricTile(
