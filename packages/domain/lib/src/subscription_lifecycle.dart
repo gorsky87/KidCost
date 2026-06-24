@@ -447,6 +447,26 @@ const kidCostSubscriptionAnalyticsEvents = [
     requiredProperties: {'store', 'offer_type', 'plan_id'},
     rationale: 'Mierzy mechanizm oferty bez kodow promocyjnych w payloadzie.',
   ),
+  SubscriptionAnalyticsEventDefinition(
+    name: 'premium_cancellation_started',
+    requiredProperties: {'surface', 'entitlement_state'},
+    rationale: 'Mierzy start flow bez danych rodziny i bez powodow opisowych.',
+  ),
+  SubscriptionAnalyticsEventDefinition(
+    name: 'premium_cancellation_reason_selected',
+    requiredProperties: {'surface', 'reason_code', 'entitlement_state'},
+    rationale: 'Mierzy opcjonalny powod churnu jako kod, bez tekstu wolnego.',
+  ),
+  SubscriptionAnalyticsEventDefinition(
+    name: 'premium_cancellation_save_path_selected',
+    requiredProperties: {
+      'surface',
+      'save_path',
+      'entitlement_state',
+      'platform_handoff',
+    },
+    rationale: 'Mierzy etyczna sciezke zapisu lub handoff sklepu bez PII.',
+  ),
 ];
 
 const subscriptionAnalyticsAllowedProperties = {
@@ -454,7 +474,10 @@ const subscriptionAnalyticsAllowedProperties = {
   'lifecycle_state',
   'offer_type',
   'plan_id',
+  'platform_handoff',
+  'reason_code',
   'recovery_outcome',
+  'save_path',
   'store',
   'storefront_country',
   'surface',

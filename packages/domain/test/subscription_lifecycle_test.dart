@@ -10,6 +10,7 @@ void main() {
     testPlEuPricingPolicyUsesFamilyScopedPlnMonthlyBetaOffer();
     testPriceChangeAndOfferMechanicsAreReleaseRequirements();
     testSubscriptionAnalyticsTaxonomyUsesSafeProperties();
+    testPremiumCancellationPolicyIsEthicalAndAnalyticsSafe();
   });
 }
 
@@ -144,6 +145,44 @@ void testSubscriptionAnalyticsTaxonomyUsesSafeProperties() {
   expectFalse(subscriptionAnalyticsPropertiesAreSafe({'expense_note'}));
   expectFalse(subscriptionAnalyticsPropertiesAreSafe({'receipt_id'}));
   expectFalse(subscriptionAnalyticsPropertiesAreSafe({'coparent_id'}));
+}
+
+void testPremiumCancellationPolicyIsEthicalAndAnalyticsSafe() {
+  final policy = kidCostPremiumCancellationPolicy;
+  final eventNames = {
+    for (final definition in kidCostSubscriptionAnalyticsEvents)
+      definition.name,
+  };
+
+  expectTrue(cancellationReasonCodesAreUnique());
+  expectTrue(cancellationSavePathCodesAreUnique());
+  expectTrue(cancellationCopyAvoidsPressurePatterns());
+  expectEqual(policy.reasons.length, PremiumCancellationReason.values.length);
+  expectEqual(
+    policy.savePaths.length,
+    PremiumCancellationSavePath.values.length,
+  );
+  expectTrue(policy.recordsRemainReadable.contains('nadal widzisz'));
+  expectTrue(
+    policy.featureAccessPreview.any((copy) => copy.contains('Reczne koszty')),
+  );
+  expectTrue(policy.platformHandoffCopy.contains('App Store'));
+  expectTrue(policy.platformHandoffCopy.contains('Google Play'));
+  expectTrue(policy.analyticsRequirement.contains('reason_code'));
+  expectTrue(policy.analyticsRequirement.contains('save_path'));
+  expectTrue(eventNames.contains('premium_cancellation_started'));
+  expectTrue(eventNames.contains('premium_cancellation_reason_selected'));
+  expectTrue(eventNames.contains('premium_cancellation_save_path_selected'));
+  expectTrue(
+    subscriptionAnalyticsPropertiesAreSafe({
+      'surface',
+      'reason_code',
+      'save_path',
+      'entitlement_state',
+      'platform_handoff',
+    }),
+  );
+  expectFalse(subscriptionAnalyticsPropertiesAreSafe({'free_text_reason'}));
 }
 
 void expectTrue(bool value) {

@@ -486,6 +486,68 @@ void main() {
     );
   });
 
+  testWidgets('settings downgrade flow preserves records and safe telemetry', (
+    WidgetTester tester,
+  ) async {
+    final telemetry = RecordingTelemetry();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsScreen(
+            userEmail: 'parent@example.com',
+            isDemoSession: true,
+            telemetry: telemetry,
+            onSignOut: () async {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Zobacz opcje anulowania'), 120);
+    await tester.ensureVisible(find.text('Zobacz opcje anulowania'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zobacz opcje anulowania'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Anulowanie Premium bez presji'), findsOneWidget);
+    expect(find.textContaining('Po anulowaniu nadal widzisz'), findsWidgets);
+    expect(find.textContaining('App Store albo Google Play'), findsOneWidget);
+    expect(find.textContaining('OCR, PDF i bundle dowodow'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('premium-cancel-reason-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Za drogo').last);
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Przejdz na Free'),
+      100,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Przejdz na Free'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Rekordy zostaja czytelne i eksportowalne'),
+      findsOneWidget,
+    );
+    expect(telemetry.eventNames, [
+      'premium_cancellation_started',
+      'premium_cancellation_reason_selected',
+      'premium_cancellation_save_path_selected',
+    ]);
+    expect(telemetry.events[1].parameters['reason_code'], 'too_expensive');
+    expect(telemetry.events[2].parameters['save_path'], 'switch_to_free');
+    expect(telemetry.events[2].parameters['platform_handoff'], isTrue);
+    expect(
+      telemetry.events.any(
+        (event) => event.parameters.values.contains('parent@example.com'),
+      ),
+      isFalse,
+    );
+  });
+
   testWidgets('premium discovery stays calm and dismissible', (
     WidgetTester tester,
   ) async {

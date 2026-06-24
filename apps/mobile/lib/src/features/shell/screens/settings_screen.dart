@@ -1,14 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../premium/premium_discovery.dart';
 import '../../premium/premium_paywall_screen.dart';
+import '../../../telemetry/app_telemetry.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.userEmail,
     required this.isDemoSession,
     required this.onSignOut,
+    this.telemetry = const NoopTelemetry(),
     this.showAccountPlanPremiumHint = false,
     this.onPremiumHintDismissed,
     super.key,
@@ -17,6 +21,7 @@ class SettingsScreen extends StatefulWidget {
   final String userEmail;
   final bool isDemoSession;
   final Future<void> Function() onSignOut;
+  final AppTelemetry telemetry;
   final bool showAccountPlanPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
@@ -94,6 +99,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
         ],
         _PlanComparisonCard(onPreviewPaywall: _showPremiumPaywallPreview),
+        const SizedBox(height: 8),
+        _CancellationAccessCard(onOpenCancellationFlow: _showCancellationFlow),
         const SizedBox(height: 8),
         const _FeeWaiverPolicyCard(),
         const Divider(),
@@ -214,6 +221,223 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _showCancellationFlow() {
+    final policy = domain.kidCostPremiumCancellationPolicy;
+    domain.PremiumCancellationReason? selectedReason;
+    unawaited(
+      widget.telemetry.track(
+        TelemetryEvent.premiumCancellationStarted,
+        parameters: {
+          'surface': 'settings',
+          'entitlement_state': 'premium_preview',
+        },
+      ),
+    );
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.workspace_premium_outlined),
+                      title: Text('Anulowanie Premium bez presji'),
+                      subtitle: Text(
+                        'Najpierw pokazujemy, co zostaje dostepne po downgrade.',
+                      ),
+                    ),
+                    Text(policy.recordsRemainReadable),
+                    const SizedBox(height: 12),
+                    for (final item in policy.featureAccessPreview)
+                      _CancellationPreviewRow(text: item),
+                    const SizedBox(height: 12),
+                    Text(
+                      policy.platformHandoffCopy,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<domain.PremiumCancellationReason>(
+                      key: const Key('premium-cancel-reason-picker'),
+                      initialValue: selectedReason,
+                      decoration: const InputDecoration(
+                        labelText: 'Powod (opcjonalnie)',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        for (final reason in policy.reasons)
+                          DropdownMenuItem(
+                            value: reason,
+                            child: Text(reason.label),
+                          ),
+                      ],
+                      onChanged: (reason) {
+                        setModalState(() => selectedReason = reason);
+                        if (reason == null) return;
+                        unawaited(
+                          widget.telemetry.track(
+                            TelemetryEvent.premiumCancellationReasonSelected,
+                            parameters: {
+                              'surface': 'settings',
+                              'reason_code': reason.code,
+                              'entitlement_state': 'premium_preview',
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    for (final path in policy.savePaths)
+                      _CancellationSavePathTile(
+                        path: path,
+                        onTap: () {
+                          final requiresPlatformHandoff =
+                              path ==
+                                  domain
+                                      .PremiumCancellationSavePath
+                                      .switchToFree ||
+                              path ==
+                                  domain
+                                      .PremiumCancellationSavePath
+                                      .changeBillingCadence;
+                          unawaited(
+                            widget.telemetry.track(
+                              TelemetryEvent
+                                  .premiumCancellationSavePathSelected,
+                              parameters: {
+                                'surface': 'settings',
+                                'save_path': path.code,
+                                'reason_code': selectedReason?.code,
+                                'entitlement_state': 'premium_preview',
+                                'platform_handoff': requiresPlatformHandoff,
+                              },
+                            ),
+                          );
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Wybrano: ${path.label}. Rekordy zostaja czytelne i eksportowalne.',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    const SizedBox(height: 12),
+                    Text(
+                      policy.noPressureCopy,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      policy.analyticsRequirement,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _CancellationAccessCard extends StatelessWidget {
+  const _CancellationAccessCard({required this.onOpenCancellationFlow});
+
+  final VoidCallback onOpenCancellationFlow;
+
+  @override
+  Widget build(BuildContext context) {
+    final policy = domain.kidCostPremiumCancellationPolicy;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.exit_to_app_outlined),
+              title: Text('Anulowanie i downgrade Premium'),
+              subtitle: Text('Bez ukrytych kontrolek i bez utraty rekordow.'),
+            ),
+            Text(policy.recordsRemainReadable),
+            const SizedBox(height: 8),
+            Text(policy.noPressureCopy),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: onOpenCancellationFlow,
+                icon: const Icon(Icons.manage_accounts_outlined),
+                label: const Text('Zobacz opcje anulowania'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CancellationPreviewRow extends StatelessWidget {
+  const _CancellationPreviewRow({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.check_circle_outline, size: 18),
+          ),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+}
+
+class _CancellationSavePathTile extends StatelessWidget {
+  const _CancellationSavePathTile({required this.path, required this.onTap});
+
+  final domain.PremiumCancellationSavePath path;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: const Icon(Icons.arrow_forward_outlined),
+        title: Text(path.label),
+        subtitle: Text(path.description),
+        onTap: onTap,
+      ),
     );
   }
 }

@@ -182,6 +182,7 @@ class _KidCostShellState extends State<KidCostShell> {
           PremiumDiscoveryPoint.accountPlan,
         ),
         onPremiumHintDismissed: _dismissPremiumHint,
+        telemetry: widget.telemetry,
         onSignOut: widget.onSignOut,
       ),
     ),
