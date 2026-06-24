@@ -26,10 +26,15 @@ class CustodyCalendarScreen extends StatefulWidget {
 class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
   final _startDateController = TextEditingController();
   final _endDateController = TextEditingController();
+  final _presetStartDateController = TextEditingController();
   late DateTime _visibleMonth;
   late final List<CustodyParent> _parents;
   late CustodyParent _selectedParent;
+  late CustodyParent _presetFirstParent;
+  CustodyPresetType _selectedPresetType = CustodyPresetType.alternatingWeeks;
+  List<CustodyDay> _presetPreviewDays = const [];
   String? _dateError;
+  String? _presetError;
 
   @override
   void initState() {
@@ -45,12 +50,18 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
       ),
     ];
     _selectedParent = _parents.first;
+    _presetFirstParent = _parents.first;
+    _presetStartDateController.text = formatCustodyDate(
+      DateTime.utc(now.year, now.month, now.day),
+    );
+    _refreshPresetPreview();
   }
 
   @override
   void dispose() {
     _startDateController.dispose();
     _endDateController.dispose();
+    _presetStartDateController.dispose();
     super.dispose();
   }
 
@@ -73,6 +84,10 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
         const Text(
           'MVP zapisuje plan dla jednej rodziny i jednego dziecka w tej sesji aplikacji.',
         ),
+        if (widget.custodyDays.isEmpty) ...[
+          const SizedBox(height: 16),
+          const _EmptyCustodyCalendarIntro(),
+        ],
         const SizedBox(height: 16),
         _MonthHeader(
           visibleMonth: _visibleMonth,
@@ -120,6 +135,34 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
           ],
         ),
         const SizedBox(height: 16),
+        _CustodyPresetCard(
+          startDateController: _presetStartDateController,
+          presetDefinitions: custodyPresetDefinitions,
+          selectedPresetType: _selectedPresetType,
+          parents: _parents,
+          firstParent: _presetFirstParent,
+          previewDays: _presetPreviewDays,
+          presetError: _presetError,
+          onPresetChanged: (presetType) {
+            if (presetType != null) {
+              setState(() {
+                _selectedPresetType = presetType;
+                _refreshPresetPreview();
+              });
+            }
+          },
+          onFirstParentChanged: (parent) {
+            if (parent != null) {
+              setState(() {
+                _presetFirstParent = parent;
+                _refreshPresetPreview();
+              });
+            }
+          },
+          onPreview: () => setState(_refreshPresetPreview),
+          onApply: _applyPresetPreview,
+        ),
+        const SizedBox(height: 16),
         _AddCustodyRangeCard(
           startDateController: _startDateController,
           endDateController: _endDateController,
@@ -136,6 +179,9 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
       ],
     );
   }
+
+  CustodyParent get _presetSecondParent =>
+      _parents.firstWhere((parent) => parent.id != _presetFirstParent.id);
 
   List<DateTime> _daysForMonth(DateTime month) {
     final firstDay = DateTime.utc(month.year, month.month);
@@ -178,6 +224,49 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Plan opieki zapisany.')));
+  }
+
+  void _refreshPresetPreview() {
+    final start = parseCustodyDate(_presetStartDateController.text);
+    if (start == null) {
+      _presetPreviewDays = const [];
+      _presetError = 'Podaj date startu RRRR-MM-DD.';
+      return;
+    }
+
+    _presetError = null;
+    _presetPreviewDays = buildCustodyPresetDays(
+      presetType: _selectedPresetType,
+      startDate: start,
+      dayCount: 14,
+      childName: widget.profile.childName,
+      firstParent: _presetFirstParent,
+      secondParent: _presetSecondParent,
+    );
+  }
+
+  void _applyPresetPreview() {
+    setState(_refreshPresetPreview);
+    if (_presetPreviewDays.isEmpty || _presetError != null) {
+      return;
+    }
+
+    final start = parseCustodyDate(_presetStartDateController.text);
+    final updated = [...widget.custodyDays];
+    for (final previewDay in _presetPreviewDays) {
+      final date = parseCustodyDate(previewDay.date);
+      if (date != null) {
+        _upsertDay(updated, date, previewDay.parent);
+      }
+    }
+
+    if (start != null) {
+      _visibleMonth = DateTime.utc(start.year, start.month);
+    }
+    widget.onCustodyDaysChanged(updated);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Preset opieki zastosowany na 14 dni.')),
+    );
   }
 
   Future<void> _editDay(DateTime date) async {
@@ -274,6 +363,32 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
   }
 }
 
+class _EmptyCustodyCalendarIntro extends StatelessWidget {
+  const _EmptyCustodyCalendarIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.auto_awesome_outlined),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Zacznij od gotowego presetu albo wpisz dni recznie nizej.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MonthHeader extends StatelessWidget {
   const _MonthHeader({
     required this.visibleMonth,
@@ -346,6 +461,166 @@ class _DayCell extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _CustodyPresetCard extends StatelessWidget {
+  const _CustodyPresetCard({
+    required this.startDateController,
+    required this.presetDefinitions,
+    required this.selectedPresetType,
+    required this.parents,
+    required this.firstParent,
+    required this.previewDays,
+    required this.onPresetChanged,
+    required this.onFirstParentChanged,
+    required this.onPreview,
+    required this.onApply,
+    this.presetError,
+  });
+
+  final TextEditingController startDateController;
+  final List<CustodyPresetDefinition> presetDefinitions;
+  final CustodyPresetType selectedPresetType;
+  final List<CustodyParent> parents;
+  final CustodyParent firstParent;
+  final List<CustodyDay> previewDays;
+  final ValueChanged<CustodyPresetType?> onPresetChanged;
+  final ValueChanged<CustodyParent?> onFirstParentChanged;
+  final VoidCallback onPreview;
+  final VoidCallback onApply;
+  final String? presetError;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedDefinition = presetDefinitions.firstWhere(
+      (definition) => definition.type == selectedPresetType,
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Presety opieki',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(selectedDefinition.description),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<CustodyPresetType>(
+              key: const Key('custody-preset-picker'),
+              initialValue: selectedPresetType,
+              decoration: const InputDecoration(
+                labelText: 'Preset',
+                prefixIcon: Icon(Icons.calendar_view_week_outlined),
+              ),
+              items: [
+                for (final definition in presetDefinitions)
+                  DropdownMenuItem(
+                    value: definition.type,
+                    child: Text(definition.label),
+                  ),
+              ],
+              onChanged: onPresetChanged,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('custody-preset-start-date'),
+              controller: startDateController,
+              keyboardType: TextInputType.datetime,
+              decoration: InputDecoration(
+                labelText: 'Start presetu',
+                hintText: 'RRRR-MM-DD',
+                prefixIcon: const Icon(Icons.event_repeat_outlined),
+                errorText: presetError,
+              ),
+              onChanged: (_) => onPreview(),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<CustodyParent>(
+              key: const Key('custody-preset-first-parent'),
+              initialValue: firstParent,
+              decoration: const InputDecoration(
+                labelText: 'Rodzic startujacy',
+                prefixIcon: Icon(Icons.person_outline),
+              ),
+              items: [
+                for (final parent in parents)
+                  DropdownMenuItem(value: parent, child: Text(parent.label)),
+              ],
+              onChanged: onFirstParentChanged,
+            ),
+            const SizedBox(height: 12),
+            _PresetPreview(days: previewDays),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onPreview,
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('Odswiez podglad'),
+                ),
+                FilledButton.icon(
+                  onPressed: previewDays.isEmpty ? null : onApply,
+                  icon: const Icon(Icons.done_all_outlined),
+                  label: const Text('Zastosuj 14 dni'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PresetPreview extends StatelessWidget {
+  const _PresetPreview({required this.days});
+
+  final List<CustodyDay> days;
+
+  @override
+  Widget build(BuildContext context) {
+    if (days.isEmpty) {
+      return const Text('Podglad pojawi sie po podaniu poprawnej daty.');
+    }
+
+    return Semantics(
+      label: 'Podglad presetu opieki na 14 dni',
+      child: GridView.count(
+        crossAxisCount: 7,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.05,
+        children: [
+          for (final day in days)
+            Padding(
+              padding: const EdgeInsets.all(2),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: day.parent.isCurrentUser
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : Theme.of(context).colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Theme.of(context).dividerColor),
+                ),
+                child: Center(
+                  child: Text(
+                    '${day.date.substring(8)}\n${day.parent.isCurrentUser ? 'Ty' : '2R'}',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

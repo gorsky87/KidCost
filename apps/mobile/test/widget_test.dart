@@ -16,6 +16,27 @@ import 'package:kidcost_mobile/src/features/shell/screens/settings_screen.dart';
 import 'package:kidcost_mobile/src/telemetry/app_telemetry.dart';
 import 'package:kidcost_mobile/src/theme/kidcost_theme.dart';
 
+Future<void> dragUntilPresent(
+  WidgetTester tester,
+  Finder finder, {
+  Finder? scrollable,
+  Offset delta = const Offset(0, -700),
+}) async {
+  final targetScrollable = scrollable ?? find.byType(ListView).first;
+  for (var attempt = 0; attempt < 8 && finder.evaluate().isEmpty; attempt++) {
+    await tester.drag(targetScrollable, delta);
+    await tester.pumpAndSettle();
+  }
+  expect(finder, findsOneWidget);
+}
+
+Finder editableTextByKey(Key key) {
+  return find.descendant(
+    of: find.byKey(key),
+    matching: find.byType(EditableText),
+  );
+}
+
 void main() {
   testWidgets('theme exposes the Calm Ledger brand palette', (
     WidgetTester tester,
@@ -859,10 +880,15 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.drag(find.byType(ListView).first, const Offset(0, -800));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).at(0), '2026-06-24');
-    await tester.enterText(find.byType(TextField).at(1), '2026-06-26');
+    await dragUntilPresent(tester, find.byKey(const Key('custody-start-date')));
+    await tester.enterText(
+      editableTextByKey(const Key('custody-start-date')),
+      '2026-06-24',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('custody-end-date')),
+      '2026-06-26',
+    );
     await tester.ensureVisible(find.text('Zapisz opieke'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Zapisz opieke'));
@@ -884,6 +910,117 @@ void main() {
     expect(custodyDays.first.parent.label, 'Drugi rodzic');
   });
 
+  testWidgets('custody calendar previews and applies a preset', (
+    WidgetTester tester,
+  ) async {
+    var custodyDays = <CustodyDay>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              return CustodyCalendarScreen(
+                profile: testProfile(),
+                userEmail: 'parent@example.com',
+                currentDate: DateTime.utc(2026, 6, 24),
+                custodyDays: custodyDays,
+                onCustodyDaysChanged: (updated) {
+                  setState(() => custodyDays = updated);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Zacznij od gotowego presetu albo wpisz dni recznie nizej.'),
+      findsOneWidget,
+    );
+    await dragUntilPresent(tester, find.text('Presety opieki'));
+    expect(find.text('Presety opieki'), findsOneWidget);
+    await dragUntilPresent(tester, find.text('Dodaj opieke'));
+    await dragUntilPresent(
+      tester,
+      find.text('Presety opieki'),
+      delta: const Offset(0, 700),
+    );
+    expect(find.text('24\nTy', skipOffstage: false), findsOneWidget);
+
+    await tester.enterText(
+      editableTextByKey(const Key('custody-preset-start-date')),
+      '2026-06-01',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zastosuj 14 dni'));
+    await tester.pumpAndSettle();
+
+    expect(custodyDays, hasLength(14));
+    expect(custodyDays.first.date, '2026-06-01');
+    expect(custodyDays[6].parent.label, 'parent@example.com');
+    expect(custodyDays[7].parent.label, 'Drugi rodzic');
+    expect(find.text('Preset opieki zastosowany na 14 dni.'), findsOneWidget);
+  });
+
+  testWidgets('custody preset generator supports common schedules', (_) async {
+    const firstParent = CustodyParent(
+      id: 'self',
+      label: 'Pierwszy rodzic',
+      isCurrentUser: true,
+    );
+    const secondParent = CustodyParent(
+      id: 'co-parent',
+      label: 'Drugi rodzic',
+      isCurrentUser: false,
+    );
+
+    final twoTwoThree = buildCustodyPresetDays(
+      presetType: CustodyPresetType.twoTwoThree,
+      startDate: DateTime.utc(2026, 6, 1),
+      dayCount: 14,
+      childName: 'Ola',
+      firstParent: firstParent,
+      secondParent: secondParent,
+      createdAt: DateTime.utc(2026, 6, 1),
+    );
+    expect(twoTwoThree.map((day) => day.parent.id), [
+      'self',
+      'self',
+      'co-parent',
+      'co-parent',
+      'self',
+      'self',
+      'self',
+      'co-parent',
+      'co-parent',
+      'self',
+      'self',
+      'co-parent',
+      'co-parent',
+      'co-parent',
+    ]);
+
+    final weekdaysWeekends = buildCustodyPresetDays(
+      presetType: CustodyPresetType.weekdaysWeekends,
+      startDate: DateTime.utc(2026, 6, 1),
+      dayCount: 7,
+      childName: 'Ola',
+      firstParent: firstParent,
+      secondParent: secondParent,
+      createdAt: DateTime.utc(2026, 6, 1),
+    );
+    expect(
+      weekdaysWeekends.take(5).every((day) => day.parent.id == 'self'),
+      isTrue,
+    );
+    expect(
+      weekdaysWeekends.skip(5).every((day) => day.parent.id == 'co-parent'),
+      isTrue,
+    );
+  });
+
   testWidgets('custody calendar is reachable from navigation and dashboard', (
     WidgetTester tester,
   ) async {
@@ -894,9 +1031,15 @@ void main() {
 
     expect(find.text('Kalendarz opieki'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView).last, const Offset(0, -800));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, '2026-06-24');
+    await dragUntilPresent(
+      tester,
+      find.byKey(const Key('custody-start-date')),
+      scrollable: find.byType(ListView).last,
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('custody-start-date')),
+      '2026-06-24',
+    );
     await tester.ensureVisible(find.text('Zapisz opieke'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Zapisz opieke'));

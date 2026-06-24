@@ -36,6 +36,95 @@ class CustodyDay {
   }
 }
 
+enum CustodyPresetType { alternatingWeeks, twoTwoThree, weekdaysWeekends }
+
+class CustodyPresetDefinition {
+  const CustodyPresetDefinition({
+    required this.type,
+    required this.label,
+    required this.description,
+  });
+
+  final CustodyPresetType type;
+  final String label;
+  final String description;
+}
+
+const custodyPresetDefinitions = [
+  CustodyPresetDefinition(
+    type: CustodyPresetType.alternatingWeeks,
+    label: 'Tydzien na tydzien',
+    description: 'Zmiana rodzica co 7 dni.',
+  ),
+  CustodyPresetDefinition(
+    type: CustodyPresetType.twoTwoThree,
+    label: '2-2-3',
+    description: 'Dwa dni, dwa dni, trzy dni i zamiana w kolejnym tygodniu.',
+  ),
+  CustodyPresetDefinition(
+    type: CustodyPresetType.weekdaysWeekends,
+    label: 'Dni robocze / weekendy',
+    description: 'Rodzic startujacy ma dni robocze, drugi rodzic weekendy.',
+  ),
+];
+
+List<CustodyDay> buildCustodyPresetDays({
+  required CustodyPresetType presetType,
+  required DateTime startDate,
+  required int dayCount,
+  required String childName,
+  required CustodyParent firstParent,
+  required CustodyParent secondParent,
+  DateTime? createdAt,
+}) {
+  if (dayCount <= 0) {
+    return const [];
+  }
+
+  final created = createdAt ?? DateTime.now().toUtc();
+  return [
+    for (var index = 0; index < dayCount; index++)
+      _buildPresetDay(
+        presetType: presetType,
+        date: startDate.add(Duration(days: index)),
+        index: index,
+        childName: childName,
+        firstParent: firstParent,
+        secondParent: secondParent,
+        createdAt: created,
+      ),
+  ];
+}
+
+CustodyDay _buildPresetDay({
+  required CustodyPresetType presetType,
+  required DateTime date,
+  required int index,
+  required String childName,
+  required CustodyParent firstParent,
+  required CustodyParent secondParent,
+  required DateTime createdAt,
+}) {
+  final parent = switch (presetType) {
+    CustodyPresetType.alternatingWeeks =>
+      (index ~/ 7).isEven ? firstParent : secondParent,
+    CustodyPresetType.twoTwoThree =>
+      const [0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1][index % 14] == 0
+          ? firstParent
+          : secondParent,
+    CustodyPresetType.weekdaysWeekends =>
+      date.weekday <= DateTime.friday ? firstParent : secondParent,
+  };
+  final formattedDate = formatCustodyDate(date);
+  return CustodyDay(
+    id: 'custody-$formattedDate',
+    date: formattedDate,
+    childName: childName,
+    parent: parent,
+    createdAt: createdAt,
+  );
+}
+
 String formatCustodyDate(DateTime date) {
   return [
     date.year.toString().padLeft(4, '0'),
