@@ -20,6 +20,7 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'secret1');
     await tester.tap(find.byIcon(Icons.login));
     await tester.pumpAndSettle();
+    await completeOnboarding(tester);
 
     expect(find.text('Podsumowanie miesiaca'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
@@ -36,6 +37,7 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'secret1');
     await tester.tap(find.byIcon(Icons.login));
     await tester.pumpAndSettle();
+    await completeOnboarding(tester);
 
     await tester.tap(find.text('Dodaj'));
     await tester.pump();
@@ -79,8 +81,54 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'secret1');
     await tester.tap(find.byIcon(Icons.person_add));
     await tester.pumpAndSettle();
+    await completeOnboarding(tester, childName: 'Ola');
 
     expect(find.text('Podsumowanie miesiaca'), findsOneWidget);
+  });
+
+  testWidgets('onboarding can create an invitation code', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      KidCostApp(authRepository: InMemoryAuthRepository()),
+    );
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField).first, 'parent@example.com');
+    await tester.enterText(find.byType(TextField).last, 'secret1');
+    await tester.tap(find.byIcon(Icons.login));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Zakladam rodzine'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dalej'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Ola');
+    await tester.tap(find.text('Dalej'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField).first,
+      'coparent@example.com',
+    );
+    await tester.tap(find.text('Wygeneruj kod'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Kod zaproszenia: KC-'), findsOneWidget);
+    expect(
+      find.text('Kod nie ujawnia kosztow ani danych dziecka.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Zakoncz'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rodzina'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('coparent@example.com'), findsOneWidget);
+    expect(
+      find.textContaining('nie ujawnia danych rodzinnych'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('logout clears the user session', (WidgetTester tester) async {
@@ -92,6 +140,7 @@ void main() {
     await tester.enterText(find.byType(TextField).last, 'secret1');
     await tester.tap(find.byIcon(Icons.login));
     await tester.pumpAndSettle();
+    await completeOnboarding(tester);
 
     await tester.tap(find.text('Ustawienia'));
     await tester.pumpAndSettle();
@@ -102,4 +151,27 @@ void main() {
 
     expect(find.text('Zaloguj'), findsOneWidget);
   });
+}
+
+Future<void> completeOnboarding(
+  WidgetTester tester, {
+  String childName = 'Antek',
+}) async {
+  expect(find.text('Jak zaczynamy?'), findsOneWidget);
+
+  await tester.tap(find.text('Zakladam rodzine'));
+  await tester.pumpAndSettle();
+  expect(find.text('Nazwij rodzine'), findsOneWidget);
+
+  await tester.tap(find.text('Dalej'));
+  await tester.pumpAndSettle();
+  expect(find.text('Dodaj dziecko'), findsOneWidget);
+
+  await tester.enterText(find.byType(TextField).first, childName);
+  await tester.tap(find.text('Dalej'));
+  await tester.pumpAndSettle();
+  expect(find.text('Zapros rodzica'), findsOneWidget);
+
+  await tester.tap(find.text('Pomin zaproszenie'));
+  await tester.pumpAndSettle();
 }

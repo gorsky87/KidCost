@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'config/app_config.dart';
 import 'features/auth/auth_repository.dart';
 import 'features/auth/sign_in_screen.dart';
+import 'features/onboarding/family_onboarding_screen.dart';
+import 'features/onboarding/onboarding_profile.dart';
 import 'features/shell/kidcost_shell.dart';
 import 'theme/kidcost_theme.dart';
 
@@ -22,6 +24,7 @@ class _KidCostAppState extends State<KidCostApp> {
   late final AppConfig _config;
   StreamSubscription<AuthSession?>? _authSubscription;
   AuthSession? _session;
+  OnboardingProfile? _onboardingProfile;
   bool _isLoading = true;
   String? _startupMessage;
 
@@ -66,9 +69,20 @@ class _KidCostAppState extends State<KidCostApp> {
 
     final session = _session;
     if (session != null) {
+      final profile = _onboardingProfile;
+      if (profile == null) {
+        return FamilyOnboardingScreen(
+          userEmail: session.email,
+          onComplete: (profile) {
+            setState(() => _onboardingProfile = profile);
+          },
+        );
+      }
+
       return KidCostShell(
         userEmail: session.email,
         isDemoSession: session.isDemo,
+        onboardingProfile: profile,
         onSignOut: _signOut,
       );
     }
@@ -116,6 +130,7 @@ class _KidCostAppState extends State<KidCostApp> {
       if (!mounted) return;
       setState(() {
         _session = null;
+        _onboardingProfile = null;
         _isLoading = false;
       });
     } on AuthFailure catch (error) {
