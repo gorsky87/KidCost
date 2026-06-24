@@ -1,0 +1,143 @@
+{
+  "meta": {
+    "name": "KidCost MVP Mini Design System",
+    "issue": 29,
+    "mode": "mobile-first",
+    "source": "docs/DESIGN_SYSTEM_MVP.md"
+  },
+  "color": {
+    "primary": "#0F766E",
+    "onPrimary": "#FFFFFF",
+    "primaryContainer": "#D6F3EF",
+    "onPrimaryContainer": "#062E2B",
+    "secondary": "#C76F3D",
+    "onSecondary": "#FFFFFF",
+    "secondaryContainer": "#FFE3D3",
+    "onSecondaryContainer": "#4B1F0D",
+    "tertiary": "#375E97",
+    "onTertiary": "#FFFFFF",
+    "tertiaryContainer": "#DCE8FF",
+    "onTertiaryContainer": "#10284F",
+    "success": "#2F855A",
+    "warning": "#B7791F",
+    "danger": "#B42318",
+    "surface": "#FAFAF7",
+    "surfaceVariant": "#E7ECE7",
+    "text": "#172326",
+    "outline": "#6F7D80",
+    "outlineVariant": "#C7D0D2"
+  },
+  "space": {
+    "1": 4,
+    "2": 8,
+    "3": 12,
+    "4": 16,
+    "5": 24,
+    "6": 32
+  },
+  "radius": {
+    "sm": 8,
+    "md": 12,
+    "pill": 999
+  },
+  "stroke": {
+    "hairline": 1,
+    "emphasis": 2
+  },
+  "size": {
+    "tapTarget": 48,
+    "icon": 24,
+    "statusIcon": 18,
+    "buttonHeight": 48
+  },
+  "typography": {
+    "displaySmall": {
+      "size": 32,
+      "weight": 700
+    },
+    "headlineSmall": {
+      "size": 24,
+      "weight": 700
+    },
+    "titleLarge": {
+      "size": 22,
+      "weight": 700
+    },
+    "titleMedium": {
+      "size": 16,
+      "weight": 700
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 400
+    },
+    "bodyMedium": {
+      "size": 14,
+      "weight": 400
+    },
+    "labelLarge": {
+      "size": 14,
+      "weight": 700
+    },
+    "labelSmall": {
+      "size": 12,
+      "weight": 600
+    }
+  },
+  "component": {
+    "button": {
+      "primary": {
+        "base": "FilledButton",
+        "height": 48,
+        "background": "{color.primary}",
+        "foreground": "{color.onPrimary}"
+      },
+      "secondary": {
+        "base": "OutlinedButton",
+        "height": 48,
+        "border": "{color.outlineVariant}",
+        "foreground": "{color.primary}"
+      },
+      "destructive": {
+        "base": "FilledButton",
+        "height": 48,
+        "background": "{color.danger}",
+        "foreground": "{color.onPrimary}",
+        "requiresIconOrExplicitLabel": true
+      },
+      "icon": {
+        "base": "IconButton",
+        "tapTarget": 48,
+        "requiresTooltip": true
+      }
+    },
+    "card": {
+      "radius": "{radius.sm}",
+      "border": "{color.outlineVariant}",
+      "elevation": 0,
+      "padding": "{space.3}"
+    },
+    "chip": {
+      "radius": "{radius.pill}",
+      "minHeight": 40,
+      "tapTarget": 48,
+      "requiresTextLabel": true
+    },
+    "statusBadge": {
+      "radius": "{radius.pill}",
+      "iconSize": "{size.statusIcon}",
+      "requiresTextAndIcon": true
+    },
+    "formField": {
+      "radius": "{radius.sm}",
+      "border": "{color.outline}",
+      "error": "{color.danger}",
+      "requiresInlineErrorText": true
+    },
+    "emptyState": {
+      "iconSize": 48,
+      "maxBodySentences": 1,
+      "requiresPrimaryAction": true
+    }
+  }
+}
