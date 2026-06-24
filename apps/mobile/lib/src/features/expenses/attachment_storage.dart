@@ -58,7 +58,12 @@ class SupabaseAttachmentStorage implements AttachmentStorage {
 }
 
 AttachmentDraft sanitizeAttachmentForUpload(AttachmentDraft attachment) {
-  final sanitizedBytes = switch (attachment.contentType) {
+  final contentType = attachment.contentType
+      .split(';')
+      .first
+      .trim()
+      .toLowerCase();
+  final sanitizedBytes = switch (contentType) {
     'image/jpeg' || 'image/jpg' => _stripJpegExif(attachment.bytes),
     'image/png' => _stripPngMetadata(attachment.bytes),
     _ => attachment.bytes,

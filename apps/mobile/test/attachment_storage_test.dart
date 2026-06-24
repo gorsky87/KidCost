@@ -33,6 +33,43 @@ void main() {
     expect(sanitized.bytes, containsAllInOrder([0xff, 0xda, 0x00, 0x02]));
   });
 
+  test('sanitizeAttachmentForUpload normalizes image content type', () {
+    final draft = AttachmentDraft(
+      fileName: 'receipt.jpg',
+      contentType: ' Image/JPEG; charset=binary ',
+      bytes: Uint8List.fromList([
+        0xff,
+        0xd8,
+        ..._jpegSegment(0xe1, [
+          0x45,
+          0x78,
+          0x69,
+          0x66,
+          0x00,
+          0x00,
+          0x47,
+          0x50,
+          0x53,
+        ]),
+        0xff,
+        0xda,
+        0x00,
+        0x02,
+        0x11,
+        0x22,
+        0xff,
+        0xd9,
+      ]),
+    );
+
+    final sanitized = sanitizeAttachmentForUpload(draft);
+
+    expect(
+      sanitized.bytes,
+      isNot(containsAllInOrder([0x45, 0x78, 0x69, 0x66])),
+    );
+  });
+
   test('sanitizeAttachmentForUpload strips PNG metadata chunks', () {
     final draft = AttachmentDraft(
       fileName: 'receipt.png',
