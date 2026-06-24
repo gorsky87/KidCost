@@ -28,7 +28,8 @@ values
   ('outsider', gen_random_uuid()),
   ('family_id', gen_random_uuid()),
   ('expense_id', gen_random_uuid()),
-  ('attachment_id', gen_random_uuid());
+  ('attachment_id', gen_random_uuid()),
+  ('replacement_attachment_id', gen_random_uuid());
 
 grant select on storage_ids to authenticated;
 
@@ -103,12 +104,25 @@ do $$
 declare
   visible_objects integer;
   visible_metadata integer;
+  attachment_audit_count integer;
 begin
   select count(*) into visible_objects from storage.objects where bucket_id = 'expense-attachments';
   select count(*) into visible_metadata from public.expense_attachments;
+  select count(*) into attachment_audit_count
+  from public.audit_events
+  where entity_type = 'expense_attachment'
+    and entity_id = (select id from storage_ids where name = 'attachment_id')
+    and event_type = 'attachment_added'
+    and metadata->>'storagePath' = (
+      'families/' || (select id from storage_ids where name = 'family_id') || '/expenses/' || (select id from storage_ids where name = 'expense_id') || '/receipt.pdf'
+    );
 
   if visible_objects <> 1 or visible_metadata <> 1 then
     raise exception 'family owner cannot see uploaded attachment object and metadata';
+  end if;
+
+  if attachment_audit_count <> 1 then
+    raise exception 'attachment upload did not create an audit event';
   end if;
 
   if not exists (
@@ -121,6 +135,97 @@ begin
   ) then
     raise exception 'family owner cannot read expense evidence metadata';
   end if;
+end $$;
+
+insert into storage.objects (bucket_id, name)
+values (
+  'expense-attachments',
+  'families/' || (select id from storage_ids where name = 'family_id') || '/expenses/' || (select id from storage_ids where name = 'expense_id') || '/receipt-v2.pdf'
+);
+
+insert into public.expense_attachments (
+  id,
+  expense_id,
+  storage_path,
+  file_type,
+  uploaded_by,
+  evidence_type,
+  document_date,
+  merchant,
+  document_number,
+  payment_method,
+  buyer_name_present
+)
+values (
+  (select id from storage_ids where name = 'replacement_attachment_id'),
+  (select id from storage_ids where name = 'expense_id'),
+  'families/' || (select id from storage_ids where name = 'family_id') || '/expenses/' || (select id from storage_ids where name = 'expense_id') || '/receipt-v2.pdf',
+  'pdf',
+  (select id from storage_ids where name = 'owner'),
+  'receipt',
+  current_date,
+  'Apteka Testowa',
+  'PAR/2026/06',
+  'card',
+  true
+);
+
+update public.expense_attachments
+set
+  deleted_at = now(),
+  deleted_by = (select id from storage_ids where name = 'owner'),
+  delete_reason = 'replaced with clearer scan',
+  replaced_by_attachment_id = (select id from storage_ids where name = 'replacement_attachment_id')
+where id = (select id from storage_ids where name = 'attachment_id');
+
+do $$
+declare
+  active_metadata integer;
+  replacement_audit_count integer;
+  physical_object_count integer;
+begin
+  select count(*) into active_metadata
+  from public.expense_attachments
+  where expense_id = (select id from storage_ids where name = 'expense_id')
+    and deleted_at is null;
+
+  select count(*) into replacement_audit_count
+  from public.audit_events
+  where entity_type = 'expense_attachment'
+    and entity_id = (select id from storage_ids where name = 'attachment_id')
+    and event_type = 'attachment_replaced'
+    and metadata->>'deleteReason' = 'replaced with clearer scan'
+    and metadata->>'replacedByAttachmentId' = (select id::text from storage_ids where name = 'replacement_attachment_id');
+
+  select count(*) into physical_object_count
+  from storage.objects
+  where bucket_id = 'expense-attachments'
+    and name = 'families/' || (select id from storage_ids where name = 'family_id') || '/expenses/' || (select id from storage_ids where name = 'expense_id') || '/receipt.pdf';
+
+  if active_metadata <> 1 then
+    raise exception 'replacement should leave exactly one active attachment metadata row';
+  end if;
+
+  if replacement_audit_count <> 1 then
+    raise exception 'attachment replacement did not create an audit event';
+  end if;
+
+  if physical_object_count <> 1 then
+    raise exception 'soft delete should not physically delete the original storage object';
+  end if;
+end $$;
+
+do $$
+begin
+  begin
+    delete from storage.objects
+    where bucket_id = 'expense-attachments'
+      and name = 'families/' || (select id from storage_ids where name = 'family_id') || '/expenses/' || (select id from storage_ids where name = 'expense_id') || '/receipt.pdf';
+    raise exception 'family owner physically deleted an attachment object';
+  exception
+    when insufficient_privilege then
+      null;
+  end;
 end $$;
 
 select set_config('request.jwt.claim.sub', (select id::text from storage_ids where name = 'outsider'), true);
