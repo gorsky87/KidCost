@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
@@ -617,6 +618,15 @@ class _StatusActionsSection extends StatelessWidget {
           ),
         ];
       case ExpenseStatus.disputed:
+        if (isAuthor) {
+          return const [
+            _StatusAction(
+              label: 'Dodaj korekte po wyjasnieniu',
+              icon: Icons.edit_note_outlined,
+              targetStatus: ExpenseStatus.disputed,
+            ),
+          ];
+        }
         return const [
           _StatusAction(
             label: 'Potwierdz po wyjasnieniu',
@@ -646,6 +656,12 @@ class _StatusActionsSection extends StatelessWidget {
     if (action.requiresComment && comment == null) {
       return;
     }
+    if (!_isStatusTransitionAllowed(action.targetStatus, comment: comment)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ta zmiana statusu nie jest dostepna.')),
+      );
+      return;
+    }
 
     onExpenseChanged!(
       expense.copyWith(status: action.targetStatus, statusComment: comment),
@@ -654,6 +670,23 @@ class _StatusActionsSection extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Status zmieniony: ${action.targetStatus.label}.'),
+      ),
+    );
+  }
+
+  bool _isStatusTransitionAllowed(
+    ExpenseStatus targetStatus, {
+    String? comment,
+  }) {
+    final actor = expense.paidBy.isCurrentUser
+        ? domain.ExpenseStatusActor.author
+        : domain.ExpenseStatusActor.counterparty;
+    return domain.canTransitionExpenseStatus(
+      domain.ExpenseStatusTransition(
+        from: expense.status.toDomainStatus(),
+        to: targetStatus.toDomainStatus(),
+        actor: actor,
+        comment: comment,
       ),
     );
   }
@@ -695,6 +728,21 @@ class _StatusActionsSection extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+extension _ExpenseStatusDomainMapping on ExpenseStatus {
+  domain.ExpenseStatus toDomainStatus() {
+    switch (this) {
+      case ExpenseStatus.pending:
+        return domain.ExpenseStatus.pending;
+      case ExpenseStatus.accepted:
+        return domain.ExpenseStatus.accepted;
+      case ExpenseStatus.disputed:
+        return domain.ExpenseStatus.disputed;
+      case ExpenseStatus.settled:
+        return domain.ExpenseStatus.settled;
+    }
   }
 }
 

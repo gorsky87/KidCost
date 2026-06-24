@@ -7,6 +7,7 @@ void main() {
   testAcceptedExpenseCanBeSettled();
   testSettledExpenseIsTerminal();
   testDisputedExpenseCanReturnToAccepted();
+  testAuthorCannotAcceptDisputedExpense();
   testCoreFieldsFreezeAfterReaction();
   testStatusParserNormalizesWireNames();
   testStatusEventNormalizesAuditData();
@@ -92,6 +93,18 @@ void testDisputedExpenseCanReturnToAccepted() {
         from: ExpenseStatus.disputed,
         to: ExpenseStatus.accepted,
         actor: ExpenseStatusActor.counterparty,
+      ),
+    ),
+  );
+}
+
+void testAuthorCannotAcceptDisputedExpense() {
+  expectFalse(
+    canTransitionExpenseStatus(
+      const ExpenseStatusTransition(
+        from: ExpenseStatus.disputed,
+        to: ExpenseStatus.accepted,
+        actor: ExpenseStatusActor.author,
       ),
     ),
   );
