@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../premium/premium_discovery.dart';
 
@@ -195,13 +196,13 @@ class _PlanComparisonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Card(
+    return Card(
       child: Padding(
-        padding: EdgeInsets.all(12),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListTile(
+            const ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(Icons.compare_arrows_outlined),
               title: Text('Zakres MVP i przyszlego Premium'),
@@ -209,14 +210,18 @@ class _PlanComparisonCard extends StatelessWidget {
                 'Bez cen i bez blokowania podstawowych przeplywow.',
               ),
             ),
-            _PlanRow(
-              title: 'MVP/basic',
-              body:
-                  'Dodawanie kosztow, saldo, zalaczniki, statusy i podstawowy CSV.',
-            ),
+            _PlanRow(title: 'MVP/basic', body: domain.freePlanSummaryText()),
             _PlanRow(
               title: 'Kandydaci Premium',
-              body: 'OCR, PDF, pakiety dowodow, wiekszy storage i historia.',
+              body: domain.premiumPlanSummaryText(),
+            ),
+            _PlanRow(
+              title: 'Downgrade',
+              body: domain.downgradeProtectionSummaryText(),
+            ),
+            _PlanRow(
+              title: 'Platnik rodzinny',
+              body: domain.familyBillingPolicy.summary,
             ),
           ],
         ),
