@@ -166,12 +166,19 @@ Minimalne parametry builda przekazywane przez `--dart-define`:
 ```sh
 --dart-define=KIDCOST_RELEASE_CHANNEL=demo
 --dart-define=KIDCOST_BUILD_NAME=1.0.0
---dart-define=KIDCOST_BUILD_NUMBER=1
+--dart-define=KIDCOST_BUILD_NUMBER=2
 --dart-define=KIDCOST_ANALYTICS_ENABLED=false
 --dart-define=KIDCOST_CRASH_REPORTING_ENABLED=false
 ```
 
 Dla bety ustawiamy `KIDCOST_RELEASE_CHANNEL=beta`, podbijamy `KIDCOST_BUILD_NAME` i `KIDCOST_BUILD_NUMBER`, a `KIDCOST_ANALYTICS_ENABLED=true` oraz `KIDCOST_CRASH_REPORTING_ENABLED=true` dopiero wtedy, gdy build ma komplet konfiguracji Firebase dla Androida i iOS.
+
+Pierwsza konfiguracja beta jest zapisana jako `1.0.0+2` w `apps/mobile/pubspec.yaml`, `pl.kidcost.app` w Android/iOS oraz w `docs/BETA_BUILD_1.md`. Przed wysylka uruchom:
+
+```sh
+scripts/verify_beta_release_config.sh
+scripts/build_beta_artifacts.sh --check-only
+```
 
 Eventy MVP:
 

@@ -15,6 +15,8 @@ Environment:
   KIDCOST_ANDROID_AVD      AVD to launch when no device is connected.
                            Default: kidcost_demo_api36
   KIDCOST_ANDROID_DEVICE   Device id to use instead of auto-detecting.
+  KIDCOST_ANDROID_PACKAGE  Android application id to launch for smoke.
+                           Default: pl.kidcost.app
   KIDCOST_SMOKE_SCREENSHOT Screenshot path for --smoke.
 USAGE
 }
@@ -46,6 +48,7 @@ done
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mobile_dir="$repo_root/apps/mobile"
 avd_name="${KIDCOST_ANDROID_AVD:-kidcost_demo_api36}"
+android_package="${KIDCOST_ANDROID_PACKAGE:-pl.kidcost.app}"
 screenshot_path="${KIDCOST_SMOKE_SCREENSHOT:-${TMPDIR:-/tmp}/kidcost-android-smoke.png}"
 launched_emulator=0
 
@@ -106,7 +109,7 @@ cd "$mobile_dir"
 if [[ "$mode" == "smoke" ]]; then
   flutter build apk --debug
   adb -s "$device_id" install -r build/app/outputs/flutter-apk/app-debug.apk >/dev/null
-  adb -s "$device_id" shell am start -n app.kidcost.mobile/.MainActivity >/dev/null
+  adb -s "$device_id" shell monkey -p "$android_package" -c android.intent.category.LAUNCHER 1 >/dev/null
   sleep 3
   adb -s "$device_id" exec-out screencap -p > "$screenshot_path"
   echo "Smoke screenshot: $screenshot_path"

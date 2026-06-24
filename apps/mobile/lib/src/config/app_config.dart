@@ -23,7 +23,7 @@ class AppConfig {
       ),
       buildNumber: String.fromEnvironment(
         'KIDCOST_BUILD_NUMBER',
-        defaultValue: '1',
+        defaultValue: '2',
       ),
       analyticsEnabled: bool.fromEnvironment('KIDCOST_ANALYTICS_ENABLED'),
       crashReportingEnabled: bool.fromEnvironment(
