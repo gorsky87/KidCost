@@ -14,6 +14,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/expense_templates_screen.dart';
 import 'screens/expenses_screen.dart';
 import 'screens/family_screen.dart';
+import 'screens/monthly_cost_plan_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 
@@ -175,6 +176,16 @@ class _KidCostShellState extends State<KidCostShell> {
       icon: Icons.group_outlined,
       selectedIcon: Icons.group,
       screen: FamilyScreen(profile: widget.onboardingProfile),
+    ),
+    _Destination(
+      label: 'Kosztorys',
+      icon: Icons.request_quote_outlined,
+      selectedIcon: Icons.request_quote,
+      screen: MonthlyCostPlanScreen(
+        childName: widget.onboardingProfile.childName,
+        expenses: widget.expenses,
+        currentDate: widget.currentDate,
+      ),
     ),
     _Destination(
       label: 'Ustawienia',

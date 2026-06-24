@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:kidcost_mobile/src/app.dart';
@@ -13,6 +14,7 @@ import 'package:kidcost_mobile/src/features/shell/screens/add_expense_screen.dar
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/monthly_cost_plan_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/settings_screen.dart';
 import 'package:kidcost_mobile/src/telemetry/app_telemetry.dart';
@@ -24,7 +26,7 @@ Future<void> dragUntilPresent(
   Finder? scrollable,
   Offset delta = const Offset(0, -700),
 }) async {
-  final targetScrollable = scrollable ?? find.byType(ListView).first;
+  final targetScrollable = scrollable ?? find.byType(Scrollable).first;
   for (var attempt = 0; attempt < 8 && finder.evaluate().isEmpty; attempt++) {
     await tester.drag(targetScrollable, delta);
     await tester.pumpAndSettle();
@@ -303,6 +305,11 @@ void main() {
     await tester.ensureVisible(find.text('Zapisz koszt'));
     await tester.pumpAndSettle();
     expect(find.text('Zapisz koszt'), findsOneWidget);
+
+    await tester.tap(find.text('Kosztorys'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Miesieczny kosztorys dziecka'), findsOneWidget);
   });
 
   testWidgets('registration validates weak passwords', (
@@ -1702,7 +1709,7 @@ void main() {
     expect(find.text('Plan opieki zapisany.'), findsOneWidget);
     expect(find.text('parent@example.com'), findsWidgets);
 
-    await tester.drag(find.byType(ListView).first, const Offset(0, 800));
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 800));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.widgetWithText(OutlinedButton, '24'));
     await tester.pumpAndSettle();
@@ -1796,6 +1803,153 @@ void main() {
 
     expect(csv, contains('"wydarzenie_data","wydarzenie_tytul"'));
     expect(csv, contains('"2026-06-24","Opieka: Drugi rodzic"'));
+  });
+
+  testWidgets('monthly cost plan compares PL plan with actual expenses', (
+    WidgetTester tester,
+  ) async {
+    final copiedTexts = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final arguments = call.arguments as Map<Object?, Object?>;
+            copiedTexts.add(arguments['text']! as String);
+          }
+          return null;
+        });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MonthlyCostPlanScreen(
+            childName: 'Antek',
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(
+                id: 'school',
+                title: 'Przedszkole',
+                amountCents: 20000,
+                expenseDate: '2026-06-02',
+                category: expenseCategories.firstWhere(
+                  (category) => category.id == 'school',
+                ),
+              ),
+              testExpense(
+                id: 'health',
+                title: 'Lekarz',
+                amountCents: 5000,
+                expenseDate: '2026-06-03',
+                category: expenseCategories.firstWhere(
+                  (category) => category.id == 'health',
+                ),
+              ),
+              testExpense(
+                id: 'food',
+                title: 'Zakupy',
+                amountCents: 15000,
+                expenseDate: '2026-06-04',
+                category: expenseCategories.firstWhere(
+                  (category) => category.id == 'food',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Miesieczny kosztorys dziecka'), findsOneWidget);
+    expect(find.text('Edukacja/opieka'), findsOneWidget);
+    expect(find.text('Zdrowie'), findsOneWidget);
+    expect(find.text('Wyzywienie'), findsOneWidget);
+
+    await tester.enterText(
+      editableTextByKey(const Key('monthly-plan-field-education_care')),
+      '300',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('monthly-plan-field-food')),
+      '120',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('monthly-plan-field-health')),
+      '80',
+    );
+    await dragUntilPresent(
+      tester,
+      find.byKey(const Key('monthly-plan-field-housing_share')),
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('monthly-plan-field-housing_share')),
+      '700',
+    );
+    final savePlanButton = find.widgetWithText(
+      FilledButton,
+      'Zapisz plan kosztow',
+    );
+    await tester.scrollUntilVisible(
+      savePlanButton,
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(savePlanButton);
+    await tester.pumpAndSettle();
+    await tester.tap(savePlanButton);
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Podsumowanie 2026-06'),
+      140,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Plan zapisany dla: Antek'), findsOneWidget);
+    expect(find.text('1200,00 PLN'), findsOneWidget);
+    expect(find.text('400,00 PLN'), findsOneWidget);
+    expect(find.text('-800,00 PLN'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Plan kontra faktyczne koszty'),
+      140,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(
+      find.text('Plan 300,00 PLN - faktycznie 200,00 PLN'),
+      findsOneWidget,
+    );
+    expect(find.text('Udzial w kosztach mieszkaniowych'), findsWidgets);
+    expect(find.text('Plan 700,00 PLN - faktycznie 0,00 PLN'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Eksport roboczy'),
+      140,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final copySummaryButton = find.widgetWithText(
+      FilledButton,
+      'Kopiuj podsumowanie',
+    );
+    await tester.scrollUntilVisible(
+      copySummaryButton,
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(copySummaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(copySummaryButton);
+    await tester.pumpAndSettle();
+
+    expect(copiedTexts.single, contains('KidCost - miesieczny kosztorys'));
+    expect(copiedTexts.single, contains('nie jest porada prawna'));
+    await tester.scrollUntilVisible(
+      find.text('Disclaimer'),
+      140,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.textContaining('nie jest porada prawna'), findsWidgets);
   });
 
   testWidgets('custody calendar previews and applies a preset', (
