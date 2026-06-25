@@ -1025,6 +1025,80 @@ void main() {
     );
   });
 
+  testWidgets('add expense saves pay-provider request details', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    ExpenseEntry? savedExpense;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            currentDate: DateTime.utc(2026, 6, 24),
+            attachmentStorage: InMemoryAttachmentStorage(),
+            onExpenseSaved: (expense) => savedExpense = expense,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).first, '240');
+    await tester.scrollUntilVisible(
+      find.text('Typ prosby'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Typ prosby'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expense-request-kind-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zaplac dostawcy').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      editableTextByKey(const Key('provider-name-field')),
+      'Przedszkole Sloneczne',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('provider-reference-field')),
+      'Czesne lipiec',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('provider-amount-due-field')),
+      '120',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('provider-due-date-field')),
+      '2026-07-10',
+    );
+    tester.testTextInput.hide();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(savedExpense, isNotNull);
+    expect(
+      savedExpense!.reimbursementRequestKind,
+      ReimbursementRequestKind.payProvider,
+    );
+    expect(
+      savedExpense!.providerPayment?.providerName,
+      'Przedszkole Sloneczne',
+    );
+    expect(savedExpense!.providerPayment?.amountDueCents, 12000);
+    expect(savedExpense!.providerPayment?.dueDate, '2026-07-10');
+    expect(savedExpense!.settlementBalanceAmountCents, 0);
+  });
+
   testWidgets('add expense reviews OCR draft fields before saving receipt', (
     WidgetTester tester,
   ) async {
@@ -1745,6 +1819,47 @@ void main() {
     expect(find.text('Lekarz'), findsOneWidget);
   });
 
+  testWidgets('expense details distinguish provider payment requests', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            expenses: [
+              testExpense(
+                id: 'provider',
+                title: 'Czesne',
+                reimbursementRequestKind: ReimbursementRequestKind.payProvider,
+                providerPayment: const ProviderPaymentDetails(
+                  providerName: 'Przedszkole Sloneczne',
+                  paymentReference: 'Czesne lipiec',
+                  amountDueCents: 12000,
+                  dueDate: '2026-07-10',
+                  status: ProviderPaymentStatus.sent,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Czesne'), findsOneWidget);
+    expect(find.text('Wyslane'), findsOneWidget);
+    await tester.tap(find.text('Czesne'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dostawca'), findsOneWidget);
+    expect(find.text('Przedszkole Sloneczne'), findsWidgets);
+    expect(find.text('Kwota do dostawcy'), findsOneWidget);
+    expect(find.text('120,00 PLN'), findsOneWidget);
+    expect(
+      find.textContaining('nie jako zwrot gotowki dla rodzica'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('expense details show status actions and history placeholder', (
     WidgetTester tester,
   ) async {
@@ -2283,6 +2398,41 @@ void main() {
     expect(csv, contains('"2026-06-24","Opieka: Drugi rodzic"'));
     expect(csv, contains('"2026-06-25","2026-07-01","2026-07-25"'));
   });
+
+  testWidgets(
+    'reports export pay-provider requests without balance double count',
+    (WidgetTester tester) async {
+      final report = MonthlyExpenseReport.fromExpenses(
+        month: '2026-06',
+        expenses: [
+          testExpense(id: 'regular', title: 'Obiad', amountCents: 10000),
+          testExpense(
+            id: 'provider',
+            title: 'Terapia',
+            amountCents: 30000,
+            reimbursementRequestKind: ReimbursementRequestKind.payProvider,
+            providerPayment: const ProviderPaymentDetails(
+              providerName: 'Centrum Terapii',
+              paymentReference: 'Faktura 12/2026',
+              amountDueCents: 15000,
+              dueDate: '2026-07-05',
+              status: ProviderPaymentStatus.proofRequested,
+            ),
+          ),
+        ],
+      );
+
+      expect(report.totalCents, 10000);
+      expect(report.currentUserPaidCents, 10000);
+      expect(report.providerPaymentDueCents, 15000);
+      expect(report.balanceText, 'Drugi rodzic oddaje Tobie 50,00 PLN');
+
+      final csv = report.toCsv();
+      expect(csv, contains('"request_type","provider_name"'));
+      expect(csv, contains('"pay_provider","Centrum Terapii"'));
+      expect(csv, contains('"Faktura 12/2026","2026-07-05","150,00 PLN"'));
+    },
+  );
 
   testWidgets('monthly cost plan compares PL plan with actual expenses', (
     WidgetTester tester,
@@ -3281,6 +3431,9 @@ ExpenseEntry testExpense({
   EvidenceMetadata? verification,
   ExpenseRelatedRecordLink? relatedExpense,
   domain.ReimbursementDeadlineSnapshot? reimbursementDeadlines,
+  ReimbursementRequestKind reimbursementRequestKind =
+      ReimbursementRequestKind.reimburseParent,
+  ProviderPaymentDetails? providerPayment,
 }) {
   return ExpenseEntry(
     id: id,
@@ -3299,6 +3452,8 @@ ExpenseEntry testExpense({
     verification: verification,
     relatedExpense: relatedExpense,
     reimbursementDeadlines: reimbursementDeadlines,
+    reimbursementRequestKind: reimbursementRequestKind,
+    providerPayment: providerPayment,
   );
 }
 

@@ -66,9 +66,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _noticeDueAtController = TextEditingController();
   final _paymentDueAtController = TextEditingController();
   final _paidAtController = TextEditingController();
+  final _providerNameController = TextEditingController();
+  final _providerReferenceController = TextEditingController();
+  final _providerAmountDueController = TextEditingController();
+  final _providerDueDateController = TextEditingController();
   late final List<ExpensePayer> _payers;
   ExpenseCategory _category = expenseCategories.first;
   ExpensePayer? _payer;
+  ReimbursementRequestKind _requestKind =
+      ReimbursementRequestKind.reimburseParent;
+  ProviderPaymentStatus _providerPaymentStatus = ProviderPaymentStatus.sent;
   String _receiptCurrency = 'PLN';
   AttachmentDraft? _attachmentDraft;
   EvidenceType? _evidenceType;
@@ -82,6 +89,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String? _dateError;
   String? _payerError;
   String? _deadlineError;
+  String? _providerPaymentError;
   bool _duplicateCueDismissed = false;
   bool _ocrDraftNeedsReview = false;
   bool _ocrDraftManuallyConfirmed = false;
@@ -143,6 +151,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _noticeDueAtController.dispose();
     _paymentDueAtController.dispose();
     _paidAtController.dispose();
+    _providerNameController.dispose();
+    _providerReferenceController.dispose();
+    _providerAmountDueController.dispose();
+    _providerDueDateController.dispose();
     super.dispose();
   }
 
@@ -304,6 +316,25 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             paymentDueAtController: _paymentDueAtController,
             paidAtController: _paidAtController,
             errorText: _deadlineError,
+          ),
+          const SizedBox(height: 12),
+          _ProviderPaymentFields(
+            requestKind: _requestKind,
+            providerNameController: _providerNameController,
+            providerReferenceController: _providerReferenceController,
+            providerAmountDueController: _providerAmountDueController,
+            providerDueDateController: _providerDueDateController,
+            status: _providerPaymentStatus,
+            errorText: _providerPaymentError,
+            onRequestKindChanged: (kind) {
+              setState(() {
+                _requestKind = kind;
+                _providerPaymentError = null;
+              });
+            },
+            onStatusChanged: (status) {
+              setState(() => _providerPaymentStatus = status);
+            },
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<ExpensePayer>(
@@ -580,6 +611,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     final date = _dateController.text.trim();
     final deadlineError = _deadlineValidationError();
+    final providerPaymentError = _providerPaymentValidationError();
     setState(() {
       _amountError = amountCents > 0 ? null : 'Podaj kwote wieksza od 0.';
       _dateError = date.isEmpty ? 'Podaj date kosztu.' : null;
@@ -589,13 +621,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ? 'Wpisz etykiete drugiego rodzica.'
           : null;
       _deadlineError = deadlineError;
+      _providerPaymentError = providerPaymentError;
     });
 
     if (amountCents <= 0 ||
         date.isEmpty ||
         payer == null ||
         _payerError != null ||
-        deadlineError != null) {
+        deadlineError != null ||
+        providerPaymentError != null) {
       return;
     }
 
@@ -708,6 +742,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ? null
           : relatedRecordLinkForExpense(_selectedRelatedExpense!),
       reimbursementDeadlines: _currentDeadlineSnapshot(createdAt),
+      reimbursementRequestKind: _requestKind,
+      providerPayment: _currentProviderPaymentDetails(),
     );
 
     widget.onExpenseSaved(expense);
@@ -732,6 +768,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       );
       _paidAtController.clear();
       _deadlineError = null;
+      _requestKind = ReimbursementRequestKind.reimburseParent;
+      _providerPaymentStatus = ProviderPaymentStatus.sent;
+      _providerNameController.clear();
+      _providerReferenceController.clear();
+      _providerAmountDueController.clear();
+      _providerDueDateController.clear();
+      _providerPaymentError = null;
       _calendarEventId = null;
       _childInfoCardId = null;
       _relatedExpenseId = null;
@@ -754,6 +797,51 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       ),
     );
+  }
+
+  ProviderPaymentDetails? _currentProviderPaymentDetails() {
+    if (_requestKind != ReimbursementRequestKind.payProvider) {
+      return null;
+    }
+    int amountDueCents;
+    try {
+      amountDueCents = parseAmountToCents(_providerAmountDueController.text);
+    } on FormatException {
+      amountDueCents = 0;
+    }
+    return ProviderPaymentDetails(
+      providerName: _providerNameController.text.trim(),
+      paymentReference: _providerReferenceController.text.trim().isEmpty
+          ? null
+          : _providerReferenceController.text.trim(),
+      amountDueCents: amountDueCents,
+      dueDate: _providerDueDateController.text.trim(),
+      status: _providerPaymentStatus,
+    );
+  }
+
+  String? _providerPaymentValidationError() {
+    if (_requestKind != ReimbursementRequestKind.payProvider) {
+      return null;
+    }
+    final providerName = _providerNameController.text.trim();
+    final dueDate = _providerDueDateController.text.trim();
+    int amountDueCents;
+    try {
+      amountDueCents = parseAmountToCents(_providerAmountDueController.text);
+    } on FormatException {
+      amountDueCents = 0;
+    }
+    if (providerName.isEmpty) {
+      return 'Wpisz nazwe dostawcy platnosci.';
+    }
+    if (amountDueCents <= 0) {
+      return 'Podaj kwote do zaplaty dostawcy.';
+    }
+    if (dueDate.isEmpty || DateTime.tryParse(dueDate) == null) {
+      return 'Podaj termin platnosci do dostawcy w formacie RRRR-MM-DD.';
+    }
+    return null;
   }
 
   domain.ReimbursementDeadlineSnapshot? _currentDeadlineSnapshot(
@@ -1648,6 +1736,148 @@ class _ReimbursementDeadlineFields extends StatelessWidget {
                   errorText!,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProviderPaymentFields extends StatelessWidget {
+  const _ProviderPaymentFields({
+    required this.requestKind,
+    required this.providerNameController,
+    required this.providerReferenceController,
+    required this.providerAmountDueController,
+    required this.providerDueDateController,
+    required this.status,
+    required this.errorText,
+    required this.onRequestKindChanged,
+    required this.onStatusChanged,
+  });
+
+  final ReimbursementRequestKind requestKind;
+  final TextEditingController providerNameController;
+  final TextEditingController providerReferenceController;
+  final TextEditingController providerAmountDueController;
+  final TextEditingController providerDueDateController;
+  final ProviderPaymentStatus status;
+  final String? errorText;
+  final ValueChanged<ReimbursementRequestKind> onRequestKindChanged;
+  final ValueChanged<ProviderPaymentStatus> onStatusChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.storefront_outlined),
+        title: const Text('Typ prosby'),
+        subtitle: Text(requestKind.description),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<ReimbursementRequestKind>(
+                key: const Key('expense-request-kind-picker'),
+                initialValue: requestKind,
+                decoration: const InputDecoration(
+                  labelText: 'Co ma zrobic drugi rodzic?',
+                  prefixIcon: Icon(Icons.swap_horiz_outlined),
+                ),
+                items: [
+                  for (final kind in ReimbursementRequestKind.values)
+                    DropdownMenuItem(value: kind, child: Text(kind.label)),
+                ],
+                onChanged: (kind) {
+                  if (kind != null) {
+                    onRequestKindChanged(kind);
+                  }
+                },
+              ),
+              if (requestKind == ReimbursementRequestKind.payProvider) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('provider-name-field'),
+                  controller: providerNameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Nazwa dostawcy',
+                    prefixIcon: Icon(Icons.store_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('provider-reference-field'),
+                  controller: providerReferenceController,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Tytul platnosci lub notatka',
+                    helperText: 'Nie wpisuj pelnych danych bankowych.',
+                    prefixIcon: Icon(Icons.notes_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('provider-amount-due-field'),
+                  controller: providerAmountDueController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Kwota do zaplaty dostawcy',
+                    prefixIcon: Icon(Icons.payments_outlined),
+                    suffixText: 'PLN',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('provider-due-date-field'),
+                  controller: providerDueDateController,
+                  keyboardType: TextInputType.datetime,
+                  decoration: const InputDecoration(
+                    labelText: 'Termin platnosci do dostawcy',
+                    hintText: 'RRRR-MM-DD',
+                    prefixIcon: Icon(Icons.event_available_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<ProviderPaymentStatus>(
+                  key: const Key('provider-payment-status-picker'),
+                  initialValue: status,
+                  decoration: const InputDecoration(
+                    labelText: 'Status platnosci dostawcy',
+                    prefixIcon: Icon(Icons.fact_check_outlined),
+                  ),
+                  items: [
+                    for (final status in ProviderPaymentStatus.values)
+                      DropdownMenuItem(
+                        value: status,
+                        child: Text(status.label),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      onStatusChanged(value);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'KidCost zapisuje prosbe i status. Nie sprawdza rachunku dostawcy ani nie wykonuje platnosci.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                if (errorText != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    errorText!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
               ],
             ],
           ),

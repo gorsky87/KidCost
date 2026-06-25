@@ -64,6 +64,8 @@ class ExpenseEntry {
     this.verification,
     this.relatedExpense,
     this.reimbursementDeadlines,
+    this.reimbursementRequestKind = ReimbursementRequestKind.reimburseParent,
+    this.providerPayment,
   });
 
   final String id;
@@ -87,6 +89,8 @@ class ExpenseEntry {
   final EvidenceMetadata? verification;
   final ExpenseRelatedRecordLink? relatedExpense;
   final domain.ReimbursementDeadlineSnapshot? reimbursementDeadlines;
+  final ReimbursementRequestKind reimbursementRequestKind;
+  final ProviderPaymentDetails? providerPayment;
 
   String? get calendarEventId => calendarEvent?.id;
   String? get calendarEventTitle => calendarEvent?.title;
@@ -96,6 +100,16 @@ class ExpenseEntry {
 
   EvidenceMetadata? get searchableEvidence =>
       verification ?? attachment?.evidence;
+
+  bool get isPayProviderRequest =>
+      reimbursementRequestKind == ReimbursementRequestKind.payProvider &&
+      providerPayment != null;
+
+  int get providerPaymentDueCents =>
+      isPayProviderRequest ? providerPayment!.amountDueCents : 0;
+
+  int get settlementBalanceAmountCents =>
+      isPayProviderRequest ? 0 : amountCents;
 
   bool get hasReimbursementDeadlines {
     final deadlines = reimbursementDeadlines;
@@ -141,6 +155,8 @@ class ExpenseEntry {
     EvidenceMetadata? verification,
     ExpenseRelatedRecordLink? relatedExpense,
     domain.ReimbursementDeadlineSnapshot? reimbursementDeadlines,
+    ReimbursementRequestKind? reimbursementRequestKind,
+    ProviderPaymentDetails? providerPayment,
   }) {
     return ExpenseEntry(
       id: id,
@@ -167,8 +183,105 @@ class ExpenseEntry {
       relatedExpense: relatedExpense ?? this.relatedExpense,
       reimbursementDeadlines:
           reimbursementDeadlines ?? this.reimbursementDeadlines,
+      reimbursementRequestKind:
+          reimbursementRequestKind ?? this.reimbursementRequestKind,
+      providerPayment: providerPayment ?? this.providerPayment,
     );
   }
+}
+
+enum ReimbursementRequestKind { reimburseParent, payProvider }
+
+extension ReimbursementRequestKindDetails on ReimbursementRequestKind {
+  String get id {
+    switch (this) {
+      case ReimbursementRequestKind.reimburseParent:
+        return 'reimburse_parent';
+      case ReimbursementRequestKind.payProvider:
+        return 'pay_provider';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case ReimbursementRequestKind.reimburseParent:
+        return 'Zwrot rodzicowi';
+      case ReimbursementRequestKind.payProvider:
+        return 'Zaplac dostawcy';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case ReimbursementRequestKind.reimburseParent:
+        return 'Drugi rodzic zwraca udzial rodzicowi, ktory zaplacil.';
+      case ReimbursementRequestKind.payProvider:
+        return 'Drugi rodzic dostaje informacje do platnosci bezposrednio dostawcy.';
+    }
+  }
+}
+
+enum ProviderPaymentStatus {
+  sent,
+  paidToProvider,
+  proofRequested,
+  disputed,
+  cancelled,
+}
+
+extension ProviderPaymentStatusDetails on ProviderPaymentStatus {
+  String get id {
+    switch (this) {
+      case ProviderPaymentStatus.sent:
+        return 'sent';
+      case ProviderPaymentStatus.paidToProvider:
+        return 'paid_to_provider';
+      case ProviderPaymentStatus.proofRequested:
+        return 'proof_requested';
+      case ProviderPaymentStatus.disputed:
+        return 'disputed';
+      case ProviderPaymentStatus.cancelled:
+        return 'cancelled';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case ProviderPaymentStatus.sent:
+        return 'Wyslane';
+      case ProviderPaymentStatus.paidToProvider:
+        return 'Zaplacone dostawcy';
+      case ProviderPaymentStatus.proofRequested:
+        return 'Poproszono o potwierdzenie';
+      case ProviderPaymentStatus.disputed:
+        return 'Do wyjasnienia';
+      case ProviderPaymentStatus.cancelled:
+        return 'Anulowane';
+    }
+  }
+}
+
+class ProviderPaymentDetails {
+  const ProviderPaymentDetails({
+    required this.providerName,
+    required this.amountDueCents,
+    required this.dueDate,
+    required this.status,
+    this.paymentReference,
+  });
+
+  final String providerName;
+  final int amountDueCents;
+  final String dueDate;
+  final ProviderPaymentStatus status;
+  final String? paymentReference;
+
+  String get amountDueLabel => formatCents(amountDueCents);
+
+  bool get hasDisplayContext =>
+      providerName.trim().isNotEmpty &&
+      amountDueCents > 0 &&
+      dueDate.trim().isNotEmpty;
 }
 
 class ExpenseListFilterRequest {

@@ -422,6 +422,7 @@ class MonthlyExpenseReport {
     required this.settledCents,
     required this.currentUserPaidCents,
     required this.coParentPaidCents,
+    required this.providerPaymentDueCents,
   });
 
   factory MonthlyExpenseReport.fromExpenses({
@@ -445,41 +446,46 @@ class MonthlyExpenseReport {
     var pendingCents = 0;
     var settledCents = 0;
     var currentUserPaidCents = 0;
+    var providerPaymentDueCents = 0;
 
     for (final expense in monthExpenses) {
-      totalCents += expense.amountCents;
+      final balanceAmountCents = expense.settlementBalanceAmountCents;
+      providerPaymentDueCents += expense.providerPaymentDueCents;
+      totalCents += balanceAmountCents;
       if (expense.paidBy.isCurrentUser) {
-        currentUserPaidCents += expense.amountCents;
+        currentUserPaidCents += balanceAmountCents;
       }
-      byPayer.update(
-        expense.paidBy.label,
-        (value) => value + expense.amountCents,
-        ifAbsent: () => expense.amountCents,
-      );
-      byChild.update(
-        expense.childName,
-        (value) => value + expense.amountCents,
-        ifAbsent: () => expense.amountCents,
-      );
-      byCategory.update(
-        expense.category.label,
-        (value) => value + expense.amountCents,
-        ifAbsent: () => expense.amountCents,
-      );
-      byStatus.update(
-        expense.status.label,
-        (value) => value + expense.amountCents,
-        ifAbsent: () => expense.amountCents,
-      );
+      if (balanceAmountCents > 0) {
+        byPayer.update(
+          expense.paidBy.label,
+          (value) => value + balanceAmountCents,
+          ifAbsent: () => balanceAmountCents,
+        );
+        byChild.update(
+          expense.childName,
+          (value) => value + balanceAmountCents,
+          ifAbsent: () => balanceAmountCents,
+        );
+        byCategory.update(
+          expense.category.label,
+          (value) => value + balanceAmountCents,
+          ifAbsent: () => balanceAmountCents,
+        );
+        byStatus.update(
+          expense.status.label,
+          (value) => value + balanceAmountCents,
+          ifAbsent: () => balanceAmountCents,
+        );
+      }
 
       if (expense.status == ExpenseStatus.disputed) {
-        disputedCents += expense.amountCents;
+        disputedCents += balanceAmountCents;
       }
       if (expense.status == ExpenseStatus.pending) {
-        pendingCents += expense.amountCents;
+        pendingCents += balanceAmountCents;
       }
       if (expense.status == ExpenseStatus.settled) {
-        settledCents += expense.amountCents;
+        settledCents += balanceAmountCents;
       }
     }
 
@@ -496,6 +502,7 @@ class MonthlyExpenseReport {
       settledCents: settledCents,
       currentUserPaidCents: currentUserPaidCents,
       coParentPaidCents: totalCents - currentUserPaidCents,
+      providerPaymentDueCents: providerPaymentDueCents,
     );
   }
 
@@ -511,6 +518,7 @@ class MonthlyExpenseReport {
   final int settledCents;
   final int currentUserPaidCents;
   final int coParentPaidCents;
+  final int providerPaymentDueCents;
 
   String get fileName => 'kidcost-report-$month.csv';
 
@@ -554,6 +562,12 @@ class MonthlyExpenseReport {
         'kategoria',
         'placacy',
         'status',
+        'request_type',
+        'provider_name',
+        'provider_reference',
+        'provider_due_date',
+        'provider_amount_due',
+        'provider_status',
         'submitted_at',
         'notice_due_at',
         'payment_due_at',
@@ -572,6 +586,12 @@ class MonthlyExpenseReport {
           expense.category.label,
           expense.paidBy.label,
           expense.status.label,
+          expense.reimbursementRequestKind.id,
+          expense.providerPayment?.providerName ?? '',
+          expense.providerPayment?.paymentReference ?? '',
+          expense.providerPayment?.dueDate ?? '',
+          expense.providerPayment?.amountDueLabel ?? '',
+          expense.providerPayment?.status.label ?? '',
           _csvDate(expense.reimbursementDeadlines?.submittedAt),
           _csvDate(expense.reimbursementDeadlines?.noticeDueAt),
           _csvDate(expense.reimbursementDeadlines?.paymentDueAt),
@@ -624,6 +644,7 @@ class AnnualExpenseReport {
     required this.unsettledCents,
     required this.currentUserPaidCents,
     required this.coParentPaidCents,
+    required this.providerPaymentDueCents,
   });
 
   factory AnnualExpenseReport.fromExpenses({
@@ -649,41 +670,46 @@ class AnnualExpenseReport {
     var pendingCents = 0;
     var settledCents = 0;
     var currentUserPaidCents = 0;
+    var providerPaymentDueCents = 0;
 
     for (final expense in yearExpenses) {
-      totalCents += expense.amountCents;
+      final balanceAmountCents = expense.settlementBalanceAmountCents;
+      providerPaymentDueCents += expense.providerPaymentDueCents;
+      totalCents += balanceAmountCents;
       if (expense.paidBy.isCurrentUser) {
-        currentUserPaidCents += expense.amountCents;
+        currentUserPaidCents += balanceAmountCents;
       }
-      byPayer.update(
-        expense.paidBy.label,
-        (value) => value + expense.amountCents,
-        ifAbsent: () => expense.amountCents,
-      );
-      byChild.update(
-        expense.childName,
-        (value) => value + expense.amountCents,
-        ifAbsent: () => expense.amountCents,
-      );
-      byCategory.update(
-        expense.category.label,
-        (value) => value + expense.amountCents,
-        ifAbsent: () => expense.amountCents,
-      );
-      byStatus.update(
-        expense.status.label,
-        (value) => value + expense.amountCents,
-        ifAbsent: () => expense.amountCents,
-      );
+      if (balanceAmountCents > 0) {
+        byPayer.update(
+          expense.paidBy.label,
+          (value) => value + balanceAmountCents,
+          ifAbsent: () => balanceAmountCents,
+        );
+        byChild.update(
+          expense.childName,
+          (value) => value + balanceAmountCents,
+          ifAbsent: () => balanceAmountCents,
+        );
+        byCategory.update(
+          expense.category.label,
+          (value) => value + balanceAmountCents,
+          ifAbsent: () => balanceAmountCents,
+        );
+        byStatus.update(
+          expense.status.label,
+          (value) => value + balanceAmountCents,
+          ifAbsent: () => balanceAmountCents,
+        );
+      }
 
       if (expense.status == ExpenseStatus.disputed) {
-        disputedCents += expense.amountCents;
+        disputedCents += balanceAmountCents;
       }
       if (expense.status == ExpenseStatus.pending) {
-        pendingCents += expense.amountCents;
+        pendingCents += balanceAmountCents;
       }
       if (expense.status == ExpenseStatus.settled) {
-        settledCents += expense.amountCents;
+        settledCents += balanceAmountCents;
       }
     }
 
@@ -701,6 +727,7 @@ class AnnualExpenseReport {
       unsettledCents: totalCents - settledCents,
       currentUserPaidCents: currentUserPaidCents,
       coParentPaidCents: totalCents - currentUserPaidCents,
+      providerPaymentDueCents: providerPaymentDueCents,
     );
   }
 
@@ -717,6 +744,7 @@ class AnnualExpenseReport {
   final int unsettledCents;
   final int currentUserPaidCents;
   final int coParentPaidCents;
+  final int providerPaymentDueCents;
 
   String get fileName => 'kidcost-annual-report-$year.csv';
 
@@ -732,6 +760,12 @@ class AnnualExpenseReport {
         'kategoria',
         'placacy',
         'status',
+        'request_type',
+        'provider_name',
+        'provider_reference',
+        'provider_due_date',
+        'provider_amount_due',
+        'provider_status',
         'submitted_at',
         'notice_due_at',
         'payment_due_at',
@@ -750,6 +784,12 @@ class AnnualExpenseReport {
           expense.category.label,
           expense.paidBy.label,
           expense.status.label,
+          expense.reimbursementRequestKind.id,
+          expense.providerPayment?.providerName ?? '',
+          expense.providerPayment?.paymentReference ?? '',
+          expense.providerPayment?.dueDate ?? '',
+          expense.providerPayment?.amountDueLabel ?? '',
+          expense.providerPayment?.status.label ?? '',
           MonthlyExpenseReport._csvDate(
             expense.reimbursementDeadlines?.submittedAt,
           ),

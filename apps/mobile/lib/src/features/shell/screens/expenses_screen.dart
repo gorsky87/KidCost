@@ -436,6 +436,8 @@ class _ExpenseCard extends StatelessWidget {
                       : 'Zalacznik: blad uploadu',
                 if (expense.attachment?.evidence?.type != null)
                   'Dowod: ${expense.attachment!.evidence!.type!.label}',
+                if (expense.isPayProviderRequest)
+                  'Platnosc do dostawcy: ${expense.providerPayment!.providerName}',
                 if (expense.hasReimbursementDeadlines)
                   'Termin: ${_deadlineTimingLabel(expense, now)}',
               ].join(' • '),
@@ -454,6 +456,8 @@ class _ExpenseCard extends StatelessWidget {
               children: [
                 _ExpenseStatusBadge(status: expense.status),
                 _ExpenseVisibilityBadge(visibility: expense.visibility),
+                if (expense.isPayProviderRequest)
+                  _ProviderPaymentBadge(details: expense.providerPayment!),
                 if (expense.hasReimbursementDeadlines)
                   _ReimbursementDeadlineBadge(expense: expense, now: now),
               ],
@@ -484,6 +488,10 @@ class _ExpenseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _ExpenseStatusPanel(status: expense.status),
+                  if (expense.isPayProviderRequest) ...[
+                    const SizedBox(height: 12),
+                    _ProviderPaymentPanel(details: expense.providerPayment!),
+                  ],
                   if (expense.hasReimbursementDeadlines) ...[
                     const SizedBox(height: 12),
                     _ReimbursementDeadlinePanel(expense: expense, now: now),
@@ -492,7 +500,9 @@ class _ExpenseCard extends StatelessWidget {
                   _DetailRow(label: 'Nazwa', value: expense.title),
                   _DetailRow(
                     label: 'Kwota rozliczenia',
-                    value: formatCents(expense.amountCents),
+                    value: expense.isPayProviderRequest
+                        ? '${formatCents(expense.amountCents)} (kontekst kosztu)'
+                        : formatCents(expense.amountCents),
                   ),
                   if (expense.originalReceiptAmountLabel != null)
                     _DetailRow(
@@ -593,6 +603,36 @@ String reimbursementDeadlineTimingLabelFor(
   }
 }
 
+class _ProviderPaymentBadge extends StatelessWidget {
+  const _ProviderPaymentBadge({required this.details});
+
+  final ProviderPaymentDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: 'Platnosc dostawcy: ${details.status.label}',
+      child: ExcludeSemantics(
+        child: Chip(
+          avatar: Icon(
+            Icons.storefront_outlined,
+            color: Theme.of(context).colorScheme.secondary,
+            size: 18,
+          ),
+          label: Text(details.status.label),
+          side: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.secondary.withValues(alpha: 0.32),
+          ),
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
+    );
+  }
+}
+
 class _ExpenseVisibilityBadge extends StatelessWidget {
   const _ExpenseVisibilityBadge({required this.visibility});
 
@@ -614,6 +654,44 @@ class _ExpenseVisibilityBadge extends StatelessWidget {
           backgroundColor: color.withValues(alpha: 0.1),
           labelStyle: TextStyle(color: color),
           visualDensity: VisualDensity.compact,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProviderPaymentPanel extends StatelessWidget {
+  const _ProviderPaymentPanel({required this.details});
+
+  final ProviderPaymentDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ProviderPaymentBadge(details: details),
+            const SizedBox(height: 8),
+            Text(
+              'Prosba kieruje platnosc do dostawcy, nie jako zwrot gotowki dla rodzica. KidCost zapisuje status, ale nie waliduje rachunku.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            _DetailRow(label: 'Dostawca', value: details.providerName),
+            _DetailRow(
+              label: 'Kwota do dostawcy',
+              value: details.amountDueLabel,
+            ),
+            _DetailRow(label: 'Termin dostawcy', value: details.dueDate),
+            if (details.paymentReference?.isNotEmpty == true)
+              _DetailRow(
+                label: 'Tytul/notatka',
+                value: details.paymentReference!,
+              ),
+          ],
         ),
       ),
     );
