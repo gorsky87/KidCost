@@ -9,10 +9,12 @@ Checks KidCost beta release readiness and builds store artifacts only when
 required signing/upload configuration is present.
 
 Environment:
+  KIDCOST_ANALYTICS_ENABLED             Set to true only for a Firebase-backed beta.
+  KIDCOST_CRASH_REPORTING_ENABLED       Set to true only for a Firebase-backed beta.
+  KIDCOST_FIREBASE_ANDROID_CONFIG       Untracked google-services.json path.
+  KIDCOST_FIREBASE_IOS_CONFIG           Untracked GoogleService-Info.plist path.
   KIDCOST_ALLOW_DEBUG_SIGNED_RELEASE=1  Build Android AAB even with debug signing.
   KIDCOST_IOS_EXPORT_OPTIONS_PLIST      ExportOptions.plist for signed iOS IPA export.
-  KIDCOST_ENABLE_BETA_OBSERVABILITY=1   Enable analytics/crash reporting only
-                                         when local Firebase config files exist.
 USAGE
 }
 
@@ -20,6 +22,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mobile_dir="$repo_root/apps/mobile"
 report_dir="$repo_root/build/release"
 report_path="$report_dir/beta-readiness-report.md"
+analytics_enabled="${KIDCOST_ANALYTICS_ENABLED:-false}"
+crash_reporting_enabled="${KIDCOST_CRASH_REPORTING_ENABLED:-false}"
 
 mode="all"
 
@@ -58,6 +62,13 @@ append_report() {
   printf '%s\n' "$*" >> "$report_path"
 }
 
+normalize_bool() {
+  case "$1" in
+    true|1) printf 'true' ;;
+    *) printf 'false' ;;
+  esac
+}
+
 require_command flutter
 
 mkdir -p "$report_dir"
@@ -68,10 +79,34 @@ REPORT
 
 "$repo_root/scripts/verify_beta_release_config.sh" | tee -a "$report_path"
 
+analytics_define="$(normalize_bool "$analytics_enabled")"
+crash_reporting_define="$(normalize_bool "$crash_reporting_enabled")"
+android_firebase_configured=false
+ios_firebase_configured=false
+
+if [[ "$analytics_define" == "true" || "$crash_reporting_define" == "true" ]]; then
+  if [[ -n "${KIDCOST_FIREBASE_ANDROID_CONFIG:-}" ]]; then
+    android_firebase_configured=true
+  fi
+  if [[ -n "${KIDCOST_FIREBASE_IOS_CONFIG:-}" ]]; then
+    ios_firebase_configured=true
+  fi
+fi
+
+append_report ""
+append_report "## Observability flags"
+append_report ""
+append_report "- KIDCOST_ANALYTICS_ENABLED=$analytics_define"
+append_report "- KIDCOST_CRASH_REPORTING_ENABLED=$crash_reporting_define"
+if [[ "$analytics_define" == "true" || "$crash_reporting_define" == "true" ]]; then
+  append_report "- Firebase Android config supplied via KIDCOST_FIREBASE_ANDROID_CONFIG."
+  append_report "- Firebase iOS config supplied via KIDCOST_FIREBASE_IOS_CONFIG."
+  append_report "- Android KIDCOST_FIREBASE_CONFIGURED=$android_firebase_configured"
+  append_report "- iOS KIDCOST_FIREBASE_CONFIGURED=$ios_firebase_configured"
+fi
+
 android_blocked=0
 ios_blocked=0
-android_observability_enabled=0
-ios_observability_enabled=0
 
 if grep -Fq 'signingConfig = signingConfigs.getByName("debug")' \
   "$repo_root/apps/mobile/android/app/build.gradle.kts" &&
@@ -89,28 +124,6 @@ if [[ -z "${KIDCOST_IOS_EXPORT_OPTIONS_PLIST:-}" ]]; then
   append_report "## iOS blocker"
   append_report ""
   append_report "- KIDCOST_IOS_EXPORT_OPTIONS_PLIST is not set. Provide an ExportOptions.plist and Apple distribution signing in local/CI secrets before exporting a TestFlight IPA."
-fi
-
-if [[ "${KIDCOST_ENABLE_BETA_OBSERVABILITY:-0}" == "1" ]]; then
-  if [[ -f "$repo_root/apps/mobile/android/app/google-services.json" ]]; then
-    android_observability_enabled=1
-  else
-    android_blocked=1
-    append_report ""
-    append_report "## Android observability blocker"
-    append_report ""
-    append_report "- KIDCOST_ENABLE_BETA_OBSERVABILITY=1 but apps/mobile/android/app/google-services.json is missing. Supply it through local/CI secrets and keep it untracked."
-  fi
-
-  if [[ -f "$repo_root/apps/mobile/ios/Runner/GoogleService-Info.plist" ]]; then
-    ios_observability_enabled=1
-  else
-    ios_blocked=1
-    append_report ""
-    append_report "## iOS observability blocker"
-    append_report ""
-    append_report "- KIDCOST_ENABLE_BETA_OBSERVABILITY=1 but apps/mobile/ios/Runner/GoogleService-Info.plist is missing. Supply it through local/CI secrets and keep it untracked."
-  fi
 fi
 
 if [[ "$mode" == "check" ]]; then
@@ -132,9 +145,9 @@ if [[ "$mode" == "all" || "$mode" == "android" ]]; then
       --dart-define=KIDCOST_RELEASE_CHANNEL=beta \
       --dart-define=KIDCOST_BUILD_NAME=1.0.0 \
       --dart-define=KIDCOST_BUILD_NUMBER=2 \
-      --dart-define=KIDCOST_ANALYTICS_ENABLED=$([[ "$android_observability_enabled" == "1" ]] && echo true || echo false) \
-      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED=$([[ "$android_observability_enabled" == "1" ]] && echo true || echo false) \
-      --dart-define=KIDCOST_FIREBASE_CONFIGURED=$([[ "$android_observability_enabled" == "1" ]] && echo true || echo false)
+      --dart-define=KIDCOST_ANALYTICS_ENABLED="$analytics_define" \
+      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED="$crash_reporting_define" \
+      --dart-define=KIDCOST_FIREBASE_CONFIGURED="$android_firebase_configured"
     append_report ""
     append_report "## Android artifact"
     append_report ""
@@ -154,9 +167,9 @@ if [[ "$mode" == "all" || "$mode" == "ios" ]]; then
       --dart-define=KIDCOST_RELEASE_CHANNEL=beta \
       --dart-define=KIDCOST_BUILD_NAME=1.0.0 \
       --dart-define=KIDCOST_BUILD_NUMBER=2 \
-      --dart-define=KIDCOST_ANALYTICS_ENABLED=$([[ "$ios_observability_enabled" == "1" ]] && echo true || echo false) \
-      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED=$([[ "$ios_observability_enabled" == "1" ]] && echo true || echo false) \
-      --dart-define=KIDCOST_FIREBASE_CONFIGURED=$([[ "$ios_observability_enabled" == "1" ]] && echo true || echo false)
+      --dart-define=KIDCOST_ANALYTICS_ENABLED="$analytics_define" \
+      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED="$crash_reporting_define" \
+      --dart-define=KIDCOST_FIREBASE_CONFIGURED="$ios_firebase_configured"
     append_report ""
     append_report "## iOS artifact"
     append_report ""

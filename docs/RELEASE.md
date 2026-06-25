@@ -177,8 +177,13 @@ Pierwsza konfiguracja beta jest zapisana jako `1.0.0+2` w `apps/mobile/pubspec.y
 
 ```sh
 scripts/verify_beta_release_config.sh
+scripts/verify_observability_privacy_smoke.sh --check-only
 scripts/build_beta_artifacts.sh --check-only
 ```
+
+Automatyczny smoke observability zapisuje checkliste QA w
+`build/release/observability-privacy-smoke.md`. Plik jest artefaktem
+lokalnym/CI, nie czescia repo.
 
 Eventy MVP:
 
@@ -196,11 +201,29 @@ Parametry eventow musza przechodzic przez allowliste w aplikacji. Nie wysylamy e
 Crashlytics/analytics beta wymaga przed wyslaniem builda:
 
 - projektu Firebase dla bety,
-- Android `google-services.json` dodanego do lokalnego/CI secret setup, nie jako sekret w repo,
-- iOS `GoogleService-Info.plist` dodanego do lokalnego/CI secret setup, nie jako sekret w repo,
+- Android `google-services.json` dodanego do lokalnego/CI secret setup i
+  wskazanego przez `KIDCOST_FIREBASE_ANDROID_CONFIG`, nie jako sekret w repo,
+- iOS `GoogleService-Info.plist` dodanego do lokalnego/CI secret setup i
+  wskazanego przez `KIDCOST_FIREBASE_IOS_CONFIG`, nie jako sekret w repo,
 - SDK Analytics/Crashlytics podlaczonego do mobilnej aplikacji,
 - testowego crasha widocznego w panelu Crashlytics,
 - potwierdzenia, ze eventy MVP pojawiaja sie bez PII i pelnych kwot.
+
+Build z wlaczonym observability uruchamiaj tylko z sekretow lokalnych albo CI:
+
+```sh
+KIDCOST_RELEASE_CHANNEL=beta \
+KIDCOST_ANALYTICS_ENABLED=true \
+KIDCOST_CRASH_REPORTING_ENABLED=true \
+KIDCOST_FIREBASE_ANDROID_CONFIG=/secure/path/google-services.json \
+KIDCOST_FIREBASE_IOS_CONFIG=/secure/path/GoogleService-Info.plist \
+scripts/build_beta_artifacts.sh --check-only
+```
+
+`scripts/verify_beta_release_config.sh` blokuje taki tryb, jezeli pliki
+Firebase sa sledzone przez Git, maja zla nazwe, nie wygladaja jak pliki
+Firebase albo runtime aplikacji nie ma jeszcze podlaczonego Firebase
+Analytics/Crashlytics adaptera.
 
 ### Smoke test Android
 

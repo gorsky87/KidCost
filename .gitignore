@@ -3,3 +3,7 @@
 build/
 pubspec.lock
 backups/
+.env
+.env.*
+*.env
+!.env.example

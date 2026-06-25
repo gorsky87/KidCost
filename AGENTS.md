@@ -87,6 +87,9 @@ cd packages/domain && dart test/expense_status_test.dart
 
 # Run Supabase verifier shell tests
 bash scripts/test_verify_supabase_local.sh
+
+# Run observability/release privacy smoke script tests
+bash scripts/test_observability_release_checks.sh
 ```
 
 Supabase CLI is not committed as a project dependency yet. Once installed locally, verify migrations from a clean database with:
