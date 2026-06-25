@@ -9,14 +9,6 @@
 
 begin;
 
-create or replace function auth.uid()
-returns uuid
-language sql
-stable
-as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-$$;
-
 create temp table family_category_ids (
   name text primary key,
   id uuid not null
@@ -45,7 +37,12 @@ insert into public.profiles (id, display_name, email)
 values
   ((select id from family_category_ids where name = 'owner'), 'Owner', 'family-category-owner@example.com'),
   ((select id from family_category_ids where name = 'co_parent'), 'Co Parent', 'family-category-co-parent@example.com'),
-  ((select id from family_category_ids where name = 'outsider'), 'Outsider', 'family-category-outsider@example.com');
+  ((select id from family_category_ids where name = 'outsider'), 'Outsider', 'family-category-outsider@example.com')
+on conflict (id) do update
+set
+  display_name = excluded.display_name,
+  email = excluded.email,
+  updated_at = now();
 
 insert into public.families (id, name, created_by)
 values
