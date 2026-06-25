@@ -34,6 +34,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   domain.NotificationDeliveryMode _deliveryMode =
       domain.NotificationDeliveryMode.immediate;
+  bool _privateNotificationPreviews = true;
   bool _quietHoursEnabled = true;
   bool _importantBypassQuietHours = true;
   bool _newExpensePush = true;
@@ -53,6 +54,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           subtitle: Text(
             'Neutralne alerty bez kwot, opisow kosztow i danych dziecka na ekranie blokady.',
           ),
+        ),
+        SwitchListTile(
+          secondary: const Icon(Icons.visibility_off_outlined),
+          title: const Text('Prywatne podglady powiadomien'),
+          subtitle: Text(_privatePreviewCopy),
+          value: _privateNotificationPreviews,
+          onChanged: _setPrivateNotificationPreviews,
         ),
         _NotificationDeliveryModePicker(
           selectedMode: _deliveryMode,
@@ -212,9 +220,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   domain.NotificationPreferences get _notificationPreferences {
     return domain.NotificationPreferences(
       deliveryMode: _deliveryMode,
+      previewDetail: _privateNotificationPreviews
+          ? domain.NotificationPreviewDetail.private
+          : domain.NotificationPreviewDetail.detailed,
       quietHoursEnabled: _quietHoursEnabled,
       importantCanBypassQuietHours: _importantBypassQuietHours,
     );
+  }
+
+  String get _privatePreviewCopy {
+    if (_privateNotificationPreviews) {
+      return 'Ukrywamy imiona dzieci, kwoty, dostawcow, tresc paragonow i powody sporu do czasu otwarcia aplikacji.';
+    }
+    return 'Powiadomienia moga pokazac szczegoly kosztu na ekranie blokady.';
   }
 
   String get _routineNotificationStatus {
@@ -234,6 +252,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _setDeliveryMode(domain.NotificationDeliveryMode value) {
     setState(() => _deliveryMode = value);
+  }
+
+  void _setPrivateNotificationPreviews(bool value) {
+    setState(() => _privateNotificationPreviews = value);
   }
 
   void _setQuietHoursEnabled(bool value) {

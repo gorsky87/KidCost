@@ -581,6 +581,17 @@ void main() {
     );
 
     expect(find.text('Powiadomienia'), findsOneWidget);
+    expect(find.text('Prywatne podglady powiadomien'), findsOneWidget);
+    expect(
+      find.textContaining('Ukrywamy imiona dzieci, kwoty, dostawcow'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Prywatne podglady powiadomien'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('moga pokazac szczegoly kosztu'),
+      findsOneWidget,
+    );
     expect(find.text('Od razu'), findsOneWidget);
     expect(find.text('Dzienny digest'), findsOneWidget);
     expect(find.text('Tylko wazne'), findsOneWidget);
@@ -589,7 +600,6 @@ void main() {
     expect(find.text('Status zwyklej aktualizacji'), findsOneWidget);
     expect(find.text('Nowy koszt od drugiego rodzica'), findsOneWidget);
     expect(find.text('Zmiana statusu kosztu'), findsOneWidget);
-    expect(find.text('Przypomnienie o saldzie'), findsOneWidget);
 
     await tester.tap(find.text('Dzienny digest'));
     await tester.pumpAndSettle();
@@ -602,9 +612,11 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.scrollUntilVisible(find.text('Przypomnienie o saldzie'), 120);
+    expect(find.text('Przypomnienie o saldzie'), findsOneWidget);
     await tester.tap(find.text('Przypomnienie o saldzie'));
     await tester.pumpAndSettle();
-    expect(find.byType(SwitchListTile), findsAtLeastNWidgets(5));
+    expect(find.text('Przypomnienie o saldzie'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('Wlacz powiadomienia po pierwszym koszcie'),

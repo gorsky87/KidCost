@@ -7,6 +7,9 @@ void main() {
     testImportantUpdatesCanBypassQuietHours();
     testImportantOnlySuppressesRoutineUpdates();
     testQuietHoursWrapAcrossMidnight();
+    testPrivatePreviewsAreDefault();
+    testPrivatePreviewTemplatesRedactSensitiveDetails();
+    testDetailedPreviewsCanIncludeContextAfterOptIn();
   });
 }
 
@@ -62,6 +65,59 @@ void testQuietHoursWrapAcrossMidnight() {
   expectTrue(quietHours.contains(DateTime(2026, 6, 25, 22)));
   expectTrue(quietHours.contains(DateTime(2026, 6, 25, 6)));
   expectFalse(quietHours.contains(DateTime(2026, 6, 25, 12)));
+}
+
+void testPrivatePreviewsAreDefault() {
+  const preferences = NotificationPreferences();
+
+  expectEqual(preferences.previewDetail, NotificationPreviewDetail.private);
+}
+
+void testPrivatePreviewTemplatesRedactSensitiveDetails() {
+  const preferences = NotificationPreferences();
+  const input = NotificationTemplateInput(
+    childName: 'Antek',
+    amountLabel: '123,45 zl',
+    providerName: 'Orto Dent',
+    disputeReason: 'Brakuje paragonu z leczenia',
+    reportMonth: 'czerwiec 2026',
+    itemCount: 2,
+  );
+  const forbidden = [
+    'Antek',
+    '123,45',
+    'Orto Dent',
+    'Brakuje paragonu',
+    'czerwiec 2026',
+  ];
+
+  for (final template in NotificationTemplateKind.values) {
+    final preview = preferences.previewFor(template: template, input: input);
+
+    expectTrue(preview.title.contains('KidCost'));
+    for (final sensitiveText in forbidden) {
+      expectFalse(preview.searchableText.contains(sensitiveText));
+    }
+  }
+}
+
+void testDetailedPreviewsCanIncludeContextAfterOptIn() {
+  const preferences = NotificationPreferences(
+    previewDetail: NotificationPreviewDetail.detailed,
+  );
+
+  final preview = preferences.previewFor(
+    template: NotificationTemplateKind.expenseAdded,
+    input: const NotificationTemplateInput(
+      childName: 'Antek',
+      amountLabel: '123,45 zl',
+      providerName: 'Orto Dent',
+    ),
+  );
+
+  expectTrue(preview.searchableText.contains('Antek'));
+  expectTrue(preview.searchableText.contains('123,45 zl'));
+  expectTrue(preview.searchableText.contains('Orto Dent'));
 }
 
 void expectTrue(bool value) {
