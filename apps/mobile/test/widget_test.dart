@@ -1637,6 +1637,101 @@ void main() {
     expect(savedExpense!.settlementBalanceAmountCents, 0);
   });
 
+  testWidgets('add expense saves optional medical EOB packet', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 2600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    ExpenseEntry? savedExpense;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            attachmentStorage: InMemoryAttachmentStorage(),
+            onExpenseSaved: (expense) => savedExpense = expense,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).at(0), '75');
+    await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
+    await tester.enterText(
+      editableTextByKey(const Key('expense-title-field')),
+      'Ortodoncja po EOB',
+    );
+    await tester.tap(find.text('Lekarze i leki'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('medical-expense-packet-fields')),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('medical-service-date-field')),
+      '2026-06-20',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('medical-provider-field')),
+      'Klinika Ortodontyczna',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('medical-gross-amount-field')),
+      '300',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('medical-covered-amount-field')),
+      '150',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('medical-patient-responsibility-field')),
+      '150',
+    );
+
+    final addAttachmentButton = find.widgetWithText(
+      OutlinedButton,
+      'Dodaj paragon lub PDF',
+    );
+    await tester.scrollUntilVisible(
+      addAttachmentButton,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(addAttachmentButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('PDF'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('evidence-type-picker')));
+    await tester.tap(find.byKey(const Key('evidence-type-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('EOB / rozliczenie ubezpieczyciela').last);
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(savedExpense, isNotNull);
+    expect(savedExpense!.category.id, 'health');
+    expect(savedExpense!.amountCents, 7500);
+    expect(savedExpense!.medicalPacket?.providerName, 'Klinika Ortodontyczna');
+    expect(savedExpense!.medicalPacket?.serviceDate, '2026-06-20');
+    expect(savedExpense!.medicalPacket?.grossBilledCents, 30000);
+    expect(savedExpense!.medicalPacket?.coveredAmountCents, 15000);
+    expect(savedExpense!.medicalPacket?.patientResponsibilityCents, 15000);
+    expect(savedExpense!.medicalPacket?.requestedReimbursementCents, 7500);
+    expect(savedExpense!.attachment?.evidence?.type, EvidenceType.medicalEob);
+    expect(savedExpense!.settlementBalanceAmountCents, 7500);
+  });
+
   testWidgets('add expense reviews OCR draft fields before saving receipt', (
     WidgetTester tester,
   ) async {
@@ -3368,6 +3463,54 @@ void main() {
   );
 
   testWidgets(
+    'reports export medical packet without changing requested balance',
+    (WidgetTester tester) async {
+      final health = expenseCategories.firstWhere(
+        (category) => category.id == 'health',
+      );
+      final report = MonthlyExpenseReport.fromExpenses(
+        month: '2026-06',
+        expenses: [
+          testExpense(
+            id: 'medical',
+            title: 'Ortodoncja po EOB',
+            amountCents: 7500,
+            category: health,
+            attachment: const ExpenseAttachment(
+              fileName: 'eob.pdf',
+              contentType: 'application/pdf',
+              status: AttachmentStatus.uploaded,
+              evidence: EvidenceMetadata(type: EvidenceType.medicalEob),
+            ),
+            medicalPacket: const MedicalExpensePacket(
+              providerName: 'Klinika Ortodontyczna',
+              patientName: 'Antek',
+              serviceDate: '2026-06-20',
+              grossBilledCents: 30000,
+              coveredAmountCents: 15000,
+              patientResponsibilityCents: 15000,
+              requestedReimbursementCents: 7500,
+            ),
+          ),
+        ],
+      );
+
+      expect(report.totalCents, 7500);
+      expect(report.balanceText, 'Drugi rodzic oddaje Tobie 37,50 PLN');
+
+      final csv = report.toCsv();
+
+      expect(csv, contains('"pakiet_medyczny_eob"'));
+      expect(csv, contains('KidCost nie ocenia ubezpieczenia'));
+      expect(csv, contains('"medical_provider","medical_service_date"'));
+      expect(csv, contains('"Klinika Ortodontyczna","2026-06-20"'));
+      expect(csv, contains('"300,00 PLN","150,00 PLN","150,00 PLN"'));
+      expect(csv, contains('"75,00 PLN"'));
+      expect(csv, contains('"EOB / rozliczenie ubezpieczyciela"'));
+    },
+  );
+
+  testWidgets(
     'reports export support context separately without changing balance',
     (WidgetTester tester) async {
       final report = MonthlyExpenseReport.fromExpenses(
@@ -4943,6 +5086,7 @@ ExpenseEntry testExpense({
   ProviderPaymentDetails? providerPayment,
   ExpenseDraftReview? draftReview,
   List<ExpenseLineItem> lineItems = const [],
+  MedicalExpensePacket? medicalPacket,
 }) {
   return ExpenseEntry(
     id: id,
@@ -4966,6 +5110,7 @@ ExpenseEntry testExpense({
     providerPayment: providerPayment,
     draftReview: draftReview,
     lineItems: lineItems,
+    medicalPacket: medicalPacket,
   );
 }
 

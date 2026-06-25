@@ -69,6 +69,7 @@ class ExpenseEntry {
     this.providerPayment,
     this.draftReview,
     this.lineItems = const [],
+    this.medicalPacket,
   });
 
   final String id;
@@ -97,6 +98,7 @@ class ExpenseEntry {
   final ProviderPaymentDetails? providerPayment;
   final ExpenseDraftReview? draftReview;
   final List<ExpenseLineItem> lineItems;
+  final MedicalExpensePacket? medicalPacket;
 
   String? get calendarEventId => calendarEvent?.id;
   String? get calendarEventTitle => calendarEvent?.title;
@@ -116,6 +118,8 @@ class ExpenseEntry {
   bool get isArchivedDraft => draftReview?.archivedAt != null;
 
   bool get hasLineItems => lineItems.isNotEmpty;
+
+  bool get hasMedicalPacket => medicalPacket?.hasDetails == true;
 
   int get lineItemsTotalCents =>
       lineItems.fold(0, (sum, item) => sum + item.amountCents);
@@ -185,6 +189,7 @@ class ExpenseEntry {
     ExpenseDraftReview? draftReview,
     bool clearDraftReview = false,
     List<ExpenseLineItem>? lineItems,
+    MedicalExpensePacket? medicalPacket,
   }) {
     return ExpenseEntry(
       id: id,
@@ -221,7 +226,83 @@ class ExpenseEntry {
       providerPayment: providerPayment ?? this.providerPayment,
       draftReview: clearDraftReview ? null : draftReview ?? this.draftReview,
       lineItems: lineItems ?? this.lineItems,
+      medicalPacket: medicalPacket ?? this.medicalPacket,
     );
+  }
+}
+
+class MedicalExpensePacket {
+  const MedicalExpensePacket({
+    required this.providerName,
+    required this.patientName,
+    required this.serviceDate,
+    required this.grossBilledCents,
+    required this.coveredAmountCents,
+    required this.patientResponsibilityCents,
+    required this.requestedReimbursementCents,
+  });
+
+  final String? providerName;
+  final String? patientName;
+  final String? serviceDate;
+  final int? grossBilledCents;
+  final int? coveredAmountCents;
+  final int? patientResponsibilityCents;
+  final int requestedReimbursementCents;
+
+  bool get hasDetails {
+    return _hasText(providerName) ||
+        _hasText(patientName) ||
+        _hasText(serviceDate) ||
+        grossBilledCents != null ||
+        coveredAmountCents != null ||
+        patientResponsibilityCents != null ||
+        requestedReimbursementCents > 0;
+  }
+
+  bool get hasAmountBreakdown {
+    return grossBilledCents != null ||
+        coveredAmountCents != null ||
+        patientResponsibilityCents != null;
+  }
+
+  String? get grossBilledLabel => _amountLabel(grossBilledCents);
+
+  String? get coveredAmountLabel => _amountLabel(coveredAmountCents);
+
+  String? get patientResponsibilityLabel =>
+      _amountLabel(patientResponsibilityCents);
+
+  String get requestedReimbursementLabel =>
+      formatCents(requestedReimbursementCents);
+
+  int? get calculatedResponsibilityCents {
+    final gross = grossBilledCents;
+    final covered = coveredAmountCents;
+    if (gross == null || covered == null) {
+      return null;
+    }
+    return gross - covered;
+  }
+
+  bool get isResponsibilityConsistent {
+    final calculated = calculatedResponsibilityCents;
+    final responsibility = patientResponsibilityCents;
+    if (calculated == null || responsibility == null) {
+      return true;
+    }
+    return calculated == responsibility;
+  }
+
+  static bool _hasText(String? value) {
+    return value != null && value.trim().isNotEmpty;
+  }
+
+  static String? _amountLabel(int? amountCents) {
+    if (amountCents == null) {
+      return null;
+    }
+    return formatCents(amountCents);
   }
 }
 
@@ -762,7 +843,17 @@ String _normalize(String? value) {
   return value == null ? '' : value.trim().toLowerCase();
 }
 
-enum EvidenceType { receipt, invoice, bankConfirmation, onlineOrder, other }
+enum EvidenceType {
+  receipt,
+  invoice,
+  bankConfirmation,
+  onlineOrder,
+  medicalProviderBill,
+  medicalEob,
+  medicalPaymentProof,
+  medicalOther,
+  other,
+}
 
 extension EvidenceTypeDetails on EvidenceType {
   String get id {
@@ -775,6 +866,14 @@ extension EvidenceTypeDetails on EvidenceType {
         return 'bank_confirmation';
       case EvidenceType.onlineOrder:
         return 'online_order';
+      case EvidenceType.medicalProviderBill:
+        return 'medical_provider_bill';
+      case EvidenceType.medicalEob:
+        return 'medical_eob';
+      case EvidenceType.medicalPaymentProof:
+        return 'medical_payment_proof';
+      case EvidenceType.medicalOther:
+        return 'medical_other';
       case EvidenceType.other:
         return 'other';
     }
@@ -790,6 +889,14 @@ extension EvidenceTypeDetails on EvidenceType {
         return 'Potwierdzenie przelewu';
       case EvidenceType.onlineOrder:
         return 'Zamowienie online';
+      case EvidenceType.medicalProviderBill:
+        return 'Rachunek medyczny';
+      case EvidenceType.medicalEob:
+        return 'EOB / rozliczenie ubezpieczyciela';
+      case EvidenceType.medicalPaymentProof:
+        return 'Dowod platnosci medycznej';
+      case EvidenceType.medicalOther:
+        return 'Inny dokument medyczny';
       case EvidenceType.other:
         return 'Inny dowod';
     }
@@ -805,6 +912,14 @@ extension EvidenceTypeDetails on EvidenceType {
         return 'Laczy koszt z przeplywem platnosci.';
       case EvidenceType.onlineOrder:
         return 'Przydatne przy zakupach internetowych.';
+      case EvidenceType.medicalProviderBill:
+        return 'Pokazuje kwote naliczona przez lekarza, dentyste, terapeute lub apteke.';
+      case EvidenceType.medicalEob:
+        return 'Porzadkuje rozliczenie ubezpieczyciela lub innej strony trzeciej.';
+      case EvidenceType.medicalPaymentProof:
+        return 'Pokazuje, ze odpowiedzialnosc pacjenta zostala zaplacona.';
+      case EvidenceType.medicalOther:
+        return 'Uzyj dla skierowania, recepty lub planu leczenia, jesli jest potrzebny.';
       case EvidenceType.other:
         return 'Uzyj, gdy dokument nie pasuje do listy.';
     }

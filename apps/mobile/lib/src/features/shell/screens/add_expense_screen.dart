@@ -70,6 +70,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _providerReferenceController = TextEditingController();
   final _providerAmountDueController = TextEditingController();
   final _providerDueDateController = TextEditingController();
+  final _medicalServiceDateController = TextEditingController();
+  final _medicalProviderController = TextEditingController();
+  final _medicalGrossAmountController = TextEditingController();
+  final _medicalCoveredAmountController = TextEditingController();
+  final _medicalPatientResponsibilityController = TextEditingController();
   late final List<ExpensePayer> _payers;
   ExpenseCategory _category = expenseCategories.first;
   ExpensePayer? _payer;
@@ -157,6 +162,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _providerReferenceController.dispose();
     _providerAmountDueController.dispose();
     _providerDueDateController.dispose();
+    _medicalServiceDateController.dispose();
+    _medicalProviderController.dispose();
+    _medicalGrossAmountController.dispose();
+    _medicalCoveredAmountController.dispose();
+    _medicalPatientResponsibilityController.dispose();
     super.dispose();
   }
 
@@ -408,6 +418,19 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               });
             },
           ),
+          if (_isMedicalCategory) ...[
+            const SizedBox(height: 12),
+            _MedicalExpensePacketFields(
+              requestedReimbursementCents: _parsedAmountOrZero,
+              serviceDateController: _medicalServiceDateController,
+              providerController: _medicalProviderController,
+              patientName: widget.profile.childName,
+              grossAmountController: _medicalGrossAmountController,
+              coveredAmountController: _medicalCoveredAmountController,
+              patientResponsibilityController:
+                  _medicalPatientResponsibilityController,
+            ),
+          ],
           if (_attachmentDraft == null) ...[
             const SizedBox(height: 12),
             _ExpenseVerificationFields(
@@ -777,6 +800,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       providerPayment: _currentProviderPaymentDetails(),
       draftReview: draftReview,
       lineItems: _lineItems,
+      medicalPacket: _currentMedicalPacket(amountCents),
     );
 
     widget.onExpenseSaved(expense);
@@ -808,6 +832,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _providerAmountDueController.clear();
       _providerDueDateController.clear();
       _providerPaymentError = null;
+      _medicalServiceDateController.clear();
+      _medicalProviderController.clear();
+      _medicalGrossAmountController.clear();
+      _medicalCoveredAmountController.clear();
+      _medicalPatientResponsibilityController.clear();
       _lineItems = const [];
       _lineItemsError = null;
       _calendarEventId = null;
@@ -892,6 +921,53 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       dueDate: _providerDueDateController.text.trim(),
       status: _providerPaymentStatus,
     );
+  }
+
+  bool get _isMedicalCategory => _category.id == 'health';
+
+  MedicalExpensePacket? _currentMedicalPacket(int requestedReimbursementCents) {
+    if (!_isMedicalCategory) {
+      return null;
+    }
+    final gross = _parseOptionalAmountCents(_medicalGrossAmountController.text);
+    final covered = _parseOptionalAmountCents(
+      _medicalCoveredAmountController.text,
+    );
+    final responsibility = _parseOptionalAmountCents(
+      _medicalPatientResponsibilityController.text,
+    );
+    final providerName = _trimmedOrNull(_medicalProviderController.text);
+    final serviceDate = _trimmedOrNull(_medicalServiceDateController.text);
+    final hasMedicalDetails =
+        gross != null ||
+        covered != null ||
+        responsibility != null ||
+        providerName != null ||
+        serviceDate != null;
+    if (!hasMedicalDetails) {
+      return null;
+    }
+    return MedicalExpensePacket(
+      providerName: providerName,
+      patientName: widget.profile.childName,
+      serviceDate: serviceDate,
+      grossBilledCents: gross,
+      coveredAmountCents: covered,
+      patientResponsibilityCents: responsibility,
+      requestedReimbursementCents: requestedReimbursementCents,
+    );
+  }
+
+  int? _parseOptionalAmountCents(String value) {
+    final text = value.trim();
+    if (text.isEmpty) {
+      return null;
+    }
+    try {
+      return parseAmountToCents(text);
+    } on FormatException {
+      return null;
+    }
   }
 
   String? _providerPaymentValidationError() {
@@ -2252,6 +2328,121 @@ class _ExpenseLineItemSheetState extends State<_ExpenseLineItemSheet> {
         childName: widget.childName,
         isReimbursable: _isReimbursable,
         splitPercent: splitPercent,
+      ),
+    );
+  }
+}
+
+class _MedicalExpensePacketFields extends StatelessWidget {
+  const _MedicalExpensePacketFields({
+    required this.requestedReimbursementCents,
+    required this.serviceDateController,
+    required this.providerController,
+    required this.patientName,
+    required this.grossAmountController,
+    required this.coveredAmountController,
+    required this.patientResponsibilityController,
+  });
+
+  final int requestedReimbursementCents;
+  final TextEditingController serviceDateController;
+  final TextEditingController providerController;
+  final String patientName;
+  final TextEditingController grossAmountController;
+  final TextEditingController coveredAmountController;
+  final TextEditingController patientResponsibilityController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ExpansionTile(
+        key: const Key('medical-expense-packet-fields'),
+        leading: const Icon(Icons.medical_information_outlined),
+        title: const Text('Pakiet medyczny / EOB'),
+        subtitle: const Text(
+          'Opcjonalny kontekst dla rachunku, EOB i kwoty pacjenta.',
+        ),
+        initiallyExpanded: true,
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          const _AttachmentSaveNotice(
+            icon: Icons.privacy_tip_outlined,
+            text:
+                'Udostepniaj tylko dokumenty potrzebne do rozliczenia. KidCost nie ocenia ubezpieczenia ani uprawnien prawnych.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('medical-service-date-field'),
+            controller: serviceDateController,
+            keyboardType: TextInputType.datetime,
+            decoration: const InputDecoration(
+              labelText: 'Data uslugi medycznej',
+              hintText: 'RRRR-MM-DD',
+              prefixIcon: Icon(Icons.event_available_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('medical-provider-field'),
+            controller: providerController,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Dostawca / placowka',
+              prefixIcon: Icon(Icons.local_hospital_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          InputDecorator(
+            decoration: const InputDecoration(
+              labelText: 'Pacjent / dziecko',
+              prefixIcon: Icon(Icons.child_care_outlined),
+            ),
+            child: Text(patientName),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('medical-gross-amount-field'),
+            controller: grossAmountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Kwota brutto z rachunku',
+              hintText: '0,00',
+              prefixIcon: Icon(Icons.request_quote_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('medical-covered-amount-field'),
+            controller: coveredAmountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Pokryte przez ubezpieczenie / strone trzecia',
+              hintText: '0,00',
+              prefixIcon: Icon(Icons.health_and_safety_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('medical-patient-responsibility-field'),
+            controller: patientResponsibilityController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Odpowiedzialnosc pacjenta / out-of-pocket',
+              hintText: '0,00',
+              prefixIcon: Icon(Icons.payments_outlined),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.splitscreen_outlined),
+            title: const Text('Kwota proszona do zwrotu'),
+            subtitle: const Text(
+              'To glowna kwota kosztu powyzej; nie zmieniamy algorytmu salda.',
+            ),
+            trailing: Text(formatCents(requestedReimbursementCents)),
+          ),
+        ],
       ),
     );
   }

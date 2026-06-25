@@ -1815,6 +1815,12 @@ class MonthlyExpenseReport {
         'suma_pozycji',
         'reimbursable_pozycje',
         'roznica_pozycji',
+        'medical_provider',
+        'medical_service_date',
+        'medical_gross_billed',
+        'medical_covered_amount',
+        'medical_patient_responsibility',
+        'medical_requested_reimbursement',
       ],
       for (final expense in expenses)
         [
@@ -1849,7 +1855,49 @@ class MonthlyExpenseReport {
           expense.hasLineItems
               ? formatCents(expense.lineItemsDifferenceCents)
               : '',
+          expense.medicalPacket?.providerName ?? '',
+          expense.medicalPacket?.serviceDate ?? '',
+          expense.medicalPacket?.grossBilledLabel ?? '',
+          expense.medicalPacket?.coveredAmountLabel ?? '',
+          expense.medicalPacket?.patientResponsibilityLabel ?? '',
+          expense.medicalPacket?.requestedReimbursementLabel ?? '',
         ],
+      if (expenses.any((expense) => expense.hasMedicalPacket)) ...[
+        const <String>[],
+        ['sekcja', 'pakiet_medyczny_eob'],
+        [
+          'disclaimer',
+          'Pakiet medyczny porzadkuje dane wpisane przez uzytkownika. KidCost nie ocenia ubezpieczenia, kodow medycznych ani uprawnien prawnych.',
+        ],
+        const [
+          'expense_id',
+          'expense_title',
+          'service_date',
+          'provider',
+          'patient',
+          'gross_billed',
+          'covered_amount',
+          'patient_responsibility',
+          'requested_reimbursement',
+          'document_type',
+        ],
+        for (final expense in expenses)
+          if (expense.hasMedicalPacket)
+            [
+              expense.id,
+              expense.title,
+              expense.medicalPacket?.serviceDate ?? '',
+              expense.medicalPacket?.providerName ?? '',
+              expense.medicalPacket?.patientName ?? '',
+              expense.medicalPacket?.grossBilledLabel ?? '',
+              expense.medicalPacket?.coveredAmountLabel ?? '',
+              expense.medicalPacket?.patientResponsibilityLabel ?? '',
+              expense.medicalPacket?.requestedReimbursementLabel ?? '',
+              expense.attachment?.evidence?.type?.label ??
+                  expense.verification?.type?.label ??
+                  '',
+            ],
+      ],
       if (expenses.any((expense) => expense.hasLineItems)) ...[
         const <String>[],
         ['sekcja', 'pozycje_rachunku'],
