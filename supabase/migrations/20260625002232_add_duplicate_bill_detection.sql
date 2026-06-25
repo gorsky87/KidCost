@@ -40,20 +40,20 @@ alter table public.expense_related_records enable row level security;
 
 create policy "expense_related_records_select_family_member"
 on public.expense_related_records for select
-using (public.is_family_member(family_id));
+using (public.is_family_member(expense_related_records.family_id));
 
 create policy "expense_related_records_insert_family_writer"
 on public.expense_related_records for insert
 with check (
-  public.is_family_member(family_id)
-  and linked_by = auth.uid()
+  public.is_family_member(expense_related_records.family_id)
+  and expense_related_records.linked_by = auth.uid()
   and exists (
     select 1
     from public.expenses source
-    join public.expenses related on related.id = related_expense_id
-    where source.id = source_expense_id
-      and source.family_id = family_id
-      and related.family_id = family_id
+    join public.expenses related on related.id = expense_related_records.related_expense_id
+    where source.id = expense_related_records.source_expense_id
+      and source.family_id = expense_related_records.family_id
+      and related.family_id = expense_related_records.family_id
   )
 );
 
@@ -119,7 +119,8 @@ as $$
       and e.category = target_category
       and target_amount > 0
       and public.is_family_member(target_family_id)
-  )
+  ),
+  matched as (
   select
     existing.id as expense_id,
     array_remove(array[
@@ -182,6 +183,14 @@ as $$
         )
       )
     )
-  order by array_length(match_reasons, 1) desc, existing.expense_date desc
+  )
+  select
+    matched.expense_id,
+    matched.match_reasons,
+    matched.amount,
+    matched.expense_date,
+    matched.status
+  from matched
+  order by array_length(matched.match_reasons, 1) desc, matched.expense_date desc
   limit greatest(1, least(coalesce(result_limit, 5), 20));
 $$;

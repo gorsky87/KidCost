@@ -6,7 +6,7 @@ usage() {
 Verify the local KidCost Supabase stack from a clean database.
 
 Usage:
-  scripts/verify_supabase_local.sh [--skip-image-pull]
+  scripts/verify_supabase_local.sh [--preflight-only] [--skip-image-pull]
 
 Environment:
   KIDCOST_SUPABASE_POSTGRES_IMAGE  Postgres image required by Supabase CLI.
@@ -22,9 +22,15 @@ The script fails before `supabase start` when the required Postgres image cannot
 be pulled in time. It also bounds `supabase start` and `supabase db reset`, so
 demo audits fail with a clear diagnostic instead of hanging on local
 Docker/OrbStack image transfer or container startup issues before migrations run.
+
+Options:
+  --preflight-only     Stop after prerequisite and Postgres image checks.
+  --skip-image-pull    Fail when the Postgres image is missing instead of
+                       attempting to pull it.
 USAGE
 }
 
+preflight_only=0
 skip_image_pull=0
 
 while (($#)); do
@@ -32,6 +38,9 @@ while (($#)); do
     --help|-h)
       usage
       exit 0
+      ;;
+    --preflight-only)
+      preflight_only=1
       ;;
     --skip-image-pull)
       skip_image_pull=1
@@ -64,11 +73,25 @@ run_with_timeout() {
   "$@" &
   local child_pid=$!
   local elapsed=0
+  local term_grace_seconds=5
 
   while kill -0 "$child_pid" >/dev/null 2>&1; do
     if ((elapsed >= timeout_seconds)); then
       echo "Command timed out after ${timeout_seconds}s: $*" >&2
       kill "$child_pid" >/dev/null 2>&1 || true
+
+      for ((grace_elapsed = 0; grace_elapsed < term_grace_seconds; grace_elapsed++)); do
+        if ! kill -0 "$child_pid" >/dev/null 2>&1; then
+          return 124
+        fi
+        sleep 1
+      done
+
+      if kill -0 "$child_pid" >/dev/null 2>&1; then
+        echo "Command did not stop after SIGTERM; sending SIGKILL: $*" >&2
+        kill -KILL "$child_pid" >/dev/null 2>&1 || true
+      fi
+
       wait "$child_pid" >/dev/null 2>&1 || true
       return 124
     fi
@@ -117,6 +140,11 @@ if ! docker image inspect "$postgres_image" >/dev/null 2>&1; then
 fi
 
 docker image inspect "$postgres_image" >/dev/null
+
+if [[ "$preflight_only" == "1" ]]; then
+  echo "Preflight completed; skipping supabase start and db reset."
+  exit 0
+fi
 
 echo "Starting local Supabase stack (timeout: ${start_timeout}s)."
 run_with_timeout "$start_timeout" supabase start

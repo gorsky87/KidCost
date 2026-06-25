@@ -32,7 +32,13 @@ scripts/verify_supabase_local.sh
 ```
 
 `supabase db reset` starts from the migrations in `supabase/migrations/` and then loads `supabase/seed.sql`.
-The verifier checks the local Docker/Supabase prerequisites first, including the Supabase Postgres image, so image-pull, container-start, and reset problems fail with a bounded diagnostic before or during migration verification. The timeouts can be tuned with:
+The verifier checks the local Docker/Supabase prerequisites first, including the Supabase Postgres image, so image-pull, container-start, and reset problems fail with a bounded diagnostic before or during migration verification. Use a preflight when you only need to confirm the local host can reach the required image before starting containers:
+
+```sh
+scripts/verify_supabase_local.sh --preflight-only
+```
+
+The timeouts can be tuned with:
 
 ```sh
 KIDCOST_SUPABASE_PULL_TIMEOUT=180 \

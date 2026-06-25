@@ -25,7 +25,8 @@ set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
-alter table storage.objects enable row level security;
+-- Supabase owns storage.objects as supabase_storage_admin and enables RLS in
+-- the local stack bootstrap. Re-enabling it here breaks db reset ownership.
 
 grant usage on schema storage to authenticated;
 grant select, insert, update on storage.objects to authenticated;

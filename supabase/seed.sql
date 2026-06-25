@@ -4,26 +4,6 @@
 -- Loaded by `supabase db reset` because `[db.seed]` is enabled in config.toml.
 -- The records are deterministic, fake, and safe to reset at any time.
 
-begin;
-
-create temp table kidcost_seed_ids (
-  name text primary key,
-  id uuid not null
-) on commit drop;
-
-insert into kidcost_seed_ids (name, id)
-values
-  ('owner', '00000000-0000-4000-8000-000000000101'),
-  ('co_parent', '00000000-0000-4000-8000-000000000102'),
-  ('family', '00000000-0000-4000-8000-000000000201'),
-  ('child', '00000000-0000-4000-8000-000000000301'),
-  ('school_expense', '00000000-0000-4000-8000-000000000401'),
-  ('health_expense', '00000000-0000-4000-8000-000000000402'),
-  ('activity_expense', '00000000-0000-4000-8000-000000000403'),
-  ('settlement', '00000000-0000-4000-8000-000000000501')
-on conflict (name) do update
-set id = excluded.id;
-
 insert into auth.users (
   id,
   instance_id,
@@ -39,7 +19,7 @@ insert into auth.users (
 )
 values
   (
-    (select id from kidcost_seed_ids where name = 'owner'),
+    '00000000-0000-4000-8000-000000000101',
     '00000000-0000-0000-0000-000000000000',
     'authenticated',
     'authenticated',
@@ -52,7 +32,7 @@ values
     now()
   ),
   (
-    (select id from kidcost_seed_ids where name = 'co_parent'),
+    '00000000-0000-4000-8000-000000000102',
     '00000000-0000-0000-0000-000000000000',
     'authenticated',
     'authenticated',
@@ -86,10 +66,10 @@ insert into auth.identities (
 values
   (
     '00000000-0000-4000-8000-000000000601',
-    (select id from kidcost_seed_ids where name = 'owner'),
-    (select id::text from kidcost_seed_ids where name = 'owner'),
+    '00000000-0000-4000-8000-000000000101',
+    '00000000-0000-4000-8000-000000000101',
     jsonb_build_object(
-      'sub', (select id::text from kidcost_seed_ids where name = 'owner'),
+      'sub', '00000000-0000-4000-8000-000000000101',
       'email', 'demo.parent.one@example.test',
       'email_verified', true
     ),
@@ -100,10 +80,10 @@ values
   ),
   (
     '00000000-0000-4000-8000-000000000602',
-    (select id from kidcost_seed_ids where name = 'co_parent'),
-    (select id::text from kidcost_seed_ids where name = 'co_parent'),
+    '00000000-0000-4000-8000-000000000102',
+    '00000000-0000-4000-8000-000000000102',
     jsonb_build_object(
-      'sub', (select id::text from kidcost_seed_ids where name = 'co_parent'),
+      'sub', '00000000-0000-4000-8000-000000000102',
       'email', 'demo.parent.two@example.test',
       'email_verified', true
     ),
@@ -120,12 +100,12 @@ set
 insert into public.profiles (id, display_name, email)
 values
   (
-    (select id from kidcost_seed_ids where name = 'owner'),
+    '00000000-0000-4000-8000-000000000101',
     'Demo Parent One',
     'demo.parent.one@example.test'
   ),
   (
-    (select id from kidcost_seed_ids where name = 'co_parent'),
+    '00000000-0000-4000-8000-000000000102',
     'Demo Parent Two',
     'demo.parent.two@example.test'
   )
@@ -137,9 +117,9 @@ set
 
 insert into public.families (id, name, created_by, default_currency)
 values (
-  (select id from kidcost_seed_ids where name = 'family'),
+  '00000000-0000-4000-8000-000000000201',
   'Demo KidCost Family',
-  (select id from kidcost_seed_ids where name = 'owner'),
+  '00000000-0000-4000-8000-000000000101',
   'PLN'
 )
 on conflict (id) do update
@@ -151,15 +131,15 @@ set
 insert into public.family_members (family_id, profile_id, role, status, joined_at)
 values
   (
-    (select id from kidcost_seed_ids where name = 'family'),
-    (select id from kidcost_seed_ids where name = 'owner'),
+    '00000000-0000-4000-8000-000000000201',
+    '00000000-0000-4000-8000-000000000101',
     'owner',
     'active',
     now()
   ),
   (
-    (select id from kidcost_seed_ids where name = 'family'),
-    (select id from kidcost_seed_ids where name = 'co_parent'),
+    '00000000-0000-4000-8000-000000000201',
+    '00000000-0000-4000-8000-000000000102',
     'parent',
     'active',
     now()
@@ -173,8 +153,8 @@ set
 
 insert into public.children (id, family_id, first_name, birth_date, is_active)
 values (
-  (select id from kidcost_seed_ids where name = 'child'),
-  (select id from kidcost_seed_ids where name = 'family'),
+  '00000000-0000-4000-8000-000000000301',
+  '00000000-0000-4000-8000-000000000201',
   'Maja',
   date '2017-04-12',
   true
@@ -202,46 +182,46 @@ insert into public.expenses (
 )
 values
   (
-    (select id from kidcost_seed_ids where name = 'school_expense'),
-    (select id from kidcost_seed_ids where name = 'family'),
-    (select id from kidcost_seed_ids where name = 'child'),
-    (select id from kidcost_seed_ids where name = 'owner'),
+    '00000000-0000-4000-8000-000000000401',
+    '00000000-0000-4000-8000-000000000201',
+    '00000000-0000-4000-8000-000000000301',
+    '00000000-0000-4000-8000-000000000101',
     129.90,
     'PLN',
     'school',
     'Demo: school supplies',
     current_date - 8,
     'accepted',
-    (select id from kidcost_seed_ids where name = 'owner'),
-    (select id from kidcost_seed_ids where name = 'co_parent')
+    '00000000-0000-4000-8000-000000000101',
+    '00000000-0000-4000-8000-000000000102'
   ),
   (
-    (select id from kidcost_seed_ids where name = 'health_expense'),
-    (select id from kidcost_seed_ids where name = 'family'),
-    (select id from kidcost_seed_ids where name = 'child'),
-    (select id from kidcost_seed_ids where name = 'co_parent'),
+    '00000000-0000-4000-8000-000000000402',
+    '00000000-0000-4000-8000-000000000201',
+    '00000000-0000-4000-8000-000000000301',
+    '00000000-0000-4000-8000-000000000102',
     84.50,
     'PLN',
     'health',
     'Demo: pharmacy',
     current_date - 5,
     'pending',
-    (select id from kidcost_seed_ids where name = 'co_parent'),
+    '00000000-0000-4000-8000-000000000102',
     null
   ),
   (
-    (select id from kidcost_seed_ids where name = 'activity_expense'),
-    (select id from kidcost_seed_ids where name = 'family'),
-    (select id from kidcost_seed_ids where name = 'child'),
-    (select id from kidcost_seed_ids where name = 'owner'),
+    '00000000-0000-4000-8000-000000000403',
+    '00000000-0000-4000-8000-000000000201',
+    '00000000-0000-4000-8000-000000000301',
+    '00000000-0000-4000-8000-000000000101',
     60.00,
     'PLN',
     'activities',
     'Demo: art class',
     current_date - 2,
     'disputed',
-    (select id from kidcost_seed_ids where name = 'owner'),
-    (select id from kidcost_seed_ids where name = 'co_parent')
+    '00000000-0000-4000-8000-000000000101',
+    '00000000-0000-4000-8000-000000000102'
   )
 on conflict (id) do update
 set
@@ -270,18 +250,18 @@ insert into public.settlements (
   created_by
 )
 values (
-  (select id from kidcost_seed_ids where name = 'settlement'),
-  (select id from kidcost_seed_ids where name = 'family'),
-  (select id from kidcost_seed_ids where name = 'co_parent'),
-  (select id from kidcost_seed_ids where name = 'owner'),
+  '00000000-0000-4000-8000-000000000501',
+  '00000000-0000-4000-8000-000000000201',
+  '00000000-0000-4000-8000-000000000102',
+  '00000000-0000-4000-8000-000000000101',
   64.95,
   'PLN',
   current_date - 1,
   'Demo partial reimbursement for accepted school expense',
-  (select id from kidcost_seed_ids where name = 'school_expense'),
+  '00000000-0000-4000-8000-000000000401',
   date_trunc('month', current_date)::date,
   current_date,
-  (select id from kidcost_seed_ids where name = 'co_parent')
+  '00000000-0000-4000-8000-000000000102'
 )
 on conflict (id) do update
 set
@@ -298,9 +278,9 @@ insert into public.family_invitations (
   expires_at
 )
 values (
-  (select id from kidcost_seed_ids where name = 'family'),
+  '00000000-0000-4000-8000-000000000201',
   'demo.pending.parent@example.test',
-  (select id from kidcost_seed_ids where name = 'owner'),
+  '00000000-0000-4000-8000-000000000101',
   'kidcost-demo-invite-token',
   'pending',
   now() + interval '14 days'
@@ -311,5 +291,3 @@ set
   status = excluded.status,
   expires_at = excluded.expires_at,
   updated_at = now();
-
-commit;

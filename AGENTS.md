@@ -84,6 +84,9 @@ cd apps/mobile && flutter run -d <android-device-id>
 # Run domain package tests
 cd packages/domain && dart test/balance_test.dart
 cd packages/domain && dart test/expense_status_test.dart
+
+# Run Supabase verifier shell tests
+bash scripts/test_verify_supabase_local.sh
 ```
 
 Supabase CLI is not committed as a project dependency yet. Once installed locally, verify migrations from a clean database with:
