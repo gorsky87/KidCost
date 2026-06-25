@@ -42,6 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _balanceReminderPush = false;
   bool _permissionPromptSeen = false;
   bool _familyExportRequested = false;
+  bool _betaFeedbackDraftReady = false;
 
   @override
   Widget build(BuildContext context) {
@@ -163,6 +164,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _FamilyDataExportCard(
           isRequested: _familyExportRequested,
           onRequestExport: _requestFamilyExport,
+        ),
+        _BetaFeedbackCard(
+          isDraftReady: _betaFeedbackDraftReady,
+          onOpenFeedback: _showBetaFeedbackFlow,
         ),
         ListTile(
           leading: const Icon(Icons.privacy_tip_outlined),
@@ -316,6 +321,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
+        );
+      },
+    );
+  }
+
+  void _showBetaFeedbackFlow() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return _BetaFeedbackSheet(
+          onPrepared:
+              ({
+                required category,
+                required hasReimbursementImpact,
+                required hasAttachmentContext,
+              }) {
+                setState(() => _betaFeedbackDraftReady = true);
+                unawaited(
+                  widget.telemetry.track(
+                    TelemetryEvent.betaFeedbackDraftPrepared,
+                    parameters: {
+                      'surface': 'settings',
+                      'feedback_category': category.code,
+                      'has_reimbursement_impact': hasReimbursementImpact,
+                      'has_attachment_context': hasAttachmentContext,
+                      'known_limitations_count': betaKnownLimitations.length,
+                    },
+                  ),
+                );
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Szkic feedbacku gotowy: ${category.label}. Wyslij go kanalem beta/support bez danych wrazliwych.',
+                    ),
+                  ),
+                );
+              },
         );
       },
     );
@@ -489,6 +534,294 @@ class _CancellationAccessCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+enum BetaFeedbackCategory {
+  blocker,
+  bug,
+  polish,
+  privacySecurity,
+  v1Feature,
+  later,
+}
+
+extension BetaFeedbackCategoryDetails on BetaFeedbackCategory {
+  String get label {
+    switch (this) {
+      case BetaFeedbackCategory.blocker:
+        return 'Blocker bety';
+      case BetaFeedbackCategory.bug:
+        return 'Bug';
+      case BetaFeedbackCategory.polish:
+        return 'Polish UX';
+      case BetaFeedbackCategory.privacySecurity:
+        return 'Privacy/Security';
+      case BetaFeedbackCategory.v1Feature:
+        return 'V1 feature';
+      case BetaFeedbackCategory.later:
+        return 'Later';
+    }
+  }
+
+  String get code {
+    switch (this) {
+      case BetaFeedbackCategory.blocker:
+        return 'blocker';
+      case BetaFeedbackCategory.bug:
+        return 'bug';
+      case BetaFeedbackCategory.polish:
+        return 'polish';
+      case BetaFeedbackCategory.privacySecurity:
+        return 'privacy_security';
+      case BetaFeedbackCategory.v1Feature:
+        return 'v1_feature';
+      case BetaFeedbackCategory.later:
+        return 'later';
+    }
+  }
+}
+
+const betaKnownLimitations = [
+  'Dane demo sa lokalne w tej sesji aplikacji, dopoki backend persistence nie jest wlaczony dla bety.',
+  'Billing, helpdesk i automatyczne wysylanie feedbacku sa jeszcze procesem recznym.',
+  'Raporty i eksporty sa pomocnicze, bez porad prawnych i bez gwarancji akceptacji przez sad.',
+];
+
+class _BetaFeedbackCard extends StatelessWidget {
+  const _BetaFeedbackCard({
+    required this.isDraftReady,
+    required this.onOpenFeedback,
+  });
+
+  final bool isDraftReady;
+  final VoidCallback onOpenFeedback;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ExpansionTile(
+        key: const Key('beta-feedback-card'),
+        leading: const Icon(Icons.rate_review_outlined),
+        title: const Text('Feedback beta'),
+        subtitle: Text(
+          isDraftReady
+              ? 'Szkic gotowy do wyslania kanalem beta/support.'
+              : 'Template, znane ograniczenia i triage backlogu V1.',
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Kanal: TestFlight/Google Play feedback albo support@kidcost.app. Nie wysylaj imion dzieci, dokladnych kwot ani pelnych paragonow bez potrzeby.',
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Znane ograniczenia bety',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          for (final limitation in betaKnownLimitations)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.info_outline),
+              title: Text(limitation),
+            ),
+          const SizedBox(height: 8),
+          Text('Triage', style: Theme.of(context).textTheme.titleSmall),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final category in BetaFeedbackCategory.values)
+                Chip(label: Text(category.label)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              key: const Key('open-beta-feedback-flow'),
+              onPressed: onOpenFeedback,
+              icon: const Icon(Icons.edit_note_outlined),
+              label: const Text('Zglos feedback beta'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+typedef _BetaFeedbackPrepared =
+    void Function({
+      required BetaFeedbackCategory category,
+      required bool hasReimbursementImpact,
+      required bool hasAttachmentContext,
+    });
+
+class _BetaFeedbackSheet extends StatefulWidget {
+  const _BetaFeedbackSheet({required this.onPrepared});
+
+  final _BetaFeedbackPrepared onPrepared;
+
+  @override
+  State<_BetaFeedbackSheet> createState() => _BetaFeedbackSheetState();
+}
+
+class _BetaFeedbackSheetState extends State<_BetaFeedbackSheet> {
+  BetaFeedbackCategory _category = BetaFeedbackCategory.bug;
+  bool _hasReimbursementImpact = false;
+  bool _hasAttachmentContext = false;
+
+  final _contextController = TextEditingController();
+  final _stepsController = TextEditingController();
+  final _expectedController = TextEditingController();
+  final _actualController = TextEditingController();
+
+  @override
+  void dispose() {
+    _contextController.dispose();
+    _stepsController.dispose();
+    _expectedController.dispose();
+    _actualController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.feedback_outlined),
+              title: Text('Feedback beta'),
+              subtitle: Text(
+                'Opisz problem bez imion dzieci, dokladnych kwot i pelnych paragonow, jesli nie sa konieczne.',
+              ),
+            ),
+            DropdownButtonFormField<BetaFeedbackCategory>(
+              key: const Key('beta-feedback-category-picker'),
+              initialValue: _category,
+              decoration: const InputDecoration(
+                labelText: 'Triage',
+                prefixIcon: Icon(Icons.label_outline),
+              ),
+              items: [
+                for (final item in BetaFeedbackCategory.values)
+                  DropdownMenuItem(value: item, child: Text(item.label)),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _category = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            _BetaFeedbackTextField(
+              key: const Key('beta-feedback-context-field'),
+              controller: _contextController,
+              label: 'Kontekst',
+              hint: 'Np. ekran, typ przeplywu, tryb demo/beta.',
+            ),
+            _BetaFeedbackTextField(
+              key: const Key('beta-feedback-steps-field'),
+              controller: _stepsController,
+              label: 'Kroki',
+              hint: 'Co tester zrobil przed problemem?',
+            ),
+            _BetaFeedbackTextField(
+              key: const Key('beta-feedback-expected-field'),
+              controller: _expectedController,
+              label: 'Oczekiwane zachowanie',
+              hint: 'Co powinno sie wydarzyc?',
+            ),
+            _BetaFeedbackTextField(
+              key: const Key('beta-feedback-actual-field'),
+              controller: _actualController,
+              label: 'Rzeczywiste zachowanie',
+              hint: 'Co faktycznie sie wydarzylo?',
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _hasReimbursementImpact,
+              onChanged: (value) {
+                setState(() => _hasReimbursementImpact = value ?? false);
+              },
+              title: const Text('Wplywa na rozliczenia'),
+              subtitle: const Text(
+                'Zaznacz bez podawania dokladnych kwot w feedbacku.',
+              ),
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _hasAttachmentContext,
+              onChanged: (value) {
+                setState(() => _hasAttachmentContext = value ?? false);
+              },
+              title: const Text('Wymaga screena albo zalacznika'),
+              subtitle: const Text(
+                'Najpierw zaciemnij dane dziecka, kwoty i pelne paragony.',
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              key: const Key('beta-feedback-submit-button'),
+              onPressed: () {
+                widget.onPrepared(
+                  category: _category,
+                  hasReimbursementImpact: _hasReimbursementImpact,
+                  hasAttachmentContext: _hasAttachmentContext,
+                );
+              },
+              icon: const Icon(Icons.check_outlined),
+              label: const Text('Przygotuj bezpieczny szkic'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BetaFeedbackTextField extends StatelessWidget {
+  const _BetaFeedbackTextField({
+    super.key,
+    required this.controller,
+    required this.label,
+    required this.hint,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final String hint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller,
+        minLines: 2,
+        maxLines: 4,
+        maxLength: 280,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          helperText: 'Bez danych dzieci, dokladnych kwot i pelnych paragonow.',
+          prefixIcon: const Icon(Icons.notes_outlined),
         ),
       ),
     );
