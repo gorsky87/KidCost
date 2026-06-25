@@ -554,6 +554,10 @@ class MonthlyExpenseReport {
         'kategoria',
         'placacy',
         'status',
+        'submitted_at',
+        'notice_due_at',
+        'payment_due_at',
+        'paid_at',
         'wydarzenie_data',
         'wydarzenie_tytul',
         'typ_dowodu',
@@ -568,6 +572,10 @@ class MonthlyExpenseReport {
           expense.category.label,
           expense.paidBy.label,
           expense.status.label,
+          _csvDate(expense.reimbursementDeadlines?.submittedAt),
+          _csvDate(expense.reimbursementDeadlines?.noticeDueAt),
+          _csvDate(expense.reimbursementDeadlines?.paymentDueAt),
+          _csvDate(expense.reimbursementDeadlines?.paidAt),
           expense.calendarEventDate ?? '',
           expense.calendarEventTitle ?? '',
           expense.attachment?.evidence?.type?.label ?? '',
@@ -588,6 +596,16 @@ class MonthlyExpenseReport {
   static String _csvCell(String value) {
     final escaped = value.replaceAll('"', '""');
     return '"$escaped"';
+  }
+
+  static String _csvDate(DateTime? date) {
+    if (date == null) {
+      return '';
+    }
+    final utc = date.toUtc();
+    return '${utc.year.toString().padLeft(4, '0')}-'
+        '${utc.month.toString().padLeft(2, '0')}-'
+        '${utc.day.toString().padLeft(2, '0')}';
   }
 }
 
@@ -714,6 +732,10 @@ class AnnualExpenseReport {
         'kategoria',
         'placacy',
         'status',
+        'submitted_at',
+        'notice_due_at',
+        'payment_due_at',
+        'paid_at',
         'wydarzenie_data',
         'wydarzenie_tytul',
         'typ_dowodu',
@@ -728,6 +750,16 @@ class AnnualExpenseReport {
           expense.category.label,
           expense.paidBy.label,
           expense.status.label,
+          MonthlyExpenseReport._csvDate(
+            expense.reimbursementDeadlines?.submittedAt,
+          ),
+          MonthlyExpenseReport._csvDate(
+            expense.reimbursementDeadlines?.noticeDueAt,
+          ),
+          MonthlyExpenseReport._csvDate(
+            expense.reimbursementDeadlines?.paymentDueAt,
+          ),
+          MonthlyExpenseReport._csvDate(expense.reimbursementDeadlines?.paidAt),
           expense.calendarEventDate ?? '',
           expense.calendarEventTitle ?? '',
           expense.attachment?.evidence?.type?.label ?? '',

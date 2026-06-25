@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import 'package:kidcost_mobile/src/app.dart';
 import 'package:kidcost_mobile/src/features/auth/auth_repository.dart';
@@ -953,6 +954,77 @@ void main() {
     expect(savedExpense!.originalReceiptAmountLabel, '25,50 EUR');
   });
 
+  testWidgets('add expense saves reimbursement deadline dates', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    ExpenseEntry? savedExpense;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            currentDate: DateTime.utc(2026, 6, 24),
+            attachmentStorage: InMemoryAttachmentStorage(),
+            onExpenseSaved: (expense) => savedExpense = expense,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).first, '120');
+    await tester.scrollUntilVisible(
+      find.text('Terminy zwrotu'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Terminy zwrotu'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('expense-payment-due-at-field')),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('expense-submitted-at-field')),
+      '2026-06-25',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('expense-notice-due-at-field')),
+      '2026-07-01',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('expense-payment-due-at-field')),
+      '2026-07-25',
+    );
+    tester.testTextInput.hide();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(savedExpense, isNotNull);
+    expect(savedExpense!.reimbursementDeadlines?.submittedAt, isNotNull);
+    expect(savedExpense!.reimbursementDeadlines?.noticeDueAt, isNotNull);
+    expect(savedExpense!.reimbursementDeadlines?.paymentDueAt, isNotNull);
+    expect(
+      savedExpense!.reimbursementDeadlines!.timingState(
+        now: DateTime.utc(2026, 7, 26),
+      ),
+      domain.ReimbursementDeadlineTimingState.overdue,
+    );
+  });
+
   testWidgets('add expense reviews OCR draft fields before saving receipt', (
     WidgetTester tester,
   ) async {
@@ -1658,12 +1730,16 @@ void main() {
     await tester.tap(find.text('Lekarze i leki').last);
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('Lekarz'), 120);
     expect(find.text('Lekarz'), findsOneWidget);
     expect(find.text('Obiad'), findsNothing);
 
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 500));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Wyczysc'));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('Obiad'), 120);
     expect(find.text('Obiad'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Lekarz'), 120);
     expect(find.text('Lekarz'), findsOneWidget);
@@ -2176,7 +2252,7 @@ void main() {
     );
   });
 
-  testWidgets('report csv includes linked calendar event date and title', (
+  testWidgets('report csv includes linked calendar event and deadline dates', (
     WidgetTester tester,
   ) async {
     final report = MonthlyExpenseReport.fromExpenses(
@@ -2190,14 +2266,22 @@ void main() {
             title: 'Opieka: Drugi rodzic',
             eventDate: '2026-06-24',
           ),
+          reimbursementDeadlines: domain.buildReimbursementDeadlineSnapshot(
+            requestCreatedAt: DateTime.utc(2026, 6, 24),
+            submittedAt: DateTime.utc(2026, 6, 25),
+            noticeDueAt: DateTime.utc(2026, 7, 1),
+            paymentDueAt: DateTime.utc(2026, 7, 25),
+            paidAt: DateTime.utc(2026, 7, 20),
+          ),
         ),
       ],
     );
 
     final csv = report.toCsv();
 
-    expect(csv, contains('"wydarzenie_data","wydarzenie_tytul"'));
+    expect(csv, contains('"submitted_at","notice_due_at","payment_due_at"'));
     expect(csv, contains('"2026-06-24","Opieka: Drugi rodzic"'));
+    expect(csv, contains('"2026-06-25","2026-07-01","2026-07-25"'));
   });
 
   testWidgets('monthly cost plan compares PL plan with actual expenses', (
@@ -2894,6 +2978,59 @@ void main() {
     expect(find.text('Pokaz filtry i sortowanie'), findsOneWidget);
   });
 
+  testWidgets('expenses screen filters overdue reimbursement deadlines', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            currentDate: DateTime.utc(2026, 7, 26),
+            expenses: [
+              testExpense(
+                id: '1',
+                title: 'Lekarz po terminie',
+                reimbursementDeadlines: domain
+                    .buildReimbursementDeadlineSnapshot(
+                      requestCreatedAt: DateTime.utc(2026, 6, 24),
+                      submittedAt: DateTime.utc(2026, 6, 25),
+                      paymentDueAt: DateTime.utc(2026, 7, 20),
+                    ),
+              ),
+              testExpense(
+                id: '2',
+                title: 'Kolonie w terminie',
+                reimbursementDeadlines: domain
+                    .buildReimbursementDeadlineSnapshot(
+                      requestCreatedAt: DateTime.utc(2026, 6, 24),
+                      submittedAt: DateTime.utc(2026, 6, 25),
+                      paymentDueAt: DateTime.utc(2026, 8, 20),
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Lekarz po terminie'), findsOneWidget);
+    expect(find.text('Kolonie w terminie'), findsOneWidget);
+    expect(find.text('Po terminie'), findsOneWidget);
+
+    await tester.tap(find.text('Pokaz filtry i sortowanie'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expense-overdue-filter')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lekarz po terminie'), findsOneWidget);
+    expect(find.text('Kolonie w terminie'), findsNothing);
+  });
+
   testWidgets('monthly reports handle empty selected month', (
     WidgetTester tester,
   ) async {
@@ -3143,6 +3280,7 @@ ExpenseEntry testExpense({
   ChildInfoCardLink? childInfoCard,
   EvidenceMetadata? verification,
   ExpenseRelatedRecordLink? relatedExpense,
+  domain.ReimbursementDeadlineSnapshot? reimbursementDeadlines,
 }) {
   return ExpenseEntry(
     id: id,
@@ -3160,6 +3298,7 @@ ExpenseEntry testExpense({
     childInfoCard: childInfoCard,
     verification: verification,
     relatedExpense: relatedExpense,
+    reimbursementDeadlines: reimbursementDeadlines,
   );
 }
 

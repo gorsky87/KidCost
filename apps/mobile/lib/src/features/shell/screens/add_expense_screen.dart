@@ -50,6 +50,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     'image/png',
     'application/pdf',
   };
+  static const _defaultReimbursementDeadlineWindow = Duration(days: 30);
 
   final _amountController = TextEditingController();
   final _dateController = TextEditingController();
@@ -61,6 +62,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _documentNumberController = TextEditingController();
   final _paymentMethodController = TextEditingController();
   final _originalReceiptAmountController = TextEditingController();
+  final _submittedAtController = TextEditingController();
+  final _noticeDueAtController = TextEditingController();
+  final _paymentDueAtController = TextEditingController();
+  final _paidAtController = TextEditingController();
   late final List<ExpensePayer> _payers;
   ExpenseCategory _category = expenseCategories.first;
   ExpensePayer? _payer;
@@ -76,6 +81,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String? _amountError;
   String? _dateError;
   String? _payerError;
+  String? _deadlineError;
   bool _duplicateCueDismissed = false;
   bool _ocrDraftNeedsReview = false;
   bool _ocrDraftManuallyConfirmed = false;
@@ -90,7 +96,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _documentDateController.addListener(_refreshDuplicatePreview);
     _merchantController.addListener(_refreshDuplicatePreview);
     _documentNumberController.addListener(_refreshDuplicatePreview);
-    _dateController.text = _formatDate(widget.currentDate ?? DateTime.now());
+    final currentDate = widget.currentDate ?? DateTime.now();
+    _dateController.text = _formatDate(currentDate);
+    _submittedAtController.text = _formatDate(currentDate);
+    _noticeDueAtController.text = _formatDate(
+      currentDate.add(_defaultReimbursementDeadlineWindow),
+    );
+    _paymentDueAtController.text = _formatDate(
+      currentDate.add(_defaultReimbursementDeadlineWindow),
+    );
     _manualPayerController.text = widget.profile.coParentLabel;
     _receiptCurrency = widget.profile.familyCurrency;
     _payers = [
@@ -125,6 +139,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _documentNumberController.dispose();
     _paymentMethodController.dispose();
     _originalReceiptAmountController.dispose();
+    _submittedAtController.dispose();
+    _noticeDueAtController.dispose();
+    _paymentDueAtController.dispose();
+    _paidAtController.dispose();
     super.dispose();
   }
 
@@ -279,6 +297,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ],
           const SizedBox(height: 12),
           _SharedExpenseRuleCard(decision: _currentAgreementDecision),
+          const SizedBox(height: 12),
+          _ReimbursementDeadlineFields(
+            submittedAtController: _submittedAtController,
+            noticeDueAtController: _noticeDueAtController,
+            paymentDueAtController: _paymentDueAtController,
+            paidAtController: _paidAtController,
+            errorText: _deadlineError,
+          ),
           const SizedBox(height: 12),
           DropdownButtonFormField<ExpensePayer>(
             key: const Key('expense-payer-picker'),
@@ -553,6 +579,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
 
     final date = _dateController.text.trim();
+    final deadlineError = _deadlineValidationError();
     setState(() {
       _amountError = amountCents > 0 ? null : 'Podaj kwote wieksza od 0.';
       _dateError = date.isEmpty ? 'Podaj date kosztu.' : null;
@@ -561,12 +588,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           : selectedPayer!.isManual && manualPayerLabel.isEmpty
           ? 'Wpisz etykiete drugiego rodzica.'
           : null;
+      _deadlineError = deadlineError;
     });
 
     if (amountCents <= 0 ||
         date.isEmpty ||
         payer == null ||
-        _payerError != null) {
+        _payerError != null ||
+        deadlineError != null) {
       return;
     }
 
@@ -650,6 +679,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       skippedInvalidAttachment = true;
     }
 
+    final createdAt = DateTime.now().toUtc();
     final expense = ExpenseEntry(
       id: expenseId,
       amountCents: amountCents,
@@ -660,7 +690,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       title: _titleController.text.trim().isEmpty
           ? _category.label
           : _titleController.text.trim(),
-      createdAt: DateTime.now().toUtc(),
+      createdAt: createdAt,
       visibility: widget.profile.isSoloFamily
           ? ExpenseVisibility.privateAuthor
           : ExpenseVisibility.sharedFamily,
@@ -677,6 +707,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       relatedExpense: _selectedRelatedExpense == null
           ? null
           : relatedRecordLinkForExpense(_selectedRelatedExpense!),
+      reimbursementDeadlines: _currentDeadlineSnapshot(createdAt),
     );
 
     widget.onExpenseSaved(expense);
@@ -684,13 +715,23 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     setState(() {
       _isSaving = false;
       _amountController.clear();
-      _dateController.text = _formatDate(widget.currentDate ?? DateTime.now());
+      final currentDate = widget.currentDate ?? DateTime.now();
+      _dateController.text = _formatDate(currentDate);
       _titleController.clear();
       _category = expenseCategories.first;
       _payer = _payers.first;
       _manualPayerController.text = widget.profile.coParentLabel;
       _receiptCurrency = widget.profile.familyCurrency;
       _originalReceiptAmountController.clear();
+      _submittedAtController.text = _formatDate(currentDate);
+      _noticeDueAtController.text = _formatDate(
+        currentDate.add(_defaultReimbursementDeadlineWindow),
+      );
+      _paymentDueAtController.text = _formatDate(
+        currentDate.add(_defaultReimbursementDeadlineWindow),
+      );
+      _paidAtController.clear();
+      _deadlineError = null;
       _calendarEventId = null;
       _childInfoCardId = null;
       _relatedExpenseId = null;
@@ -713,6 +754,56 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       ),
     );
+  }
+
+  domain.ReimbursementDeadlineSnapshot? _currentDeadlineSnapshot(
+    DateTime createdAt,
+  ) {
+    final submittedAt = _parseOptionalDate(_submittedAtController.text);
+    final noticeDueAt = _parseOptionalDate(_noticeDueAtController.text);
+    final paymentDueAt = _parseOptionalDate(_paymentDueAtController.text);
+    final paidAt = _parseOptionalDate(_paidAtController.text);
+    if (submittedAt == null &&
+        noticeDueAt == null &&
+        paymentDueAt == null &&
+        paidAt == null) {
+      return null;
+    }
+    return domain.buildReimbursementDeadlineSnapshot(
+      requestCreatedAt: createdAt,
+      submittedAt: submittedAt,
+      noticeDueAt: noticeDueAt,
+      paymentDueAt: paymentDueAt,
+      paidAt: paidAt,
+    );
+  }
+
+  String? _deadlineValidationError() {
+    final fields = {
+      'data zgloszenia': _submittedAtController.text,
+      'termin przekazania dokumentow': _noticeDueAtController.text,
+      'termin platnosci': _paymentDueAtController.text,
+      'data zaplaty': _paidAtController.text,
+    };
+    for (final entry in fields.entries) {
+      final text = entry.value.trim();
+      if (text.isNotEmpty && DateTime.tryParse(text) == null) {
+        return 'Sprawdz ${entry.key}. Uzyj formatu RRRR-MM-DD.';
+      }
+    }
+    return null;
+  }
+
+  DateTime? _parseOptionalDate(String value) {
+    final text = value.trim();
+    if (text.isEmpty) {
+      return null;
+    }
+    final parsed = DateTime.tryParse(text);
+    if (parsed == null) {
+      return null;
+    }
+    return DateTime.utc(parsed.year, parsed.month, parsed.day);
   }
 
   void _applyInitialTemplate() {
@@ -1471,6 +1562,96 @@ class _CurrencyGuardrailCard extends StatelessWidget {
               ? 'Paragon jest w $receiptCurrency. Wpisz kwote przeliczona na $familyCurrency; oryginalna kwota jest tylko informacyjna.'
               : 'Raporty i pulpit pokazuja laczne kwoty w jednej walucie. KidCost nie liczy kursow w MVP.',
         ),
+      ),
+    );
+  }
+}
+
+class _ReimbursementDeadlineFields extends StatelessWidget {
+  const _ReimbursementDeadlineFields({
+    required this.submittedAtController,
+    required this.noticeDueAtController,
+    required this.paymentDueAtController,
+    required this.paidAtController,
+    required this.errorText,
+  });
+
+  final TextEditingController submittedAtController;
+  final TextEditingController noticeDueAtController;
+  final TextEditingController paymentDueAtController;
+  final TextEditingController paidAtController;
+  final String? errorText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.pending_actions_outlined),
+        title: const Text('Terminy zwrotu'),
+        subtitle: const Text('Opcjonalne daty zgloszenia i platnosci.'),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Daty porzadkuja ustalenia rodziny bez oceny prawnej terminu.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('expense-submitted-at-field'),
+                controller: submittedAtController,
+                keyboardType: TextInputType.datetime,
+                decoration: const InputDecoration(
+                  labelText: 'Data zgloszenia',
+                  hintText: 'RRRR-MM-DD',
+                  prefixIcon: Icon(Icons.send_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('expense-notice-due-at-field'),
+                controller: noticeDueAtController,
+                keyboardType: TextInputType.datetime,
+                decoration: const InputDecoration(
+                  labelText: 'Termin przekazania dokumentow',
+                  hintText: 'RRRR-MM-DD',
+                  prefixIcon: Icon(Icons.event_note_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('expense-payment-due-at-field'),
+                controller: paymentDueAtController,
+                keyboardType: TextInputType.datetime,
+                decoration: const InputDecoration(
+                  labelText: 'Termin platnosci',
+                  hintText: 'RRRR-MM-DD',
+                  prefixIcon: Icon(Icons.event_available_outlined),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('expense-paid-at-field'),
+                controller: paidAtController,
+                keyboardType: TextInputType.datetime,
+                decoration: const InputDecoration(
+                  labelText: 'Data zaplaty',
+                  hintText: 'RRRR-MM-DD',
+                  prefixIcon: Icon(Icons.payments_outlined),
+                ),
+              ),
+              if (errorText != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  errorText!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

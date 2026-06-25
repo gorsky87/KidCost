@@ -104,6 +104,7 @@ class _KidCostShellState extends State<KidCostShell> {
       screen: ExpensesScreen(
         expenses: widget.expenses,
         initialFilterRequest: _expenseFilterRequest,
+        currentDate: widget.currentDate,
         onExpenseChanged: widget.onExpenseChanged,
         showExpenseHistoryPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.expenseHistory,

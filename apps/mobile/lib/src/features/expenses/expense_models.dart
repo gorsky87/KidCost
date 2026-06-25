@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:kidcost_domain/domain.dart' as domain;
+
 import '../child_info/child_info_models.dart';
 
 class ExpenseCategory {
@@ -61,6 +63,7 @@ class ExpenseEntry {
     this.childInfoCard,
     this.verification,
     this.relatedExpense,
+    this.reimbursementDeadlines,
   });
 
   final String id;
@@ -83,6 +86,7 @@ class ExpenseEntry {
   final ChildInfoCardLink? childInfoCard;
   final EvidenceMetadata? verification;
   final ExpenseRelatedRecordLink? relatedExpense;
+  final domain.ReimbursementDeadlineSnapshot? reimbursementDeadlines;
 
   String? get calendarEventId => calendarEvent?.id;
   String? get calendarEventTitle => calendarEvent?.title;
@@ -92,6 +96,15 @@ class ExpenseEntry {
 
   EvidenceMetadata? get searchableEvidence =>
       verification ?? attachment?.evidence;
+
+  bool get hasReimbursementDeadlines {
+    final deadlines = reimbursementDeadlines;
+    return deadlines != null &&
+        (deadlines.submittedAt != null ||
+            deadlines.noticeDueAt != null ||
+            deadlines.paymentDueAt != null ||
+            deadlines.paidAt != null);
+  }
 
   bool get hasOriginalReceiptAmount =>
       originalReceiptAmountCents != null &&
@@ -127,6 +140,7 @@ class ExpenseEntry {
     ChildInfoCardLink? childInfoCard,
     EvidenceMetadata? verification,
     ExpenseRelatedRecordLink? relatedExpense,
+    domain.ReimbursementDeadlineSnapshot? reimbursementDeadlines,
   }) {
     return ExpenseEntry(
       id: id,
@@ -151,6 +165,8 @@ class ExpenseEntry {
       childInfoCard: childInfoCard ?? this.childInfoCard,
       verification: verification ?? this.verification,
       relatedExpense: relatedExpense ?? this.relatedExpense,
+      reimbursementDeadlines:
+          reimbursementDeadlines ?? this.reimbursementDeadlines,
     );
   }
 }
@@ -162,6 +178,7 @@ class ExpenseListFilterRequest {
     this.categoryId,
     this.status,
     this.payerLabel,
+    this.showOverdueReimbursements = false,
   });
 
   final String month;
@@ -169,6 +186,7 @@ class ExpenseListFilterRequest {
   final String? categoryId;
   final ExpenseStatus? status;
   final String? payerLabel;
+  final bool showOverdueReimbursements;
 }
 
 class ExpenseRelatedRecordLink {

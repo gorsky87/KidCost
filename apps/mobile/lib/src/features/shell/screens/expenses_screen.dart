@@ -14,6 +14,7 @@ class ExpensesScreen extends StatefulWidget {
     this.isLoading = false,
     this.errorMessage,
     this.initialFilterRequest,
+    this.currentDate,
     this.showExpenseHistoryPremiumHint = false,
     this.onExpenseChanged,
     this.onPremiumHintDismissed,
@@ -24,6 +25,7 @@ class ExpensesScreen extends StatefulWidget {
   final bool isLoading;
   final String? errorMessage;
   final ExpenseListFilterRequest? initialFilterRequest;
+  final DateTime? currentDate;
   final bool showExpenseHistoryPremiumHint;
   final ValueChanged<ExpenseEntry>? onExpenseChanged;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
@@ -38,6 +40,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   String? _categoryFilter;
   ExpenseStatus? _statusFilter;
   String? _payerFilter;
+  bool _showOverdueReimbursements = false;
   _ExpenseSort _sort = _ExpenseSort.newest;
 
   @override
@@ -102,6 +105,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
 
     final filteredExpenses = _filteredAndSortedExpenses();
+    final now = widget.currentDate ?? DateTime.now();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -122,6 +126,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           for (final expense in filteredExpenses)
             _ExpenseCard(
               expense: expense,
+              now: now,
               onExpenseChanged: widget.onExpenseChanged,
               showExpenseHistoryPremiumHint:
                   widget.showExpenseHistoryPremiumHint,
@@ -148,7 +153,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         _childFilter != null ||
         _categoryFilter != null ||
         _statusFilter != null ||
-        _payerFilter != null;
+        _payerFilter != null ||
+        _showOverdueReimbursements;
 
     return Card(
       child: Padding(
@@ -170,7 +176,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
-              initiallyExpanded: hasFilters,
+              initiallyExpanded: _showOverdueReimbursements,
               title: const Text('Pokaz filtry i sortowanie'),
               children: [
                 DropdownButtonFormField<String>(
@@ -266,6 +272,20 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   onChanged: (value) => setState(() => _payerFilter = value),
                 ),
                 const SizedBox(height: 12),
+                SwitchListTile(
+                  key: const Key('expense-overdue-filter'),
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(Icons.pending_actions_outlined),
+                  title: const Text('Po terminie'),
+                  subtitle: const Text(
+                    'Pokaz tylko prosby, ktorych otwarty termin juz minal.',
+                  ),
+                  value: _showOverdueReimbursements,
+                  onChanged: (value) {
+                    setState(() => _showOverdueReimbursements = value);
+                  },
+                ),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<_ExpenseSort>(
                   key: const Key('expense-sort'),
                   initialValue: _sort,
@@ -312,7 +332,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           (_childFilter == null || expense.childName == _childFilter) &&
           (_categoryFilter == null || expense.category.id == _categoryFilter) &&
           (_statusFilter == null || expense.status == _statusFilter) &&
-          (_payerFilter == null || expense.paidBy.label == _payerFilter);
+          (_payerFilter == null || expense.paidBy.label == _payerFilter) &&
+          (!_showOverdueReimbursements ||
+              (expense.reimbursementDeadlines?.isOverdue(
+                    widget.currentDate ?? DateTime.now(),
+                  ) ==
+                  true));
     }).toList();
 
     filtered.sort((first, second) {
@@ -338,6 +363,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       _categoryFilter = null;
       _statusFilter = null;
       _payerFilter = null;
+      _showOverdueReimbursements = false;
     });
   }
 
@@ -350,6 +376,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     _categoryFilter = request.categoryId;
     _statusFilter = request.status;
     _payerFilter = request.payerLabel;
+    _showOverdueReimbursements = request.showOverdueReimbursements;
   }
 
   String _monthFromDate(String date) {
@@ -367,12 +394,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 class _ExpenseCard extends StatelessWidget {
   const _ExpenseCard({
     required this.expense,
+    required this.now,
     required this.onExpenseChanged,
     required this.showExpenseHistoryPremiumHint,
     required this.onPremiumHintDismissed,
   });
 
   final ExpenseEntry expense;
+  final DateTime now;
   final ValueChanged<ExpenseEntry>? onExpenseChanged;
   final bool showExpenseHistoryPremiumHint;
   final VoidCallback onPremiumHintDismissed;
@@ -407,6 +436,8 @@ class _ExpenseCard extends StatelessWidget {
                       : 'Zalacznik: blad uploadu',
                 if (expense.attachment?.evidence?.type != null)
                   'Dowod: ${expense.attachment!.evidence!.type!.label}',
+                if (expense.hasReimbursementDeadlines)
+                  'Termin: ${_deadlineTimingLabel(expense, now)}',
               ].join(' • '),
             ),
             trailing: Text(
@@ -423,6 +454,8 @@ class _ExpenseCard extends StatelessWidget {
               children: [
                 _ExpenseStatusBadge(status: expense.status),
                 _ExpenseVisibilityBadge(visibility: expense.visibility),
+                if (expense.hasReimbursementDeadlines)
+                  _ReimbursementDeadlineBadge(expense: expense, now: now),
               ],
             ),
           ),
@@ -451,6 +484,10 @@ class _ExpenseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _ExpenseStatusPanel(status: expense.status),
+                  if (expense.hasReimbursementDeadlines) ...[
+                    const SizedBox(height: 12),
+                    _ReimbursementDeadlinePanel(expense: expense, now: now),
+                  ],
                   const SizedBox(height: 12),
                   _DetailRow(label: 'Nazwa', value: expense.title),
                   _DetailRow(
@@ -531,6 +568,29 @@ class _ExpenseCard extends StatelessWidget {
       },
     );
   }
+
+  static String _deadlineTimingLabel(ExpenseEntry expense, DateTime now) {
+    final state = expense.reimbursementDeadlines?.timingState(now: now);
+    return reimbursementDeadlineTimingLabelFor(state);
+  }
+}
+
+String reimbursementDeadlineTimingLabelFor(
+  domain.ReimbursementDeadlineTimingState? state,
+) {
+  switch (state) {
+    case domain.ReimbursementDeadlineTimingState.dueSoon:
+      return 'Termin blisko';
+    case domain.ReimbursementDeadlineTimingState.overdue:
+      return 'Po terminie';
+    case domain.ReimbursementDeadlineTimingState.paidOnTime:
+      return 'Zaplacone w terminie';
+    case domain.ReimbursementDeadlineTimingState.paidAfterDueDate:
+      return 'Zaplacone po terminie';
+    case domain.ReimbursementDeadlineTimingState.noDates:
+    case null:
+      return 'Bez terminu';
+  }
 }
 
 class _ExpenseVisibilityBadge extends StatelessWidget {
@@ -550,6 +610,43 @@ class _ExpenseVisibilityBadge extends StatelessWidget {
         child: Chip(
           avatar: Icon(Icons.visibility_outlined, color: color, size: 18),
           label: Text(visibility.label),
+          side: BorderSide(color: color.withValues(alpha: 0.32)),
+          backgroundColor: color.withValues(alpha: 0.1),
+          labelStyle: TextStyle(color: color),
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
+    );
+  }
+}
+
+class _ReimbursementDeadlineBadge extends StatelessWidget {
+  const _ReimbursementDeadlineBadge({required this.expense, required this.now});
+
+  final ExpenseEntry expense;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = expense.reimbursementDeadlines?.timingState(now: now);
+    final color = switch (state) {
+      domain.ReimbursementDeadlineTimingState.overdue => Theme.of(
+        context,
+      ).colorScheme.error,
+      domain.ReimbursementDeadlineTimingState.dueSoon => Colors.amber.shade800,
+      domain.ReimbursementDeadlineTimingState.paidOnTime => Colors.green,
+      domain.ReimbursementDeadlineTimingState.paidAfterDueDate =>
+        Colors.deepOrange,
+      _ => Theme.of(context).colorScheme.primary,
+    };
+    final label = reimbursementDeadlineTimingLabelFor(state);
+    return Semantics(
+      container: true,
+      label: 'Termin zwrotu: $label',
+      child: ExcludeSemantics(
+        child: Chip(
+          avatar: Icon(Icons.pending_actions_outlined, color: color, size: 18),
+          label: Text(label),
           side: BorderSide(color: color.withValues(alpha: 0.32)),
           backgroundColor: color.withValues(alpha: 0.1),
           labelStyle: TextStyle(color: color),
@@ -587,6 +684,64 @@ class _ExpenseStatusPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ReimbursementDeadlinePanel extends StatelessWidget {
+  const _ReimbursementDeadlinePanel({required this.expense, required this.now});
+
+  final ExpenseEntry expense;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final deadlines = expense.reimbursementDeadlines;
+    if (deadlines == null) {
+      return const SizedBox.shrink();
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ReimbursementDeadlineBadge(expense: expense, now: now),
+            const SizedBox(height: 8),
+            Text(
+              'Daty pomagaja pilnowac ustalen rodziny. KidCost nie ocenia skutkow prawnych terminu.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            _DetailRow(
+              label: 'Data zgloszenia',
+              value: _formatDeadlineDate(deadlines.submittedAt),
+            ),
+            _DetailRow(
+              label: 'Termin dokumentow',
+              value: _formatDeadlineDate(deadlines.noticeDueAt),
+            ),
+            _DetailRow(
+              label: 'Termin platnosci',
+              value: _formatDeadlineDate(deadlines.paymentDueAt),
+            ),
+            _DetailRow(
+              label: 'Data zaplaty',
+              value: _formatDeadlineDate(deadlines.paidAt),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _formatDeadlineDate(DateTime? date) {
+  if (date == null) {
+    return 'Nie ustawiono';
+  }
+  final utc = date.toUtc();
+  return '${utc.year.toString().padLeft(4, '0')}-'
+      '${utc.month.toString().padLeft(2, '0')}-'
+      '${utc.day.toString().padLeft(2, '0')}';
 }
 
 class _ChildInfoCardContext extends StatelessWidget {
