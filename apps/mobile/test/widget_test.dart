@@ -3595,6 +3595,12 @@ void main() {
                 title: 'Basen',
                 amountCents: 5000,
                 category: expenseCategories[4],
+                reimbursementDeadlines: domain
+                    .buildReimbursementDeadlineSnapshot(
+                      requestCreatedAt: DateTime.utc(2026, 6, 20),
+                      submittedAt: DateTime.utc(2026, 6, 20),
+                      paymentDueAt: DateTime.utc(2026, 6, 24),
+                    ),
                 calendarEvent: const ExpenseCalendarEventLink(
                   id: 'custody-2026-06-24',
                   title: 'Opieka: Drugi rodzic',
@@ -3609,14 +3615,33 @@ void main() {
     );
 
     await dragUntilPresent(tester, find.widgetWithText(OutlinedButton, '24'));
+    await dragUntilPresent(tester, find.text('K koszt'));
+    expect(find.text('K koszt'), findsOneWidget);
+    expect(find.text('T termin'), findsOneWidget);
+    expect(find.text('W wydarzenie z kosztem'), findsOneWidget);
     await tester.ensureVisible(find.widgetWithText(OutlinedButton, '24'));
     await tester.pumpAndSettle();
+    expect(
+      find.bySemanticsLabel(
+        'Dzien 2026-06-24, Drugi rodzic, 1 kosztow, 1 terminow, 1 wydarzen z kosztem',
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.widgetWithText(OutlinedButton, '24'));
     await tester.pumpAndSettle();
 
     expect(find.text('Powiazane koszty (1)'), findsOneWidget);
     expect(find.text('Basen'), findsOneWidget);
-    expect(find.textContaining('Zajecia dodatkowe'), findsOneWidget);
+    expect(
+      find.text(
+        'Znaczniki finansowe (1 kosztow, 1 terminow, 1 wydarzen z kosztem)',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Koszt: Basen'), findsOneWidget);
+    expect(find.text('Termin platnosci: Basen'), findsOneWidget);
+    expect(find.text('Wydarzenie z kosztem: Basen'), findsOneWidget);
+    expect(find.textContaining('Zajecia dodatkowe'), findsWidgets);
     expect(
       find.textContaining('udzial drugiego rodzica: 25,00 PLN'),
       findsOneWidget,

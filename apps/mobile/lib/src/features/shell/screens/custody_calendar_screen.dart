@@ -83,6 +83,13 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
   Widget build(BuildContext context) {
     final monthDays = _daysForMonth(_visibleMonth);
     final custodyByDate = {for (final day in widget.custodyDays) day.date: day};
+    final financialSummariesByDate = {
+      for (final day in monthDays)
+        formatCustodyDate(day): _financialSummaryForDate(
+          formatCustodyDate(day),
+          custodyByDate[formatCustodyDate(day)],
+        ),
+    };
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -144,10 +151,14 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
               _DayCell(
                 day: day,
                 custodyDay: custodyByDate[formatCustodyDate(day)],
+                financialSummary:
+                    financialSummariesByDate[formatCustodyDate(day)]!,
                 onTap: () => _editDay(day),
               ),
           ],
         ),
+        const SizedBox(height: 8),
+        const _FinancialMarkerLegend(),
         if (widget.showCalendarExportPremiumHint) ...[
           const SizedBox(height: 16),
           _CalendarExportPremiumSection(
@@ -324,6 +335,7 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
     final existing = widget.custodyDays
         .where((day) => day.date == formattedDate)
         .firstOrNull;
+    final financialSummary = _financialSummaryForDate(formattedDate, existing);
     final linkedExpenses = existing == null
         ? const <ExpenseEntry>[]
         : widget.expenses
@@ -362,6 +374,7 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
                   ),
                 if (existing != null)
                   _LinkedExpensesForDay(expenses: linkedExpenses),
+                _FinancialItemsForDay(summary: financialSummary),
                 if (existing != null)
                   ListTile(
                     leading: const Icon(Icons.delete_outline),
@@ -419,6 +432,43 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
         createdAt: DateTime.now().toUtc(),
       ),
     );
+  }
+
+  _FinancialDaySummary _financialSummaryForDate(
+    String date,
+    CustodyDay? custodyDay,
+  ) {
+    final expensesOnDate = widget.expenses
+        .where((expense) => expense.expenseDate == date)
+        .toList(growable: false);
+    final deadlineItems = <_FinancialDeadlineItem>[
+      for (final expense in widget.expenses) ...[
+        if (_deadlineDate(expense.reimbursementDeadlines?.noticeDueAt) == date)
+          _FinancialDeadlineItem(
+            expense: expense,
+            label: 'Termin przekazania dokumentow',
+          ),
+        if (_deadlineDate(expense.reimbursementDeadlines?.paymentDueAt) == date)
+          _FinancialDeadlineItem(expense: expense, label: 'Termin platnosci'),
+      ],
+    ];
+    final linkedEventExpenses = custodyDay == null
+        ? const <ExpenseEntry>[]
+        : widget.expenses
+              .where((expense) => expense.calendarEventId == custodyDay.id)
+              .toList(growable: false);
+
+    return _FinancialDaySummary(
+      date: date,
+      expensesOnDate: expensesOnDate,
+      deadlineItems: deadlineItems,
+      linkedEventExpenses: linkedEventExpenses,
+    );
+  }
+
+  String? _deadlineDate(DateTime? value) {
+    if (value == null) return null;
+    return formatCustodyDate(value.toUtc());
   }
 }
 
@@ -672,6 +722,166 @@ class _LinkedExpensesForDay extends StatelessWidget {
   }
 }
 
+class _FinancialDaySummary {
+  const _FinancialDaySummary({
+    required this.date,
+    required this.expensesOnDate,
+    required this.deadlineItems,
+    required this.linkedEventExpenses,
+  });
+
+  final String date;
+  final List<ExpenseEntry> expensesOnDate;
+  final List<_FinancialDeadlineItem> deadlineItems;
+  final List<ExpenseEntry> linkedEventExpenses;
+
+  bool get hasExpenses => expensesOnDate.isNotEmpty;
+  bool get hasDeadlines => deadlineItems.isNotEmpty;
+  bool get hasLinkedEvents => linkedEventExpenses.isNotEmpty;
+  bool get hasAny => hasExpenses || hasDeadlines || hasLinkedEvents;
+
+  String get semanticLabel {
+    final parts = <String>[
+      if (hasExpenses) '${expensesOnDate.length} kosztow',
+      if (hasDeadlines) '${deadlineItems.length} terminow',
+      if (hasLinkedEvents) '${linkedEventExpenses.length} wydarzen z kosztem',
+    ];
+    return parts.isEmpty ? 'brak znacznikow finansowych' : parts.join(', ');
+  }
+}
+
+class _FinancialDeadlineItem {
+  const _FinancialDeadlineItem({required this.expense, required this.label});
+
+  final ExpenseEntry expense;
+  final String label;
+}
+
+class _FinancialItemsForDay extends StatelessWidget {
+  const _FinancialItemsForDay({required this.summary});
+
+  final _FinancialDaySummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!summary.hasAny) {
+      return const ListTile(
+        leading: Icon(Icons.info_outline),
+        title: Text('Brak finansowych znacznikow'),
+        subtitle: Text(
+          'Ten dzien nie ma kosztow, terminow ani wydarzen z kosztem.',
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Divider(height: 1),
+        ListTile(
+          leading: const Icon(Icons.local_activity_outlined),
+          title: Text('Znaczniki finansowe (${summary.semanticLabel})'),
+          subtitle: const Text(
+            'K = koszt, T = termin, W = wydarzenie z kosztem.',
+          ),
+        ),
+        for (final expense in summary.expensesOnDate)
+          _FinancialItemTile(
+            icon: Icons.payments_outlined,
+            label: 'Koszt',
+            title: expense.title,
+            subtitle: '${expense.category.label} - ${expense.status.label}',
+            trailing: formatCents(expense.amountCents),
+          ),
+        for (final item in summary.deadlineItems)
+          _FinancialItemTile(
+            icon: Icons.pending_actions_outlined,
+            label: item.label,
+            title: item.expense.title,
+            subtitle: item.expense.status.label,
+            trailing: formatCents(item.expense.amountCents),
+          ),
+        for (final expense in summary.linkedEventExpenses)
+          _FinancialItemTile(
+            icon: Icons.event_available_outlined,
+            label: 'Wydarzenie z kosztem',
+            title: expense.title,
+            subtitle: expense.calendarEventTitle ?? 'Powiazane z dniem opieki',
+            trailing: formatCents(expense.amountCents),
+          ),
+      ],
+    );
+  }
+}
+
+class _FinancialItemTile extends StatelessWidget {
+  const _FinancialItemTile({
+    required this.icon,
+    required this.label,
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+  });
+
+  final IconData icon;
+  final String label;
+  final String title;
+  final String subtitle;
+  final String trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text('$label: $title'),
+      subtitle: Text(subtitle),
+      trailing: Text(trailing),
+    );
+  }
+}
+
+class _FinancialMarkerLegend extends StatelessWidget {
+  const _FinancialMarkerLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: const [
+        _FinancialMarkerChip(marker: _FinancialMarker.expense),
+        _FinancialMarkerChip(marker: _FinancialMarker.deadline),
+        _FinancialMarkerChip(marker: _FinancialMarker.linkedEvent),
+      ],
+    );
+  }
+}
+
+enum _FinancialMarker {
+  expense('K', 'koszt'),
+  deadline('T', 'termin'),
+  linkedEvent('W', 'wydarzenie z kosztem');
+
+  const _FinancialMarker(this.shortLabel, this.label);
+
+  final String shortLabel;
+  final String label;
+}
+
+class _FinancialMarkerChip extends StatelessWidget {
+  const _FinancialMarkerChip({required this.marker});
+
+  final _FinancialMarker marker;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      visualDensity: VisualDensity.compact,
+      label: Text('${marker.shortLabel} ${marker.label}'),
+    );
+  }
+}
+
 class _EmptyCustodyCalendarIntro extends StatelessWidget {
   const _EmptyCustodyCalendarIntro();
 
@@ -736,39 +946,108 @@ class _MonthHeader extends StatelessWidget {
 }
 
 class _DayCell extends StatelessWidget {
-  const _DayCell({required this.day, required this.onTap, this.custodyDay});
+  const _DayCell({
+    required this.day,
+    required this.financialSummary,
+    required this.onTap,
+    this.custodyDay,
+  });
 
   final DateTime day;
   final CustodyDay? custodyDay;
+  final _FinancialDaySummary financialSummary;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final custodyDay = this.custodyDay;
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-          backgroundColor: custodyDay == null
-              ? null
-              : Theme.of(context).colorScheme.primaryContainer,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(day.day.toString()),
-            const SizedBox(height: 2),
-            Text(
-              custodyDay?.parent.label ?? '-',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.labelSmall,
+    return Semantics(
+      label:
+          'Dzien ${financialSummary.date}, ${custodyDay?.parent.label ?? 'bez opieki'}, ${financialSummary.semanticLabel}',
+      button: true,
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: OutlinedButton(
+          onPressed: onTap,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            backgroundColor: custodyDay == null
+                ? null
+                : Theme.of(context).colorScheme.primaryContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(day.day.toString()),
+              const SizedBox(height: 2),
+              Text(
+                custodyDay?.parent.label ?? '-',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+              const SizedBox(height: 2),
+              _FinancialMarkerStrip(summary: financialSummary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FinancialMarkerStrip extends StatelessWidget {
+  const _FinancialMarkerStrip({required this.summary});
+
+  final _FinancialDaySummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final markers = <_FinancialMarker>[
+      if (summary.hasExpenses) _FinancialMarker.expense,
+      if (summary.hasDeadlines) _FinancialMarker.deadline,
+      if (summary.hasLinkedEvents) _FinancialMarker.linkedEvent,
+    ];
+    if (markers.isEmpty) {
+      return const SizedBox(height: 18);
+    }
+
+    return SizedBox(
+      height: 18,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final marker in markers) _CalendarMarkerDot(marker: marker),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CalendarMarkerDot extends StatelessWidget {
+  const _CalendarMarkerDot({required this.marker});
+
+  final _FinancialMarker marker;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 1),
+      child: Tooltip(
+        message: marker.label,
+        child: CircleAvatar(
+          radius: 8,
+          child: Text(
+            marker.shortLabel,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
         ),
       ),
     );
