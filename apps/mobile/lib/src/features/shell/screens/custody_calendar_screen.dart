@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
+import '../../custody/custody_ics_export.dart';
 import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
@@ -46,6 +48,7 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
   List<CustodyDay> _presetPreviewDays = const [];
   String? _dateError;
   String? _presetError;
+  bool _includeDetailedCalendarExport = false;
 
   @override
   void initState() {
@@ -292,12 +295,83 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
 
   void _showCalendarExportPremiumIntent() {
     widget.onCalendarExportPremiumIntent?.call();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Eksport ICS bedzie funkcja Premium; plan opieki zostaje dostepny tutaj.',
-        ),
-      ),
+    _showCalendarExportPreview();
+  }
+
+  Future<void> _showCalendarExportPreview() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        var includeDetails = _includeDetailedCalendarExport;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final export = buildCustodyIcsExport(
+              custodyDays: widget.custodyDays,
+              privacyMode: includeDetails
+                  ? CustodyIcsPrivacyMode.detailed
+                  : CustodyIcsPrivacyMode.neutral,
+              generatedAt: widget.currentDate ?? DateTime.now().toUtc(),
+            );
+            return AlertDialog(
+              title: const Text('Eksport ICS Premium'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '${export.eventCount} dni opieki gotowe do pliku ${export.fileName}.',
+                    ),
+                    const SizedBox(height: 8),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: includeDetails,
+                      title: const Text('Dolacz szczegoly w tytulach'),
+                      subtitle: const Text(
+                        'Domyslnie ICS ma neutralne tytuly. Szczegoly moga trafic do Apple, Google lub Outlook.',
+                      ),
+                      onChanged: (value) {
+                        setDialogState(() => includeDetails = value ?? false);
+                        setState(
+                          () => _includeDetailedCalendarExport = value ?? false,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    SelectableText(
+                      export.content,
+                      key: const Key('calendar-ics-preview'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Zamknij'),
+                ),
+                FilledButton.icon(
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: export.content),
+                    );
+                    if (!context.mounted) return;
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Tresc ICS skopiowana do schowka.'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_outlined),
+                  label: const Text('Kopiuj ICS'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
