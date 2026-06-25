@@ -418,6 +418,48 @@ void main() {
     expect(find.text('Miesieczny kosztorys dziecka'), findsOneWidget);
   });
 
+  testWidgets('background preview hides sensitive shell screens only', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      KidCostApp(
+        authRepository: InMemoryAuthRepository(),
+        attachmentStorage: InMemoryAttachmentStorage(),
+      ),
+    );
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).first, 'parent@example.com');
+    await tester.enterText(find.byType(TextField).last, 'secret1');
+    await tester.tap(find.byIcon(Icons.login));
+    await tester.pumpAndSettle();
+    await completeOnboarding(tester, childName: 'Ola');
+
+    expect(find.text('Podsumowanie miesiaca'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+
+    expect(find.text('KidCost ukrywa szczegoly'), findsOneWidget);
+    expect(find.text('Ola'), findsNothing);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    expect(find.text('KidCost ukrywa szczegoly'), findsNothing);
+
+    await tester.tap(find.text('Ustawienia'));
+    await tester.pumpAndSettle();
+    expect(find.text('Powiadomienia'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    await tester.pump();
+
+    expect(find.text('KidCost ukrywa szczegoly'), findsNothing);
+    expect(find.text('Powiadomienia'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+  });
+
   testWidgets('planned purchase screen creates plans outside balances', (
     WidgetTester tester,
   ) async {

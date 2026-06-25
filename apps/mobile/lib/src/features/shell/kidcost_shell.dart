@@ -9,6 +9,7 @@ import '../expenses/expense_models.dart';
 import '../onboarding/onboarding_profile.dart';
 import '../planned_purchases/planned_purchase_models.dart';
 import '../premium/premium_discovery.dart';
+import '../privacy/private_preview_protection.dart';
 import '../../telemetry/app_telemetry.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/custody_calendar_screen.dart';
@@ -67,17 +68,40 @@ class KidCostShell extends StatefulWidget {
   State<KidCostShell> createState() => _KidCostShellState();
 }
 
-class _KidCostShellState extends State<KidCostShell> {
+class _KidCostShellState extends State<KidCostShell>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   ExpenseTemplate? _pendingTemplate;
   ExpenseListFilterRequest? _expenseFilterRequest;
   List<ChildInfoCard> _childInfoCards = const [];
   final Set<PremiumDiscoveryPoint> _dismissedPremiumHints = {};
+  bool _hideSensitivePreview = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _trackDestination(0);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final shouldHide = switch (state) {
+      AppLifecycleState.inactive ||
+      AppLifecycleState.hidden ||
+      AppLifecycleState.paused =>
+        _destinations[_selectedIndex].protectsBackgroundPreview,
+      AppLifecycleState.resumed || AppLifecycleState.detached => false,
+    };
+    if (_hideSensitivePreview != shouldHide) {
+      setState(() => _hideSensitivePreview = shouldHide);
+    }
   }
 
   List<_Destination> get _destinations => [
@@ -244,6 +268,7 @@ class _KidCostShellState extends State<KidCostShell> {
       label: 'Ustawienia',
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings,
+      protectsBackgroundPreview: false,
       screen: SettingsScreen(
         userEmail: widget.userEmail,
         isDemoSession: widget.isDemoSession,
@@ -261,27 +286,36 @@ class _KidCostShellState extends State<KidCostShell> {
   Widget build(BuildContext context) {
     final destination = _destinations[_selectedIndex];
 
-    return Scaffold(
-      appBar: AppBar(title: Text(destination.label)),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [for (final item in _destinations) item.screen],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() => _selectedIndex = index);
-          _trackDestination(index);
-        },
-        destinations: [
-          for (final item in _destinations)
-            NavigationDestination(
-              icon: Icon(item.icon),
-              selectedIcon: Icon(item.selectedIcon),
-              label: item.label,
-            ),
-        ],
-      ),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(title: Text(destination.label)),
+          body: IndexedStack(
+            index: _selectedIndex,
+            children: [for (final item in _destinations) item.screen],
+          ),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: (index) {
+              setState(() {
+                _selectedIndex = index;
+                _hideSensitivePreview = false;
+              });
+              _trackDestination(index);
+            },
+            destinations: [
+              for (final item in _destinations)
+                NavigationDestination(
+                  icon: Icon(item.icon),
+                  selectedIcon: Icon(item.selectedIcon),
+                  label: item.label,
+                ),
+            ],
+          ),
+        ),
+        if (_hideSensitivePreview)
+          const Positioned.fill(child: PrivatePreviewProtection()),
+      ],
     );
   }
 
@@ -352,10 +386,12 @@ class _Destination {
     required this.icon,
     required this.selectedIcon,
     required this.screen,
+    this.protectsBackgroundPreview = true,
   });
 
   final String label;
   final IconData icon;
   final IconData selectedIcon;
   final Widget screen;
+  final bool protectsBackgroundPreview;
 }
