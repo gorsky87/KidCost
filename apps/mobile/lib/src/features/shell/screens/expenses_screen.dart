@@ -450,6 +450,10 @@ class _ExpenseCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     _ChildInfoCardContext(link: expense.childInfoCard!),
                   ],
+                  if (expense.relatedExpense != null) ...[
+                    const SizedBox(height: 8),
+                    _RelatedRecordsSection(link: expense.relatedExpense!),
+                  ],
                   if (!expense.status.canEdit)
                     const ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -461,9 +465,19 @@ class _ExpenseCard extends StatelessWidget {
                     ),
                   const SizedBox(height: 12),
                   _AttachmentPreview(attachment: expense.attachment),
+                  if (expense.verification?.hasDetails == true) ...[
+                    const SizedBox(height: 12),
+                    _EvidenceDetails(
+                      title: 'Pola weryfikacyjne',
+                      evidence: expense.verification!,
+                    ),
+                  ],
                   if (expense.attachment?.evidence?.hasDetails == true) ...[
                     const SizedBox(height: 12),
-                    _EvidenceDetails(attachment: expense.attachment!),
+                    _EvidenceDetails(
+                      title: 'Dowod kosztu',
+                      evidence: expense.attachment!.evidence!,
+                    ),
                   ],
                   const SizedBox(height: 16),
                   _StatusActionsSection(
@@ -561,6 +575,23 @@ class _ChildInfoCardContext extends StatelessWidget {
         subtitle: Text(
           '${link.typeLabel} - karta ${link.visibilityLabel}. Tresc zostaje w profilu dziecka.',
         ),
+      ),
+    );
+  }
+}
+
+class _RelatedRecordsSection extends StatelessWidget {
+  const _RelatedRecordsSection({required this.link});
+
+  final ExpenseRelatedRecordLink link;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.link_outlined),
+        title: const Text('Related records'),
+        subtitle: Text('${link.title}\n${link.summary}'),
       ),
     );
   }
@@ -907,14 +938,14 @@ class _AttachmentPreview extends StatelessWidget {
 }
 
 class _EvidenceDetails extends StatelessWidget {
-  const _EvidenceDetails({required this.attachment});
+  const _EvidenceDetails({required this.title, required this.evidence});
 
-  final ExpenseAttachment attachment;
+  final String title;
+  final EvidenceMetadata evidence;
 
   @override
   Widget build(BuildContext context) {
-    final evidence = attachment.evidence;
-    if (evidence == null || !evidence.hasDetails) {
+    if (!evidence.hasDetails) {
       return const SizedBox.shrink();
     }
 
@@ -924,10 +955,7 @@ class _EvidenceDetails extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Dowod kosztu',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             const Text(
               'To pomaga uporzadkowac dokumenty; nie jest porada prawna.',
@@ -935,6 +963,8 @@ class _EvidenceDetails extends StatelessWidget {
             const SizedBox(height: 8),
             if (evidence.type != null)
               _DetailRow(label: 'Typ', value: evidence.type!.label),
+            if (_hasValue(evidence.serviceDate))
+              _DetailRow(label: 'Data uslugi', value: evidence.serviceDate!),
             if (_hasValue(evidence.documentDate))
               _DetailRow(label: 'Data dok.', value: evidence.documentDate!),
             if (_hasValue(evidence.merchant))

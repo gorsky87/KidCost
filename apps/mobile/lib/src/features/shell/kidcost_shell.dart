@@ -122,6 +122,7 @@ class _KidCostShellState extends State<KidCostShell> {
         currentDate: widget.currentDate,
         calendarEvents: calendarEventsFromCustodyDays(widget.custodyDays),
         childInfoCards: _childInfoCards,
+        existingExpenses: widget.expenses,
         showReceiptOcrPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.receiptOcr,
         ),
