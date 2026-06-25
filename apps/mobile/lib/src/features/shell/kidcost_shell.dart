@@ -7,6 +7,7 @@ import '../custody/custody_models.dart';
 import '../expenses/attachment_storage.dart';
 import '../expenses/expense_models.dart';
 import '../onboarding/onboarding_profile.dart';
+import '../planned_purchases/planned_purchase_models.dart';
 import '../premium/premium_discovery.dart';
 import '../../telemetry/app_telemetry.dart';
 import 'screens/add_expense_screen.dart';
@@ -16,6 +17,7 @@ import 'screens/expense_templates_screen.dart';
 import 'screens/expenses_screen.dart';
 import 'screens/family_screen.dart';
 import 'screens/monthly_cost_plan_screen.dart';
+import 'screens/planned_purchases_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 
@@ -27,10 +29,14 @@ class KidCostShell extends StatefulWidget {
     required this.attachmentStorage,
     required this.expenses,
     required this.expenseTemplates,
+    required this.plannedPurchases,
     required this.custodyDays,
     required this.onExpenseSaved,
     required this.onExpenseChanged,
     required this.onExpenseTemplateSaved,
+    required this.onPlannedPurchaseSaved,
+    required this.onPlannedPurchaseChanged,
+    required this.onPlannedPurchaseConverted,
     required this.onCustodyDaysChanged,
     required this.onSignOut,
     required this.telemetry,
@@ -44,10 +50,14 @@ class KidCostShell extends StatefulWidget {
   final AttachmentStorage attachmentStorage;
   final List<ExpenseEntry> expenses;
   final List<ExpenseTemplate> expenseTemplates;
+  final List<PlannedPurchase> plannedPurchases;
   final List<CustodyDay> custodyDays;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
   final ValueChanged<ExpenseEntry> onExpenseChanged;
   final ValueChanged<ExpenseTemplate> onExpenseTemplateSaved;
+  final ValueChanged<PlannedPurchase> onPlannedPurchaseSaved;
+  final ValueChanged<PlannedPurchase> onPlannedPurchaseChanged;
+  final ValueChanged<PlannedPurchase> onPlannedPurchaseConverted;
   final ValueChanged<List<CustodyDay>> onCustodyDaysChanged;
   final Future<void> Function() onSignOut;
   final AppTelemetry telemetry;
@@ -205,6 +215,19 @@ class _KidCostShellState extends State<KidCostShell> {
         onChildInfoCardsChanged: (cards) {
           setState(() => _childInfoCards = List.unmodifiable(cards));
         },
+      ),
+    ),
+    _Destination(
+      label: 'Plany',
+      icon: Icons.playlist_add_outlined,
+      selectedIcon: Icons.playlist_add_check,
+      screen: PlannedPurchasesScreen(
+        profile: widget.onboardingProfile,
+        plannedPurchases: widget.plannedPurchases,
+        currentDate: widget.currentDate,
+        onPlannedPurchaseSaved: widget.onPlannedPurchaseSaved,
+        onPlannedPurchaseChanged: widget.onPlannedPurchaseChanged,
+        onConvertToExpense: widget.onPlannedPurchaseConverted,
       ),
     ),
     _Destination(

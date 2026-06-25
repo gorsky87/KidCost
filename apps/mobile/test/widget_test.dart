@@ -11,6 +11,7 @@ import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_visuals.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
+import 'package:kidcost_mobile/src/features/planned_purchases/planned_purchase_models.dart';
 import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
 import 'package:kidcost_mobile/src/features/reports/mediation_report_pass.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/add_expense_screen.dart';
@@ -19,6 +20,7 @@ import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_scree
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/family_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/monthly_cost_plan_screen.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/planned_purchases_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/settings_screen.dart';
 import 'package:kidcost_mobile/src/telemetry/app_telemetry.dart';
@@ -414,6 +416,118 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Miesieczny kosztorys dziecka'), findsOneWidget);
+  });
+
+  testWidgets('planned purchase screen creates plans outside balances', (
+    WidgetTester tester,
+  ) async {
+    final savedPlans = <PlannedPurchase>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KidCostTheme.light(),
+        home: Scaffold(
+          body: PlannedPurchasesScreen(
+            profile: testProfile(),
+            plannedPurchases: savedPlans,
+            currentDate: DateTime.utc(2026, 6, 24),
+            onPlannedPurchaseSaved: savedPlans.add,
+            onPlannedPurchaseChanged: (_) {},
+            onConvertToExpense: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('planned-purchase-title-field')),
+      'Buty do szkoly',
+    );
+    await tester.enterText(
+      find.byKey(const Key('planned-purchase-amount-field')),
+      '120',
+    );
+    await tester.enterText(
+      find.byKey(const Key('planned-purchase-target-date-field')),
+      '2026-09-01',
+    );
+    await tester.enterText(
+      find.byKey(const Key('planned-purchase-deadline-field')),
+      '2026-08-25',
+    );
+    await tester.tap(find.byKey(const Key('planned-purchase-submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(savedPlans, hasLength(1));
+    expect(savedPlans.single.title, 'Buty do szkoly');
+    expect(savedPlans.single.estimatedAmountCents, 12000);
+    expect(savedPlans.single.status, PlannedPurchaseStatus.requested);
+  });
+
+  testWidgets('approved planned purchase converts into an expense', (
+    WidgetTester tester,
+  ) async {
+    final telemetry = RecordingTelemetry();
+
+    await pumpSignedInOnboardedApp(tester, telemetry: telemetry);
+    await tester.tap(find.text('Plany'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('planned-purchase-title-field')),
+      'Buty do szkoly',
+    );
+    await tester.enterText(
+      find.byKey(const Key('planned-purchase-amount-field')),
+      '120',
+    );
+    await tester.enterText(
+      find.byKey(const Key('planned-purchase-target-date-field')),
+      '2026-09-01',
+    );
+    await tester.enterText(
+      find.byKey(const Key('planned-purchase-deadline-field')),
+      '2026-08-25',
+    );
+    await tester.ensureVisible(
+      find.byKey(const Key('planned-purchase-submit-button')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('planned-purchase-submit-button')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Buty do szkoly'));
+    await tester.pumpAndSettle();
+    expect(find.text('Buty do szkoly'), findsOneWidget);
+    expect(find.textContaining('poza saldem rodziny'), findsOneWidget);
+
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Akceptuj'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Akceptuj'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Zamien w koszt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zamien w koszt'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Koszty'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Buty do szkoly'), findsOneWidget);
+    expect(
+      telemetry.eventNames,
+      containsAll([
+        'planned_purchase_created',
+        'planned_purchase_status_changed',
+        'planned_purchase_converted',
+      ]),
+    );
+    expect(
+      telemetry.events.any(
+        (event) => event.parameters.values.contains('Buty do szkoly'),
+      ),
+      isFalse,
+    );
   });
 
   testWidgets('registration validates weak passwords', (
