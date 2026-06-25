@@ -9,6 +9,8 @@ void main() {
     testCalendarExportIsPremiumConvenience();
     testDowngradeKeepsCoreRecordsReadable();
     testFamilyPayerDoesNotBecomeSoleDataAdmin();
+    testMultiCirclePricingKeepsCirclesIsolated();
+    testCircleCreationAndDowngradeConflicts();
   });
 }
 
@@ -102,6 +104,64 @@ void testFamilyPayerDoesNotBecomeSoleDataAdmin() {
   expectTrue(familyBillingPolicy.payerCoversFamily);
   expectFalse(familyBillingPolicy.payerIsSoleDataAdmin);
   expectTrue(familyBillingPolicy.lapseKeepsCoreRecordsReadable);
+  expectTrue(familyBillingPolicy.crossFamilyRecordsAreIsolated);
+}
+
+void testMultiCirclePricingKeepsCirclesIsolated() {
+  expectEqual(multiCirclePricingPolicy.subscriptionScope, 'account');
+  expectEqual(multiCirclePricingPolicy.freeCircleLimit, 1);
+  expectEqual(multiCirclePricingPolicy.premiumCircleLimit, 5);
+  expectTrue(multiCirclePricingPolicy.crossCircleReportsDefaultOff);
+  expectTrue(
+      multiCirclePricingPolicy.supportCanTransferBillingWithoutFamilyData);
+
+  final families = entitlementDefinitionFor(EntitlementFeature.families);
+  expectEqual(families.free.limit, 1);
+  expectEqual(families.premium.limit, 5);
+  expectTrue(families.downgradeRule.contains('czytelne'));
+  expectTrue(families.rationale.contains('widocznosci danych'));
+}
+
+void testCircleCreationAndDowngradeConflicts() {
+  final freeFirstCircle = evaluateCircleCreation(
+    plan: KidCostPlan.free,
+    activeCircleCount: 0,
+  );
+  final freeSecondCircle = evaluateCircleCreation(
+    plan: KidCostPlan.free,
+    activeCircleCount: 1,
+  );
+  final premiumFifthCircle = evaluateCircleCreation(
+    plan: KidCostPlan.premium,
+    activeCircleCount: 4,
+  );
+  final premiumSixthCircle = evaluateCircleCreation(
+    plan: KidCostPlan.premium,
+    activeCircleCount: 5,
+  );
+
+  expectTrue(freeFirstCircle.isAllowed);
+  expectFalse(freeFirstCircle.requiresUpgrade);
+  expectFalse(freeSecondCircle.isAllowed);
+  expectTrue(freeSecondCircle.requiresUpgrade);
+  expectTrue(freeSecondCircle.reason.contains('bez laczenia danych'));
+  expectTrue(premiumFifthCircle.isAllowed);
+  expectEqual(premiumFifthCircle.remaining, 1);
+  expectFalse(premiumSixthCircle.isAllowed);
+  expectFalse(premiumSixthCircle.requiresUpgrade);
+
+  expectTrue(
+    downgradeCreatesCircleConflict(
+      targetPlan: KidCostPlan.free,
+      activeCircleCount: 2,
+    ),
+  );
+  expectFalse(
+    downgradeCreatesCircleConflict(
+      targetPlan: KidCostPlan.free,
+      activeCircleCount: 1,
+    ),
+  );
 }
 
 void expectTrue(bool value) {

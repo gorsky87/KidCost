@@ -1379,8 +1379,10 @@ void main() {
     expect(find.text('Kandydaci Premium'), findsOneWidget);
     expect(find.text('Downgrade'), findsOneWidget);
     expect(find.text('Platnik rodzinny'), findsOneWidget);
+    expect(find.text('Wiele circles'), findsOneWidget);
     expect(find.textContaining('zalaczniki do limitu'), findsOneWidget);
     expect(find.textContaining('platnosc nie daje wylacznej'), findsOneWidget);
+    expect(find.textContaining('bez laczenia raportow'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Fee-waiver i dostep po lapse'),
       120,

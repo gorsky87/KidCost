@@ -85,12 +85,14 @@ class FamilyBillingPolicy {
     required this.payerCoversFamily,
     required this.payerIsSoleDataAdmin,
     required this.lapseKeepsCoreRecordsReadable,
+    required this.crossFamilyRecordsAreIsolated,
     required this.summary,
   });
 
   final bool payerCoversFamily;
   final bool payerIsSoleDataAdmin;
   final bool lapseKeepsCoreRecordsReadable;
+  final bool crossFamilyRecordsAreIsolated;
   final String summary;
 }
 
@@ -98,8 +100,58 @@ const familyBillingPolicy = FamilyBillingPolicy(
   payerCoversFamily: true,
   payerIsSoleDataAdmin: false,
   lapseKeepsCoreRecordsReadable: true,
+  crossFamilyRecordsAreIsolated: true,
   summary:
       'Jeden platnik moze pokryc plan rodziny, ale platnosc nie daje wylacznej administracji danych wspolrodzica.',
+);
+
+class MultiCirclePricingPolicy {
+  const MultiCirclePricingPolicy({
+    required this.freeCircleLimit,
+    required this.premiumCircleLimit,
+    required this.subscriptionScope,
+    required this.crossCircleReportsDefaultOff,
+    required this.supportCanTransferBillingWithoutFamilyData,
+    required this.summary,
+    required this.downgradeConflictCopy,
+  });
+
+  final int freeCircleLimit;
+  final int premiumCircleLimit;
+  final String subscriptionScope;
+  final bool crossCircleReportsDefaultOff;
+  final bool supportCanTransferBillingWithoutFamilyData;
+  final String summary;
+  final String downgradeConflictCopy;
+}
+
+class CircleEntitlementDecision {
+  const CircleEntitlementDecision({
+    required this.isAllowed,
+    required this.requiresUpgrade,
+    required this.reason,
+    this.remaining,
+  });
+
+  final bool isAllowed;
+  final bool requiresUpgrade;
+  final String reason;
+  final int? remaining;
+}
+
+const kidCostFreeCircleLimit = 1;
+const kidCostPremiumCircleLimit = 5;
+
+const multiCirclePricingPolicy = MultiCirclePricingPolicy(
+  freeCircleLimit: kidCostFreeCircleLimit,
+  premiumCircleLimit: kidCostPremiumCircleLimit,
+  subscriptionScope: 'account',
+  crossCircleReportsDefaultOff: true,
+  supportCanTransferBillingWithoutFamilyData: true,
+  summary:
+      'Free obejmuje 1 circle. Premium jest kontowe i pozwala prowadzic do 5 odizolowanych circles bez laczenia raportow ani widocznosci wspolrodzicow.',
+  downgradeConflictCopy:
+      'Po downgrade wszystkie circles zostaja czytelne, ale tylko 1 aktywne circle moze przyjmowac nowe koszty do czasu ponownego Premium albo archiwizacji nadmiarowych circles.',
 );
 
 const kidCostEntitlementMatrix = [
@@ -124,17 +176,20 @@ const kidCostEntitlementMatrix = [
     label: 'Rodziny',
     free: EntitlementTier(
       access: EntitlementAccess.limited,
-      limit: 1,
-      summary: 'Jedna aktywna rodzina.',
+      limit: kidCostFreeCircleLimit,
+      summary: 'Jedno aktywne circle/family workspace.',
     ),
     premium: EntitlementTier(
-      access: EntitlementAccess.included,
+      access: EntitlementAccess.limited,
+      limit: kidCostPremiumCircleLimit,
       summary:
-          'Dodatkowe rodziny lub konfiguracje opieki jako przyszly upsell.',
+          'Do 5 odizolowanych circles na koncie Premium bez wspolnych raportow domyslnie.',
     ),
-    downgradeRule: 'Istniejaca rodzina i jej dane pozostaja czytelne.',
+    downgradeRule:
+        'Istniejace circles i dane pozostaja czytelne; nowe koszty poza limitem Free wymagaja Premium lub archiwizacji nadmiarowych circles.',
     keepsExistingAccessOnDowngrade: true,
-    rationale: 'Core ledger nie moze zniknac przez billing.',
+    rationale:
+        'Blended families potrzebuja wielu circles, ale billing nie moze laczyc widocznosci danych.',
   ),
   EntitlementDefinition(
     feature: EntitlementFeature.manualExpenses,
@@ -356,9 +411,8 @@ EntitlementDecision evaluateEntitlement({
     isAllowed: true,
     feature: feature,
     plan: plan,
-    remaining: limit == null || currentUsage == null
-        ? null
-        : limit - currentUsage,
+    remaining:
+        limit == null || currentUsage == null ? null : limit - currentUsage,
     reason: tier.summary,
   );
 }
@@ -375,12 +429,53 @@ bool coreRecordsRemainReadableAfterDowngrade() {
       .every((definition) => definition.keepsExistingAccessOnDowngrade);
 }
 
+CircleEntitlementDecision evaluateCircleCreation({
+  required KidCostPlan plan,
+  required int activeCircleCount,
+}) {
+  final limit = switch (plan) {
+    KidCostPlan.free => multiCirclePricingPolicy.freeCircleLimit,
+    KidCostPlan.premium => multiCirclePricingPolicy.premiumCircleLimit,
+  };
+  final remaining = limit - activeCircleCount;
+  if (remaining <= 0) {
+    return CircleEntitlementDecision(
+      isAllowed: false,
+      requiresUpgrade: plan == KidCostPlan.free,
+      remaining: 0,
+      reason: plan == KidCostPlan.free
+          ? 'Free obejmuje tylko 1 circle. Dodanie kolejnego wymaga Premium, bez laczenia danych rodzin.'
+          : 'Limit Premium dla circles zostal wykorzystany. Skontaktuj sie z supportem bez udostepniania danych rodzin.',
+    );
+  }
+
+  return CircleEntitlementDecision(
+    isAllowed: true,
+    requiresUpgrade: false,
+    remaining: remaining,
+    reason: plan == KidCostPlan.free
+        ? 'Mozesz utworzyc pierwsze circle w Free.'
+        : 'Premium pozwala dodac kolejne odizolowane circle.',
+  );
+}
+
+bool downgradeCreatesCircleConflict({
+  required KidCostPlan targetPlan,
+  required int activeCircleCount,
+}) {
+  final limit = switch (targetPlan) {
+    KidCostPlan.free => multiCirclePricingPolicy.freeCircleLimit,
+    KidCostPlan.premium => multiCirclePricingPolicy.premiumCircleLimit,
+  };
+  return activeCircleCount > limit;
+}
+
 String freePlanSummaryText() {
   return 'Koszty, saldo, zalaczniki do limitu, statusy i podstawowy CSV.';
 }
 
 String premiumPlanSummaryText() {
-  return 'OCR, PDF, pakiety dowodow, wiekszy storage, historia i reguly.';
+  return 'OCR, PDF, pakiety dowodow, wiekszy storage, historia, reguly i do 5 odizolowanych circles.';
 }
 
 String downgradeProtectionSummaryText() {
