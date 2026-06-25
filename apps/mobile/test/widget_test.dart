@@ -13,6 +13,7 @@ import 'package:kidcost_mobile/src/features/expenses/expense_visuals.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
 import 'package:kidcost_mobile/src/features/planned_purchases/planned_purchase_models.dart';
 import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
+import 'package:kidcost_mobile/src/features/reports/context_log_models.dart';
 import 'package:kidcost_mobile/src/features/reports/mediation_report_pass.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/add_expense_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
@@ -295,6 +296,10 @@ void main() {
       'has_reimbursement_impact': true,
       'has_attachment_context': true,
       'known_limitations_count': 3,
+      'context_category': 'school',
+      'context_visibility': 'shared',
+      'linked_record_type': 'expense',
+      'include_context_in_report': true,
       'merchant': 'Apteka Testowa',
       'note': 'Prywatna notatka z importu',
     });
@@ -337,6 +342,10 @@ void main() {
       'has_reimbursement_impact': true,
       'has_attachment_context': true,
       'known_limitations_count': 3,
+      'context_category': 'school',
+      'context_visibility': 'shared',
+      'linked_record_type': 'expense',
+      'include_context_in_report': true,
     });
   });
 
@@ -3905,6 +3914,97 @@ void main() {
       findsWidgets,
     );
   });
+
+  testWidgets(
+    'monthly reports export shared context log while excluding private notes',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(900, 3200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final entries = <ContextLogEntry>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                return ReportsScreen(
+                  currentDate: DateTime.utc(2026, 6, 24),
+                  contextLogEntries: entries,
+                  onContextLogEntrySaved: (entry) {
+                    setState(() => entries.add(entry));
+                  },
+                  expenses: [
+                    testExpense(
+                      id: '1',
+                      title: 'Wycieczka szkolna',
+                      amountCents: 12000,
+                      category: expenseCategories[2],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      final contextCard = find.byKey(const Key('context-log-report-card'));
+      await tester.scrollUntilVisible(contextCard, 180);
+      await tester.ensureVisible(contextCard);
+      await tester.tap(contextCard);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('context-log-note-field')),
+        'Prywatna notatka o terapii i stresie dziecka.',
+      );
+      await tester.tap(find.byKey(const Key('context-log-save-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Prywatne wpisy chronione'), findsOneWidget);
+      expect(entries.single.visibility, ContextLogVisibility.private);
+      expect(entries.single.canAppearInSharedReport, isFalse);
+
+      await tester.tap(find.text('Wspoldzielony'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('context-log-report-switch')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('context-log-expense-picker')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('2026-06-24 - Wycieczka szkolna').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('context-log-note-field')),
+        'Fakt: szkola potwierdzila wycieczke klasowa.',
+      );
+      await tester.tap(find.byKey(const Key('context-log-save-button')));
+      await tester.pumpAndSettle();
+
+      expect(entries, hasLength(2));
+      expect(entries.last.visibility, ContextLogVisibility.shared);
+      expect(entries.last.canAppearInSharedReport, isTrue);
+
+      final csvButton = find.text('CSV: kidcost-report-2026-06.csv').first;
+      await tester.ensureVisible(csvButton);
+      await tester.tap(csvButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Eksport CSV'), findsOneWidget);
+      expect(find.textContaining('dziennik_kontekstu_dziecka'), findsOneWidget);
+      expect(
+        find.textContaining('Fakt: szkola potwierdzila wycieczke klasowa.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Wycieczka szkolna'), findsWidgets);
+      expect(find.textContaining('Prywatna notatka o terapii'), findsNothing);
+      expect(
+        find.textContaining('pominieto_prywatne_lub_niezaznaczone'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets(
     'mediation report pass previews, purchases, and generates packet',
