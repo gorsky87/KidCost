@@ -805,6 +805,77 @@ void main() {
     expect(savedExpense!.originalReceiptAmountLabel, '25,50 EUR');
   });
 
+  testWidgets('add expense reviews OCR draft fields before saving receipt', (
+    WidgetTester tester,
+  ) async {
+    ExpenseEntry? savedExpense;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            attachmentStorage: InMemoryAttachmentStorage(),
+            onExpenseSaved: (expense) => savedExpense = expense,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).at(0), '19,99');
+    await tester.scrollUntilVisible(
+      find.widgetWithText(OutlinedButton, 'Dodaj paragon lub PDF'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Dodaj paragon lub PDF'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Aparat'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Private OCR draft'), findsOneWidget);
+    expect(find.text('Check amount'), findsOneWidget);
+    expect(find.text('Provider needs review'), findsOneWidget);
+    expect(find.textContaining('No balance change'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Potwierdz pola z paragonu'), findsOneWidget);
+    expect(savedExpense, isNull);
+
+    await tester.tap(find.text('Wroc do sprawdzenia'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(TextButton, 'Potwierdz pola recznie'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.widgetWithText(TextButton, 'Potwierdz pola recznie'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ready to submit'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(savedExpense, isNotNull);
+    expect(savedExpense!.attachment?.status, AttachmentStatus.uploaded);
+  });
+
   testWidgets('add expense can link an existing calendar event', (
     WidgetTester tester,
   ) async {

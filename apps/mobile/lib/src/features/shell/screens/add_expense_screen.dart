@@ -68,6 +68,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String? _amountError;
   String? _dateError;
   String? _payerError;
+  bool _ocrDraftNeedsReview = false;
+  bool _ocrDraftManuallyConfirmed = false;
 
   @override
   void initState() {
@@ -314,6 +316,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               documentNumberController: _documentNumberController,
               paymentMethodController: _paymentMethodController,
               buyerNamePresent: _buyerNamePresent,
+              showOcrReview: _shouldShowOcrReview,
+              ocrFields: _ocrReviewFields,
+              isOcrReviewComplete: _isOcrReviewComplete,
+              onConfirmOcrReview: _confirmOcrReview,
               onEvidenceTypeChanged: (type) {
                 setState(() => _evidenceType = type);
               },
@@ -411,6 +417,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     setState(() {
       _attachmentDraft = draft;
       _attachmentFailedOnLastSave = false;
+      _ocrDraftNeedsReview = draft?.contentType.startsWith('image/') == true;
+      _ocrDraftManuallyConfirmed = false;
     });
   }
 
@@ -454,6 +462,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         payer == null ||
         _payerError != null) {
       return;
+    }
+
+    if (_attachmentDraft != null &&
+        _ocrDraftNeedsReview &&
+        !_isOcrReviewComplete &&
+        !_ocrDraftManuallyConfirmed) {
+      final confirmed = await _showOcrReviewConfirmation();
+      if (confirmed != true) {
+        return;
+      }
+      setState(() {
+        _ocrDraftManuallyConfirmed = true;
+        _ocrDraftNeedsReview = false;
+      });
     }
 
     if (_usesForeignReceiptCurrency) {
@@ -560,6 +582,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _calendarEventId = null;
       _attachmentDraft = null;
       _clearEvidenceFields();
+      _ocrDraftNeedsReview = false;
+      _ocrDraftManuallyConfirmed = false;
       _attachmentFailedOnLastSave = uploadFailed;
     });
 
@@ -659,10 +683,142 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     return _AttachmentReviewStatus.ready;
   }
 
+  bool get _isOcrReviewComplete =>
+      _ocrDraftManuallyConfirmed ||
+      _ocrReviewFields.every((field) => field.state == _OcrFieldState.reviewed);
+
+  bool get _shouldShowOcrReview =>
+      _attachmentDraft?.contentType.startsWith('image/') == true;
+
+  List<_OcrReviewField> get _ocrReviewFields {
+    return [
+      _OcrReviewField(
+        label: 'Kwota',
+        value: _amountController.text.trim().isEmpty
+            ? null
+            : _amountController.text.trim(),
+        state: _reviewState(
+          _amountController.text.trim().isEmpty
+              ? _OcrFieldState.missing
+              : _OcrFieldState.uncertain,
+        ),
+        actionLabel: 'Check amount',
+      ),
+      _OcrReviewField(
+        label: 'Data kosztu',
+        value: _dateController.text.trim().isEmpty
+            ? null
+            : _dateController.text.trim(),
+        state: _reviewState(
+          _dateController.text.trim().isEmpty
+              ? _OcrFieldState.missing
+              : _OcrFieldState.uncertain,
+        ),
+        actionLabel: _dateController.text.trim().isEmpty
+            ? 'Date not found'
+            : 'Check date',
+      ),
+      _OcrReviewField(
+        label: 'Sprzedawca',
+        value: _merchantController.text.trim().isEmpty
+            ? null
+            : _merchantController.text.trim(),
+        state: _reviewState(
+          _merchantController.text.trim().isEmpty
+              ? _OcrFieldState.missing
+              : _OcrFieldState.reviewed,
+        ),
+        actionLabel: _merchantController.text.trim().isEmpty
+            ? 'Provider needs review'
+            : 'Reviewed',
+      ),
+      _OcrReviewField(
+        label: 'Kategoria',
+        value: _category.label,
+        state: _reviewState(_OcrFieldState.uncertain),
+        actionLabel: 'Check category',
+      ),
+      _OcrReviewField(
+        label: 'Dziecko',
+        value: widget.profile.childName,
+        state: _OcrFieldState.reviewed,
+        actionLabel: 'Reviewed',
+      ),
+      _OcrReviewField(
+        label: 'Platnik',
+        value: _payer?.label,
+        state: _reviewState(
+          _payer == null ? _OcrFieldState.missing : _OcrFieldState.uncertain,
+        ),
+        actionLabel: _payer == null ? 'Payer not found' : 'Check payer',
+      ),
+      _OcrReviewField(
+        label: 'Podzial',
+        value: _currentAgreementDecision.rule.splitSummary,
+        state: _reviewState(_OcrFieldState.uncertain),
+        actionLabel: 'Check split',
+      ),
+      _OcrReviewField(
+        label: 'Data uslugi',
+        value: _documentDateController.text.trim().isEmpty
+            ? null
+            : _documentDateController.text.trim(),
+        state: _documentDateController.text.trim().isEmpty
+            ? _OcrFieldState.missing
+            : _OcrFieldState.reviewed,
+        actionLabel: _documentDateController.text.trim().isEmpty
+            ? 'Service date optional'
+            : 'Reviewed',
+        isRequired: false,
+      ),
+    ];
+  }
+
+  _OcrFieldState _reviewState(_OcrFieldState state) {
+    if (_ocrDraftManuallyConfirmed) {
+      return _OcrFieldState.reviewed;
+    }
+    return state;
+  }
+
+  void _confirmOcrReview() {
+    setState(() {
+      _ocrDraftNeedsReview = false;
+      _ocrDraftManuallyConfirmed = true;
+    });
+  }
+
+  Future<bool?> _showOcrReviewConfirmation() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          icon: const Icon(Icons.fact_check_outlined),
+          title: const Text('Potwierdz pola z paragonu'),
+          content: const Text(
+            'Ten paragon jest prywatnym szkicem. Przed zapisem potwierdz recznie pola oznaczone do sprawdzenia. Po zapisie koszt trafi do salda rodziny i moze byc widoczny dla wspolrodzica.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Wroc do sprawdzenia'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Potwierdzam recznie'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _removeAttachment() {
     setState(() {
       _attachmentDraft = null;
       _clearEvidenceFields();
+      _ocrDraftNeedsReview = false;
+      _ocrDraftManuallyConfirmed = false;
       _attachmentFailedOnLastSave = false;
     });
   }
@@ -892,6 +1048,10 @@ class _AttachmentReviewTray extends StatelessWidget {
     required this.documentNumberController,
     required this.paymentMethodController,
     required this.buyerNamePresent,
+    required this.showOcrReview,
+    required this.ocrFields,
+    required this.isOcrReviewComplete,
+    required this.onConfirmOcrReview,
     required this.onEvidenceTypeChanged,
     required this.onBuyerNamePresentChanged,
     required this.onPremiumHintDismissed,
@@ -911,6 +1071,10 @@ class _AttachmentReviewTray extends StatelessWidget {
   final TextEditingController documentNumberController;
   final TextEditingController paymentMethodController;
   final bool? buyerNamePresent;
+  final bool showOcrReview;
+  final List<_OcrReviewField> ocrFields;
+  final bool isOcrReviewComplete;
+  final VoidCallback onConfirmOcrReview;
   final ValueChanged<EvidenceType?> onEvidenceTypeChanged;
   final ValueChanged<bool?> onBuyerNamePresentChanged;
   final VoidCallback onPremiumHintDismissed;
@@ -974,6 +1138,16 @@ class _AttachmentReviewTray extends StatelessWidget {
             const SizedBox(height: 12),
             const Divider(height: 1),
             const SizedBox(height: 12),
+            if (showOcrReview) ...[
+              _OcrReviewPanel(
+                fields: ocrFields,
+                isComplete: isOcrReviewComplete,
+                onConfirmReview: onConfirmOcrReview,
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+            ],
             DropdownButtonFormField<EvidenceType?>(
               key: const Key('evidence-type-picker'),
               initialValue: evidenceType,
@@ -1092,6 +1266,196 @@ class _AttachmentReviewTray extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _OcrReviewField {
+  const _OcrReviewField({
+    required this.label,
+    required this.state,
+    required this.actionLabel,
+    this.value,
+    this.isRequired = true,
+  });
+
+  final String label;
+  final String? value;
+  final _OcrFieldState state;
+  final String actionLabel;
+  final bool isRequired;
+}
+
+enum _OcrFieldState {
+  reviewed,
+  uncertain,
+  missing;
+
+  String get label {
+    switch (this) {
+      case _OcrFieldState.reviewed:
+        return 'Reviewed';
+      case _OcrFieldState.uncertain:
+        return 'Needs review';
+      case _OcrFieldState.missing:
+        return 'Missing';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case _OcrFieldState.reviewed:
+        return Icons.check_circle_outline;
+      case _OcrFieldState.uncertain:
+        return Icons.error_outline;
+      case _OcrFieldState.missing:
+        return Icons.help_outline;
+    }
+  }
+
+  Color color(BuildContext context) {
+    switch (this) {
+      case _OcrFieldState.reviewed:
+        return Theme.of(context).colorScheme.primary;
+      case _OcrFieldState.uncertain:
+        return Theme.of(context).colorScheme.tertiary;
+      case _OcrFieldState.missing:
+        return Theme.of(context).colorScheme.error;
+    }
+  }
+}
+
+class _OcrReviewPanel extends StatelessWidget {
+  const _OcrReviewPanel({
+    required this.fields,
+    required this.isComplete,
+    required this.onConfirmReview,
+  });
+
+  final List<_OcrReviewField> fields;
+  final bool isComplete;
+  final VoidCallback onConfirmReview;
+
+  @override
+  Widget build(BuildContext context) {
+    final requiredOpen = fields
+        .where(
+          (field) => field.isRequired && field.state != _OcrFieldState.reviewed,
+        )
+        .length;
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      container: true,
+      label: isComplete
+          ? 'OCR review complete. Private draft ready to submit.'
+          : 'Private OCR draft. $requiredOpen required fields need review.',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colors.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    isComplete
+                        ? Icons.verified_outlined
+                        : Icons.document_scanner_outlined,
+                    color: isComplete ? colors.primary : colors.tertiary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isComplete ? 'Ready to submit' : 'Private OCR draft',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isComplete
+                              ? 'Reviewed fields can now be saved. The expense will affect the family balance after submit.'
+                              : 'No balance change or co-parent notification happens until you explicitly save this expense.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              for (final field in fields) ...[
+                _OcrReviewFieldTile(field: field),
+                const SizedBox(height: 8),
+              ],
+              TextButton.icon(
+                onPressed: onConfirmReview,
+                icon: const Icon(Icons.edit_note_outlined),
+                label: const Text('Potwierdz pola recznie'),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Gdy OCR jest niedostepny, pomylony albo poza limitem, wpisz koszt recznie i zapisz bez sugestii.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OcrReviewFieldTile extends StatelessWidget {
+  const _OcrReviewFieldTile({required this.field});
+
+  final _OcrReviewField field;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = field.state.color(context);
+    final value = field.value?.trim().isNotEmpty == true
+        ? field.value!.trim()
+        : 'No value';
+    return Semantics(
+      label:
+          '${field.label}: ${field.state.label}. ${field.actionLabel}. $value.',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(field.state.icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(field.label, style: Theme.of(context).textTheme.bodyLarge),
+                const SizedBox(height: 2),
+                Text(value, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Chip(
+                avatar: Icon(field.state.icon, size: 16, color: color),
+                label: Text(field.actionLabel),
+                side: BorderSide(color: color.withValues(alpha: 0.32)),
+                backgroundColor: color.withValues(alpha: 0.08),
+                labelStyle: TextStyle(color: color),
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
