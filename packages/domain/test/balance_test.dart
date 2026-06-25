@@ -13,6 +13,7 @@ void main() {
     testSettlementReducesOpenTransfer();
     testSettlementCanFullyCloseTransfer();
     testCustomSplit();
+    testChangingSplitFromEqualToSeventyThirtyRecalculatesBalance();
     testCustomSplitRejectsInvalidParticipants();
     testRoundingIsDeterministic();
     testDecimalParser();
@@ -287,6 +288,34 @@ void testCustomSplit() {
   expectEqual(result.transfers.single.fromParticipantId, 'mom');
   expectEqual(result.transfers.single.toParticipantId, 'dad');
   expectEqual(result.transfers.single.amountCents, 3000);
+}
+
+void testChangingSplitFromEqualToSeventyThirtyRecalculatesBalance() {
+  const expenses = [
+    ExpenseInput(
+      id: 'school-fee',
+      amountCents: 10000,
+      paidBy: 'dad',
+      status: 'accepted',
+    ),
+  ];
+
+  final equalSplit = calculateBalance(
+    splitRule: SplitRule.equal(['dad', 'mom']),
+    expenses: expenses,
+  );
+  final seventyThirtySplit = calculateBalance(
+    splitRule: SplitRule.custom({'dad': 70, 'mom': 30}),
+    expenses: expenses,
+  );
+
+  expectEqual(equalSplit.targetShareByParticipant['dad'], 5000);
+  expectEqual(equalSplit.targetShareByParticipant['mom'], 5000);
+  expectEqual(equalSplit.transfers.single.amountCents, 5000);
+
+  expectEqual(seventyThirtySplit.targetShareByParticipant['dad'], 7000);
+  expectEqual(seventyThirtySplit.targetShareByParticipant['mom'], 3000);
+  expectEqual(seventyThirtySplit.transfers.single.amountCents, 3000);
 }
 
 void testCustomSplitRejectsInvalidParticipants() {
