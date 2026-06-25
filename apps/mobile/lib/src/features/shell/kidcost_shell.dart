@@ -11,6 +11,7 @@ import '../planned_purchases/planned_purchase_models.dart';
 import '../premium/premium_discovery.dart';
 import '../privacy/private_preview_protection.dart';
 import '../reports/context_log_models.dart';
+import '../reports/support_context_models.dart';
 import '../../telemetry/app_telemetry.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/custody_calendar_screen.dart';
@@ -34,6 +35,7 @@ class KidCostShell extends StatefulWidget {
     required this.plannedPurchases,
     required this.custodyDays,
     required this.contextLogEntries,
+    required this.supportContextEntries,
     required this.onExpenseSaved,
     required this.onExpenseChanged,
     required this.onExpenseTemplateSaved,
@@ -42,6 +44,7 @@ class KidCostShell extends StatefulWidget {
     required this.onPlannedPurchaseConverted,
     required this.onCustodyDaysChanged,
     required this.onContextLogEntrySaved,
+    required this.onSupportContextEntrySaved,
     required this.onSignOut,
     required this.telemetry,
     this.currentDate,
@@ -57,6 +60,7 @@ class KidCostShell extends StatefulWidget {
   final List<PlannedPurchase> plannedPurchases;
   final List<CustodyDay> custodyDays;
   final List<ContextLogEntry> contextLogEntries;
+  final List<SupportPaymentContextEntry> supportContextEntries;
   final ValueChanged<ExpenseEntry> onExpenseSaved;
   final ValueChanged<ExpenseEntry> onExpenseChanged;
   final ValueChanged<ExpenseTemplate> onExpenseTemplateSaved;
@@ -65,6 +69,7 @@ class KidCostShell extends StatefulWidget {
   final ValueChanged<PlannedPurchase> onPlannedPurchaseConverted;
   final ValueChanged<List<CustodyDay>> onCustodyDaysChanged;
   final ValueChanged<ContextLogEntry> onContextLogEntrySaved;
+  final ValueChanged<SupportPaymentContextEntry> onSupportContextEntrySaved;
   final Future<void> Function() onSignOut;
   final AppTelemetry telemetry;
   final DateTime? currentDate;
@@ -223,8 +228,10 @@ class _KidCostShellState extends State<KidCostShell>
         plannedPurchases: widget.plannedPurchases,
         custodyDays: widget.custodyDays,
         contextLogEntries: widget.contextLogEntries,
+        supportContextEntries: widget.supportContextEntries,
         currentDate: widget.currentDate,
         onContextLogEntrySaved: widget.onContextLogEntrySaved,
+        onSupportContextEntrySaved: widget.onSupportContextEntrySaved,
         showReportExportPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.reportExport,
         ),

@@ -15,6 +15,7 @@ import 'package:kidcost_mobile/src/features/planned_purchases/planned_purchase_m
 import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
 import 'package:kidcost_mobile/src/features/reports/context_log_models.dart';
 import 'package:kidcost_mobile/src/features/reports/mediation_report_pass.dart';
+import 'package:kidcost_mobile/src/features/reports/support_context_models.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/add_expense_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
@@ -300,8 +301,11 @@ void main() {
       'known_limitations_count': 3,
       'context_category': 'school',
       'context_visibility': 'shared',
+      'support_context_visibility': 'export_only',
       'linked_record_type': 'expense',
       'include_context_in_report': true,
+      'support_payment_note': 'Poufny opis alimentow',
+      'payment_purpose': 'alimenty za czerwiec dla Antka',
       'merchant': 'Apteka Testowa',
       'note': 'Prywatna notatka z importu',
     });
@@ -348,6 +352,7 @@ void main() {
       'known_limitations_count': 3,
       'context_category': 'school',
       'context_visibility': 'shared',
+      'support_context_visibility': 'export_only',
       'linked_record_type': 'expense',
       'include_context_in_report': true,
     });
@@ -3296,6 +3301,138 @@ void main() {
       expect(csv, contains('"request_type","provider_name"'));
       expect(csv, contains('"pay_provider","Centrum Terapii"'));
       expect(csv, contains('"Faktura 12/2026","2026-07-05","150,00 PLN"'));
+    },
+  );
+
+  testWidgets(
+    'reports export support context separately without changing balance',
+    (WidgetTester tester) async {
+      final report = MonthlyExpenseReport.fromExpenses(
+        month: '2026-06',
+        expenses: [
+          testExpense(id: 'regular', title: 'Obiad', amountCents: 10000),
+        ],
+      );
+      final supportEntries = [
+        SupportPaymentContextEntry.draft(
+          payer: 'Drugi rodzic',
+          recipient: 'Ty',
+          familyContext: 'Antek',
+          amountCents: 120000,
+          currencyCode: 'PLN',
+          paymentDate: '2026-06-10',
+          periodCovered: '2026-06',
+          visibility: SupportContextVisibility.exportOnly,
+          includeInReport: true,
+          hasProofAttachment: true,
+          note: 'Staly przelew odnotowany jako kontekst raportu.',
+          now: DateTime.utc(2026, 6, 10),
+        ),
+        SupportPaymentContextEntry.draft(
+          payer: 'Ty',
+          recipient: 'Drugi rodzic',
+          familyContext: 'Antek',
+          amountCents: 40000,
+          currencyCode: 'PLN',
+          paymentDate: '2026-06-12',
+          periodCovered: '2026-06',
+          visibility: SupportContextVisibility.private,
+          includeInReport: false,
+          hasProofAttachment: false,
+          note: 'Prywatna notatka prawna.',
+          now: DateTime.utc(2026, 6, 12),
+        ),
+      ];
+
+      expect(report.totalCents, 10000);
+      expect(report.balanceText, 'Drugi rodzic oddaje Tobie 50,00 PLN');
+
+      final csv = report.toCsv(supportContextEntries: supportEntries);
+
+      expect(csv, contains('"kontekst_alimentow_i_stalych_przelewow"'));
+      expect(csv, contains('nie jest kalkulatorem alimentow'));
+      expect(csv, contains('"2026-06-10","2026-06","Drugi rodzic","Ty"'));
+      expect(csv, contains('"1200,00 PLN","PLN","Tylko eksport"'));
+      expect(csv, contains('"dowod_oznaczony"'));
+      expect(csv, contains('"pominieto_prywatne_lub_niezaznaczone","1"'));
+      expect(csv, isNot(contains('Prywatna notatka prawna')));
+    },
+  );
+
+  testWidgets(
+    'monthly reports add support context outside shared expense balance',
+    (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(900, 3600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final supportEntries = <SupportPaymentContextEntry>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                return ReportsScreen(
+                  currentDate: DateTime.utc(2026, 6, 24),
+                  supportContextEntries: supportEntries,
+                  onSupportContextEntrySaved: (entry) {
+                    setState(() => supportEntries.add(entry));
+                  },
+                  expenses: [
+                    testExpense(id: '1', title: 'Obiad', amountCents: 10000),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Drugi rodzic oddaje Tobie 50,00 PLN'), findsOneWidget);
+
+      final supportCard = find.byKey(const Key('support-context-report-card'));
+      await tester.scrollUntilVisible(supportCard, 180);
+      await tester.ensureVisible(supportCard);
+      await tester.tap(supportCard);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('support-context-amount-field')),
+        '1200',
+      );
+      await tester.enterText(
+        find.byKey(const Key('support-context-note-field')),
+        'Staly przelew odnotowany jako kontekst raportu.',
+      );
+      await tester.tap(find.text('Tylko eksport'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('support-context-report-switch')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('support-context-proof-checkbox')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('support-context-save-button')));
+      await tester.pumpAndSettle();
+
+      expect(supportEntries, hasLength(1));
+      expect(supportEntries.single.canAppearInSharedReport, isTrue);
+      expect(find.text('Drugi rodzic oddaje Tobie 50,00 PLN'), findsOneWidget);
+
+      final csvButton = find.text('CSV: kidcost-report-2026-06.csv').first;
+      await tester.ensureVisible(csvButton);
+      await tester.tap(csvButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Eksport CSV'), findsOneWidget);
+      expect(
+        find.textContaining('kontekst_alimentow_i_stalych_przelewow'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('1200,00 PLN'), findsWidgets);
+      expect(
+        find.textContaining('nie jest kalkulatorem alimentow'),
+        findsWidgets,
+      );
     },
   );
 

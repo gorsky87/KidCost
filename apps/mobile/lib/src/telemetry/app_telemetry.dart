@@ -41,7 +41,8 @@ enum TelemetryEvent {
   historicalImportPreviewed('historical_import_previewed'),
   plannedPurchaseCreated('planned_purchase_created'),
   plannedPurchaseStatusChanged('planned_purchase_status_changed'),
-  plannedPurchaseConverted('planned_purchase_converted');
+  plannedPurchaseConverted('planned_purchase_converted'),
+  supportContextEntryCreated('support_context_entry_created');
 
   const TelemetryEvent(this.name);
 
@@ -150,6 +151,7 @@ const _allowedParameterKeys = {
   'known_limitations_count',
   'context_category',
   'context_visibility',
+  'support_context_visibility',
   'linked_record_type',
   'include_context_in_report',
 };
