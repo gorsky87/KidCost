@@ -9,6 +9,7 @@ import '../../child_info/child_info_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
 import '../../premium/premium_discovery.dart';
+import 'proof_library_screen.dart';
 
 enum _ExpenseSort { newest, oldest, highestAmount, lowestAmount }
 
@@ -237,6 +238,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               children: [
                 Text('Filtry', style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
+                IconButton(
+                  key: const Key('open-proof-library-button'),
+                  tooltip: 'Biblioteka dowodow',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (context) =>
+                            ProofLibraryScreen(expenses: submittedExpenses),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.folder_copy_outlined),
+                ),
                 TextButton.icon(
                   onPressed: hasFilters ? _clearFilters : null,
                   icon: const Icon(Icons.filter_alt_off_outlined),

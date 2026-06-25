@@ -6,6 +6,7 @@ import 'package:kidcost_domain/domain.dart' as domain;
 import '../../../telemetry/app_telemetry.dart';
 import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
+import '../../expenses/proof_library_models.dart';
 import '../../planned_purchases/planned_purchase_models.dart';
 import '../../premium/premium_discovery.dart';
 import '../../reports/context_log_models.dart';
@@ -57,6 +58,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   MediationReportPass? _mediationReportPass;
   PolishReportContext _polishReportContext = const PolishReportContext();
   bool _includeParentingTimeContext = true;
+  final Set<String> _excludedProofIds = {};
 
   void _updatePolishReportContext(PolishReportContext value) {
     setState(() => _polishReportContext = value);
@@ -173,8 +175,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
             polishContext: _polishReportContext,
             now: widget.currentDate ?? DateTime.now(),
             mediationReportPass: _mediationReportPass,
+            excludedProofIds: _excludedProofIds,
             onMediationReportPassChanged: (pass) {
               setState(() => _mediationReportPass = pass);
+            },
+            onProofIncludedChanged: (proofId, included) {
+              setState(() {
+                if (included) {
+                  _excludedProofIds.remove(proofId);
+                } else {
+                  _excludedProofIds.add(proofId);
+                }
+              });
             },
             showPremiumHint: widget.showReportExportPremiumHint,
             onMonthChanged: (value) => setState(() => _selectedMonth = value),
@@ -275,7 +287,9 @@ class _MonthlyReportView extends StatelessWidget {
     required this.polishContext,
     required this.now,
     required this.mediationReportPass,
+    required this.excludedProofIds,
     required this.onMediationReportPassChanged,
+    required this.onProofIncludedChanged,
     required this.showPremiumHint,
     required this.onMonthChanged,
     required this.onPolishContextChanged,
@@ -298,7 +312,9 @@ class _MonthlyReportView extends StatelessWidget {
   final PolishReportContext polishContext;
   final DateTime now;
   final MediationReportPass? mediationReportPass;
+  final Set<String> excludedProofIds;
   final ValueChanged<MediationReportPass?> onMediationReportPassChanged;
+  final void Function(String proofId, bool included) onProofIncludedChanged;
   final bool showPremiumHint;
   final ValueChanged<String> onMonthChanged;
   final ValueChanged<PolishReportContext> onPolishContextChanged;
@@ -310,6 +326,12 @@ class _MonthlyReportView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final proofRecords = proofRecordsFromExpenses(report.expenses);
+    final includedProofIds = {
+      for (final proof in proofRecords)
+        if (!excludedProofIds.contains(proof.id)) proof.id,
+    };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -389,6 +411,14 @@ class _MonthlyReportView extends StatelessWidget {
         const SizedBox(height: 12),
         _EvidenceReadinessCard(report: report),
         const SizedBox(height: 12),
+        _ReportProofReviewCard(
+          month: month,
+          proofs: proofRecords,
+          includedProofIds: includedProofIds,
+          expenseCount: report.expenses.length,
+          onProofIncludedChanged: onProofIncludedChanged,
+        ),
+        const SizedBox(height: 12),
         _ExportCard(
           title: 'Eksport',
           fileName: report.fileName,
@@ -399,6 +429,7 @@ class _MonthlyReportView extends StatelessWidget {
                 : null,
             contextEntries: contextEntries,
             supportContextEntries: supportContextEntries,
+            includedProofIds: includedProofIds,
           ),
           showPremiumHint: showPremiumHint,
           onPremiumHintDismissed: onPremiumHintDismissed,
@@ -1779,6 +1810,7 @@ class MonthlyExpenseReport {
     ParentingTimeReportContext? parentingTimeContext,
     List<ContextLogEntry> contextEntries = const [],
     List<SupportPaymentContextEntry> supportContextEntries = const [],
+    Set<String>? includedProofIds,
   }) {
     final reportContextEntries = contextEntries
         .where((entry) => entry.canAppearInSharedReport)
@@ -1786,6 +1818,12 @@ class MonthlyExpenseReport {
     final reportSupportContextEntries = supportContextEntries
         .where((entry) => entry.canAppearInSharedReport)
         .toList();
+    final proofRecords = proofRecordsFromExpenses(expenses);
+    final reportProofRecords = includedProofIds == null
+        ? proofRecords
+        : proofRecords
+              .where((record) => includedProofIds.contains(record.id))
+              .toList();
     final rows = [
       [
         'data',
@@ -1931,6 +1969,45 @@ class MonthlyExpenseReport {
               item.isReimbursable ? 'tak' : 'nie',
               item.splitPercent?.toString() ?? '',
             ],
+      ],
+      if (proofRecords.isNotEmpty) ...[
+        const <String>[],
+        ['sekcja', 'dowody_raportu'],
+        const [
+          'proof_id',
+          'expense_id',
+          'expense_title',
+          'date',
+          'child',
+          'category',
+          'status',
+          'proof_type',
+          'source',
+          'file_name',
+          'attachment_state',
+          'included_in_report',
+        ],
+        for (final proof in reportProofRecords)
+          [
+            proof.id,
+            proof.expenseId,
+            proof.expenseTitle,
+            proof.expenseDate,
+            proof.childName,
+            proof.category.label,
+            proof.status.label,
+            proof.proofTypeLabel,
+            proof.sourceLabel,
+            proof.fileName ?? '',
+            proof.attachmentStateLabel,
+            'tak',
+          ],
+        if (reportProofRecords.length != proofRecords.length)
+          [
+            'pominieto_w_przegladzie',
+            (proofRecords.length - reportProofRecords.length).toString(),
+            'Dowody odznaczone w kroku przegladu nie sa dolaczone do sekcji dowodow.',
+          ],
       ],
       if (polishContext != null) ...[
         const <String>[],
@@ -2868,6 +2945,113 @@ List<_ReadinessItem> _readinessItemsFor(ExpenseEntry expense) {
 
 bool _hasReadinessText(String? value) {
   return value != null && value.trim().isNotEmpty;
+}
+
+class _ReportProofReviewCard extends StatelessWidget {
+  const _ReportProofReviewCard({
+    required this.month,
+    required this.proofs,
+    required this.includedProofIds,
+    required this.expenseCount,
+    required this.onProofIncludedChanged,
+  });
+
+  final String month;
+  final List<ProofRecord> proofs;
+  final Set<String> includedProofIds;
+  final int expenseCount;
+  final void Function(String proofId, bool included) onProofIncludedChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final missingProofCount = expenseCount - proofs.length;
+    final includedCount = proofs
+        .where((proof) => includedProofIds.contains(proof.id))
+        .length;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.library_books_outlined),
+              title: const Text('Przeglad dowodow raportu'),
+              subtitle: Text(
+                '$includedCount z ${proofs.length} dowodow dolaczonych do sekcji dowodow za $month.',
+              ),
+            ),
+            if (proofs.isEmpty)
+              _ReportProofEmptyState(
+                expenseCount: expenseCount,
+                missingProofCount: missingProofCount,
+              )
+            else ...[
+              for (final proof in proofs)
+                CheckboxListTile(
+                  key: Key('report-proof-${proof.id}'),
+                  contentPadding: EdgeInsets.zero,
+                  value: includedProofIds.contains(proof.id),
+                  onChanged: (value) {
+                    onProofIncludedChanged(proof.id, value ?? false);
+                  },
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(proof.expenseTitle),
+                  subtitle: Text(
+                    [
+                      proof.proofTypeLabel,
+                      proof.sourceLabel,
+                      proof.childName,
+                      proof.attachmentStateLabel,
+                      includedProofIds.contains(proof.id)
+                          ? 'dolaczony do raportu'
+                          : 'pominiety w raporcie',
+                    ].join(' • '),
+                  ),
+                ),
+              if (missingProofCount > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '$missingProofCount koszty w tym miesiacu nie maja dowodu ani metadanych dowodu.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
+            const SizedBox(height: 8),
+            Text(
+              'Zmiana wyboru nie usuwa plikow, nie zmienia statusu kosztu i nie wysyla powiadomienia.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportProofEmptyState extends StatelessWidget {
+  const _ReportProofEmptyState({
+    required this.expenseCount,
+    required this.missingProofCount,
+  });
+
+  final int expenseCount;
+  final int missingProofCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = expenseCount == 0
+        ? 'Brak kosztow w miesiacu raportu.'
+        : '$missingProofCount koszty nie maja zalacznikow ani metadanych dowodu.';
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.folder_off_outlined),
+      title: const Text('Brak dowodow do przegladu'),
+      subtitle: Text(subtitle),
+    );
+  }
 }
 
 class _ExportCard extends StatelessWidget {

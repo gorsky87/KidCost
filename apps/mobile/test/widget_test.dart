@@ -11,6 +11,7 @@ import 'package:kidcost_mobile/src/features/custody/custody_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_visuals.dart';
+import 'package:kidcost_mobile/src/features/expenses/proof_library_models.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
 import 'package:kidcost_mobile/src/features/planned_purchases/planned_purchase_models.dart';
 import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
@@ -25,6 +26,7 @@ import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/family_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/monthly_cost_plan_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/planned_purchases_screen.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/proof_library_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/settings_screen.dart';
 import 'package:kidcost_mobile/src/telemetry/app_telemetry.dart';
@@ -255,6 +257,61 @@ void main() {
       expect(falsePositiveMisses, isEmpty);
     },
   );
+
+  test('proof library filters records by metadata and query', () {
+    final school = expenseCategories.firstWhere(
+      (category) => category.id == 'school',
+    );
+    final health = expenseCategories.firstWhere(
+      (category) => category.id == 'health',
+    );
+    final records = proofRecordsFromExpenses([
+      testExpense(
+        id: 'school-books',
+        title: 'Ksiazki',
+        category: school,
+        attachment: const ExpenseAttachment(
+          fileName: 'books.pdf',
+          contentType: 'application/pdf',
+          status: AttachmentStatus.uploaded,
+          evidence: EvidenceMetadata(
+            type: EvidenceType.invoice,
+            merchant: 'Ksiegarnia Szkolna',
+            documentNumber: 'FV-1',
+          ),
+        ),
+      ),
+      testExpense(
+        id: 'ortho',
+        title: 'Ortodonta',
+        category: health,
+        status: ExpenseStatus.accepted,
+        attachment: const ExpenseAttachment(
+          fileName: 'ortodonta.jpg',
+          contentType: 'image/jpeg',
+          status: AttachmentStatus.uploaded,
+          evidence: EvidenceMetadata(
+            type: EvidenceType.receipt,
+            merchant: 'Orto Dent',
+          ),
+        ),
+      ),
+    ]);
+
+    final filtered = filterProofRecords(
+      records: records,
+      filter: const ProofLibraryFilter(
+        categoryId: 'health',
+        status: ExpenseStatus.accepted,
+        evidenceType: EvidenceType.receipt,
+        query: 'orto',
+      ),
+    );
+
+    expect(filtered, hasLength(1));
+    expect(filtered.single.expenseTitle, 'Ortodonta');
+    expect(filtered.single.proofTypeLabel, 'Paragon');
+  });
 
   testWidgets('telemetry sanitizer removes PII and precise amounts', (_) async {
     final sanitized = sanitizeTelemetryParameters({
@@ -2559,6 +2616,70 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('proof library searches and filters existing proofs', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProofLibraryScreen(
+            expenses: [
+              testExpense(
+                id: 'books',
+                title: 'Ksiazki',
+                attachment: const ExpenseAttachment(
+                  fileName: 'books.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    merchant: 'Ksiegarnia Szkolna',
+                  ),
+                ),
+              ),
+              testExpense(
+                id: 'pool',
+                title: 'Basen',
+                attachment: const ExpenseAttachment(
+                  fileName: 'pool.jpg',
+                  contentType: 'image/jpeg',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.receipt,
+                    merchant: 'Aqua Klub',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Biblioteka dowodow'), findsOneWidget);
+    expect(find.text('Ksiazki'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Basen'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Basen'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('proof-library-search-field')),
+      'aqua',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Basen'), findsOneWidget);
+    expect(find.text('Ksiazki'), findsNothing);
+  });
+
   testWidgets('expenses list separates private drafts from submitted costs', (
     WidgetTester tester,
   ) async {
@@ -4324,6 +4445,71 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('"Faktura imienna"'), findsOneWidget);
+  });
+
+  testWidgets('monthly reports review proofs before CSV export', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 6000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+              testExpense(
+                id: '2',
+                title: 'Faktura za ortodonte',
+                amountCents: 48000,
+                category: expenseCategories[3],
+                attachment: const ExpenseAttachment(
+                  fileName: 'ortodonta.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    merchant: 'Orto Dent',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Przeglad dowodow raportu'), 180);
+    expect(find.text('Przeglad dowodow raportu'), findsOneWidget);
+    expect(find.textContaining('1 z 1 dowodow dolaczonych'), findsOneWidget);
+    expect(
+      find.textContaining('1 koszty w tym miesiacu nie maja dowodu'),
+      findsOneWidget,
+    );
+
+    final proofToggle = find.byKey(const Key('report-proof-proof-2'));
+    await tester.scrollUntilVisible(proofToggle, 180);
+    await tester.ensureVisible(proofToggle);
+    await tester.tap(proofToggle);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('0 z 1 dowodow dolaczonych'), findsOneWidget);
+    expect(find.textContaining('pominiety w raporcie'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('CSV: kidcost-report-2026-06.csv'),
+      180,
+    );
+    await tester.tap(find.text('CSV: kidcost-report-2026-06.csv'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Eksport CSV'), findsOneWidget);
+    expect(find.textContaining('dowody_raportu'), findsOneWidget);
+    expect(find.textContaining('pominieto_w_przegladzie'), findsOneWidget);
   });
 
   testWidgets('monthly reports show evidence readiness before export', (
