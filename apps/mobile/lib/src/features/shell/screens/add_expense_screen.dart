@@ -21,6 +21,7 @@ class AddExpenseScreen extends StatefulWidget {
     this.currentDate,
     this.calendarEvents = const [],
     this.childInfoCards = const [],
+    this.existingExpenses = const [],
     this.showReceiptOcrPremiumHint = false,
     this.onPremiumHintDismissed,
     super.key,
@@ -34,6 +35,7 @@ class AddExpenseScreen extends StatefulWidget {
   final DateTime? currentDate;
   final List<ExpenseCalendarEventLink> calendarEvents;
   final List<ChildInfoCard> childInfoCards;
+  final List<ExpenseEntry> existingExpenses;
   final bool showReceiptOcrPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
@@ -53,6 +55,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _dateController = TextEditingController();
   final _titleController = TextEditingController();
   final _manualPayerController = TextEditingController();
+  final _serviceDateController = TextEditingController();
   final _documentDateController = TextEditingController();
   final _merchantController = TextEditingController();
   final _documentNumberController = TextEditingController();
@@ -69,9 +72,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool _attachmentFailedOnLastSave = false;
   String? _calendarEventId;
   String? _childInfoCardId;
+  String? _relatedExpenseId;
   String? _amountError;
   String? _dateError;
   String? _payerError;
+  bool _duplicateCueDismissed = false;
   bool _ocrDraftNeedsReview = false;
   bool _ocrDraftManuallyConfirmed = false;
 
@@ -79,6 +84,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void initState() {
     super.initState();
     _amountController.addListener(_refreshAgreementPreview);
+    _amountController.addListener(_refreshDuplicatePreview);
+    _dateController.addListener(_refreshDuplicatePreview);
+    _serviceDateController.addListener(_refreshDuplicatePreview);
+    _documentDateController.addListener(_refreshDuplicatePreview);
+    _merchantController.addListener(_refreshDuplicatePreview);
+    _documentNumberController.addListener(_refreshDuplicatePreview);
     _dateController.text = _formatDate(widget.currentDate ?? DateTime.now());
     _manualPayerController.text = widget.profile.coParentLabel;
     _receiptCurrency = widget.profile.familyCurrency;
@@ -98,10 +109,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   void dispose() {
     _amountController.removeListener(_refreshAgreementPreview);
+    _amountController.removeListener(_refreshDuplicatePreview);
+    _dateController.removeListener(_refreshDuplicatePreview);
+    _serviceDateController.removeListener(_refreshDuplicatePreview);
+    _documentDateController.removeListener(_refreshDuplicatePreview);
+    _merchantController.removeListener(_refreshDuplicatePreview);
+    _documentNumberController.removeListener(_refreshDuplicatePreview);
     _amountController.dispose();
     _dateController.dispose();
     _titleController.dispose();
     _manualPayerController.dispose();
+    _serviceDateController.dispose();
     _documentDateController.dispose();
     _merchantController.dispose();
     _documentNumberController.dispose();
@@ -113,7 +131,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -195,9 +213,38 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             selectedCategory: _category,
             isEnabled: !_isSaving,
             onCategorySelected: (category) {
-              setState(() => _category = category);
+              setState(() {
+                _category = category;
+                _duplicateCueDismissed = false;
+                _relatedExpenseId = null;
+              });
             },
           ),
+          if (_potentialDuplicateExpenses.isNotEmpty &&
+              !_duplicateCueDismissed) ...[
+            const SizedBox(height: 12),
+            _PotentialDuplicateCue(
+              matches: _potentialDuplicateExpenses,
+              selectedExpenseId: _relatedExpenseId,
+              onViewExisting: _showExistingExpensePreview,
+              onContinueAnyway: () {
+                setState(() => _duplicateCueDismissed = true);
+              },
+              onLinkRelated: (expense) {
+                setState(() {
+                  _relatedExpenseId = expense.id;
+                  _duplicateCueDismissed = true;
+                });
+              },
+            ),
+          ],
+          if (_selectedRelatedExpense != null) ...[
+            const SizedBox(height: 8),
+            _RelatedExpenseDraftCard(
+              expense: _selectedRelatedExpense!,
+              onRemove: () => setState(() => _relatedExpenseId = null),
+            ),
+          ],
           if (widget.childInfoCards.isNotEmpty) ...[
             const SizedBox(height: 12),
             if (_suggestedChildInfoCards.isNotEmpty) ...[
@@ -286,6 +333,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               prefixIcon: Icon(Icons.notes_outlined),
             ),
           ),
+          if (_attachmentDraft == null) ...[
+            const SizedBox(height: 12),
+            _ExpenseVerificationFields(
+              evidenceType: _evidenceType,
+              serviceDateController: _serviceDateController,
+              documentDateController: _documentDateController,
+              merchantController: _merchantController,
+              documentNumberController: _documentNumberController,
+              paymentMethodController: _paymentMethodController,
+              buyerNamePresent: _buyerNamePresent,
+              initiallyExpanded: false,
+              onEvidenceTypeChanged: (type) {
+                setState(() {
+                  _evidenceType = type;
+                  _duplicateCueDismissed = false;
+                });
+              },
+              onBuyerNamePresentChanged: (value) {
+                setState(() => _buyerNamePresent = value);
+              },
+            ),
+          ],
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             key: const Key('receipt-currency-picker'),
@@ -347,6 +416,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               onAddAnother: _explainSingleAttachmentMvp,
               onSaveWithoutReceipt: _removeAttachment,
               evidenceType: _evidenceType,
+              serviceDateController: _serviceDateController,
               documentDateController: _documentDateController,
               merchantController: _merchantController,
               documentNumberController: _documentNumberController,
@@ -603,6 +673,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           : _receiptCurrency,
       calendarEvent: _selectedCalendarEvent,
       childInfoCard: _selectedChildInfoCard?.toLink(),
+      verification: _currentEvidenceMetadata(),
+      relatedExpense: _selectedRelatedExpense == null
+          ? null
+          : relatedRecordLinkForExpense(_selectedRelatedExpense!),
     );
 
     widget.onExpenseSaved(expense);
@@ -619,6 +693,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _originalReceiptAmountController.clear();
       _calendarEventId = null;
       _childInfoCardId = null;
+      _relatedExpenseId = null;
+      _duplicateCueDismissed = false;
       _attachmentDraft = null;
       _clearEvidenceFields();
       _ocrDraftNeedsReview = false;
@@ -680,6 +756,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     setState(() {});
   }
 
+  void _refreshDuplicatePreview() {
+    if (!mounted) return;
+    setState(() => _duplicateCueDismissed = false);
+  }
+
   bool get _usesForeignReceiptCurrency =>
       _receiptCurrency != widget.profile.familyCurrency;
 
@@ -710,6 +791,40 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       expenseCategoryId: _category.id,
       cards: widget.childInfoCards,
     );
+  }
+
+  List<PotentialDuplicateExpense> get _potentialDuplicateExpenses {
+    var amountCents = 0;
+    try {
+      amountCents = parseAmountToCents(_amountController.text);
+    } on FormatException {
+      return const [];
+    }
+    final date = _dateController.text.trim();
+    if (amountCents <= 0 || date.isEmpty) {
+      return const [];
+    }
+    return findPotentialDuplicateExpenses(
+      candidate: ExpenseDuplicateCandidate(
+        amountCents: amountCents,
+        expenseDate: date,
+        childName: widget.profile.childName,
+        category: _category,
+        verification: _currentEvidenceMetadata(),
+      ),
+      existingExpenses: widget.existingExpenses,
+    );
+  }
+
+  ExpenseEntry? get _selectedRelatedExpense {
+    final selectedId = _relatedExpenseId;
+    if (selectedId == null) return null;
+    for (final expense in widget.existingExpenses) {
+      if (expense.id == selectedId) {
+        return expense;
+      }
+    }
+    return null;
   }
 
   int? get _originalReceiptAmountCents {
@@ -817,13 +932,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ),
       _OcrReviewField(
         label: 'Data uslugi',
-        value: _documentDateController.text.trim().isEmpty
+        value: _serviceDateController.text.trim().isEmpty
             ? null
-            : _documentDateController.text.trim(),
-        state: _documentDateController.text.trim().isEmpty
+            : _serviceDateController.text.trim(),
+        state: _serviceDateController.text.trim().isEmpty
             ? _OcrFieldState.missing
             : _OcrFieldState.reviewed,
-        actionLabel: _documentDateController.text.trim().isEmpty
+        actionLabel: _serviceDateController.text.trim().isEmpty
             ? 'Service date optional'
             : 'Reviewed',
         isRequired: false,
@@ -863,6 +978,48 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: const Text('Potwierdzam recznie'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showExistingExpensePreview(ExpenseEntry expense) {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        final evidence = expense.searchableEvidence;
+        return AlertDialog(
+          icon: const Icon(Icons.receipt_long_outlined),
+          title: Text(expense.title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Data: ${expense.expenseDate}'),
+              Text('Kwota: ${formatCents(expense.amountCents)}'),
+              Text('Status: ${expense.status.label}'),
+              if (evidence?.merchant?.trim().isNotEmpty == true)
+                Text('Wystawca: ${evidence!.merchant}'),
+              if (evidence?.documentNumber?.trim().isNotEmpty == true)
+                Text('Numer dokumentu: ${evidence!.documentNumber}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Zamknij'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _relatedExpenseId = expense.id;
+                  _duplicateCueDismissed = true;
+                });
+              },
+              child: const Text('Powiaz jako related'),
             ),
           ],
         );
@@ -928,6 +1085,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   EvidenceMetadata? _currentEvidenceMetadata() {
     final metadata = EvidenceMetadata(
       type: _evidenceType,
+      serviceDate: _trimmedOrNull(_serviceDateController.text),
       documentDate: _trimmedOrNull(_documentDateController.text),
       merchant: _trimmedOrNull(_merchantController.text),
       documentNumber: _trimmedOrNull(_documentNumberController.text),
@@ -945,6 +1103,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void _clearEvidenceFields() {
     _evidenceType = null;
     _buyerNamePresent = null;
+    _serviceDateController.clear();
     _documentDateController.clear();
     _merchantController.clear();
     _documentNumberController.clear();
@@ -974,6 +1133,292 @@ class _CalendarEventLinkCard extends StatelessWidget {
         subtitle: Text(
           'Koszt pojawi sie na szczegolach wydarzenia z dnia ${event.eventDate}.',
         ),
+      ),
+    );
+  }
+}
+
+class _PotentialDuplicateCue extends StatelessWidget {
+  const _PotentialDuplicateCue({
+    required this.matches,
+    required this.selectedExpenseId,
+    required this.onViewExisting,
+    required this.onContinueAnyway,
+    required this.onLinkRelated,
+  });
+
+  final List<PotentialDuplicateExpense> matches;
+  final String? selectedExpenseId;
+  final ValueChanged<ExpenseEntry> onViewExisting;
+  final VoidCallback onContinueAnyway;
+  final ValueChanged<ExpenseEntry> onLinkRelated;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label:
+          'Ten koszt wyglada podobnie do juz zapisanego. To tylko podpowiedz, zapis nie jest blokowany.',
+      child: Card(
+        color: colors.tertiaryContainer.withValues(alpha: 0.38),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.manage_search_outlined),
+                title: const Text(
+                  'Ten koszt wyglada podobnie do juz zapisanego',
+                ),
+                subtitle: const Text(
+                  'To neutralna podpowiedz. Mozesz sprawdzic rekord, kontynuowac albo powiazac je jako related.',
+                ),
+              ),
+              for (final match in matches)
+                _PotentialDuplicateTile(
+                  match: match,
+                  isSelected: match.expense.id == selectedExpenseId,
+                  onViewExisting: () => onViewExisting(match.expense),
+                  onLinkRelated: () => onLinkRelated(match.expense),
+                ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onContinueAnyway,
+                  icon: const Icon(Icons.arrow_forward_outlined),
+                  label: const Text('Kontynuuj mimo podobienstwa'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PotentialDuplicateTile extends StatelessWidget {
+  const _PotentialDuplicateTile({
+    required this.match,
+    required this.isSelected,
+    required this.onViewExisting,
+    required this.onLinkRelated,
+  });
+
+  final PotentialDuplicateExpense match;
+  final bool isSelected;
+  final VoidCallback onViewExisting;
+  final VoidCallback onLinkRelated;
+
+  @override
+  Widget build(BuildContext context) {
+    final expense = match.expense;
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                isSelected ? Icons.link_outlined : Icons.receipt_outlined,
+              ),
+              title: Text(expense.title),
+              subtitle: Text(
+                '${expense.expenseDate} - ${formatCents(expense.amountCents)} - ${expense.status.label}\n${match.reasons.join(', ')}',
+              ),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onViewExisting,
+                  icon: const Icon(Icons.open_in_new_outlined),
+                  label: const Text('Zobacz istniejacy'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: onLinkRelated,
+                  icon: const Icon(Icons.link_outlined),
+                  label: const Text('Powiaz jako related'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RelatedExpenseDraftCard extends StatelessWidget {
+  const _RelatedExpenseDraftCard({
+    required this.expense,
+    required this.onRemove,
+  });
+
+  final ExpenseEntry expense;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.link_outlined),
+        title: Text('Powiazany rekord: ${expense.title}'),
+        subtitle: Text(
+          '${expense.expenseDate} - ${formatCents(expense.amountCents)} - ${expense.status.label}',
+        ),
+        trailing: IconButton(
+          tooltip: 'Usun powiazanie',
+          onPressed: onRemove,
+          icon: const Icon(Icons.close),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpenseVerificationFields extends StatelessWidget {
+  const _ExpenseVerificationFields({
+    required this.evidenceType,
+    required this.serviceDateController,
+    required this.documentDateController,
+    required this.merchantController,
+    required this.documentNumberController,
+    required this.paymentMethodController,
+    required this.buyerNamePresent,
+    required this.onEvidenceTypeChanged,
+    required this.onBuyerNamePresentChanged,
+    this.initiallyExpanded = false,
+  });
+
+  final EvidenceType? evidenceType;
+  final TextEditingController serviceDateController;
+  final TextEditingController documentDateController;
+  final TextEditingController merchantController;
+  final TextEditingController documentNumberController;
+  final TextEditingController paymentMethodController;
+  final bool? buyerNamePresent;
+  final ValueChanged<EvidenceType?> onEvidenceTypeChanged;
+  final ValueChanged<bool?> onBuyerNamePresentChanged;
+  final bool initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ExpansionTile(
+        key: const Key('expense-verification-fields'),
+        leading: const Icon(Icons.fact_check_outlined),
+        title: const Text('Pola weryfikacyjne'),
+        subtitle: const Text('Opcjonalne, pomagaja wykryc podobne rachunki.'),
+        initiallyExpanded: initiallyExpanded,
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          const _AttachmentSaveNotice(
+            icon: Icons.info_outline,
+            text: 'To pomaga uporzadkowac dokumenty; nie jest porada prawna.',
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<EvidenceType?>(
+            key: const Key('evidence-type-picker'),
+            initialValue: evidenceType,
+            decoration: const InputDecoration(
+              labelText: 'Typ dowodu',
+              prefixIcon: Icon(Icons.fact_check_outlined),
+            ),
+            items: [
+              const DropdownMenuItem<EvidenceType?>(
+                value: null,
+                child: Text('Nie wybrano'),
+              ),
+              for (final type in EvidenceType.values)
+                DropdownMenuItem<EvidenceType?>(
+                  value: type,
+                  child: Text(type.label),
+                ),
+            ],
+            onChanged: onEvidenceTypeChanged,
+          ),
+          if (evidenceType != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              evidenceType!.description,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('expense-service-date-field'),
+            controller: serviceDateController,
+            keyboardType: TextInputType.datetime,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Data uslugi',
+              hintText: 'RRRR-MM-DD',
+              prefixIcon: Icon(Icons.event_available_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('expense-document-date-field'),
+            controller: documentDateController,
+            keyboardType: TextInputType.datetime,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Data dokumentu',
+              hintText: 'RRRR-MM-DD',
+              prefixIcon: Icon(Icons.event_note_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('expense-provider-field'),
+            controller: merchantController,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Sprzedawca lub wystawca',
+              prefixIcon: Icon(Icons.storefront_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('expense-document-number-field'),
+            controller: documentNumberController,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              labelText: 'Numer dokumentu',
+              prefixIcon: Icon(Icons.tag_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: paymentMethodController,
+            textInputAction: TextInputAction.done,
+            decoration: const InputDecoration(
+              labelText: 'Metoda platnosci',
+              prefixIcon: Icon(Icons.credit_card_outlined),
+            ),
+          ),
+          const SizedBox(height: 8),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            tristate: true,
+            value: buyerNamePresent,
+            onChanged: onBuyerNamePresentChanged,
+            title: const Text('Na dokumencie jest imie/nazwisko kupujacego'),
+            subtitle: Text(_buyerNameStateLabel(buyerNamePresent)),
+          ),
+        ],
       ),
     );
   }
@@ -1118,6 +1563,7 @@ class _AttachmentReviewTray extends StatelessWidget {
     required this.onAddAnother,
     required this.onSaveWithoutReceipt,
     required this.evidenceType,
+    required this.serviceDateController,
     required this.documentDateController,
     required this.merchantController,
     required this.documentNumberController,
@@ -1141,6 +1587,7 @@ class _AttachmentReviewTray extends StatelessWidget {
   final VoidCallback onAddAnother;
   final VoidCallback onSaveWithoutReceipt;
   final EvidenceType? evidenceType;
+  final TextEditingController serviceDateController;
   final TextEditingController documentDateController;
   final TextEditingController merchantController;
   final TextEditingController documentNumberController;
@@ -1223,86 +1670,17 @@ class _AttachmentReviewTray extends StatelessWidget {
               const Divider(height: 1),
               const SizedBox(height: 12),
             ],
-            DropdownButtonFormField<EvidenceType?>(
-              key: const Key('evidence-type-picker'),
-              initialValue: evidenceType,
-              decoration: const InputDecoration(
-                labelText: 'Typ dowodu',
-                prefixIcon: Icon(Icons.fact_check_outlined),
-              ),
-              items: [
-                const DropdownMenuItem<EvidenceType?>(
-                  value: null,
-                  child: Text('Nie wybrano'),
-                ),
-                for (final type in EvidenceType.values)
-                  DropdownMenuItem<EvidenceType?>(
-                    value: type,
-                    child: Text(type.label),
-                  ),
-              ],
-              onChanged: onEvidenceTypeChanged,
-            ),
-            if (evidenceType != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                evidenceType!.description,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            const SizedBox(height: 8),
-            const _AttachmentSaveNotice(
-              icon: Icons.info_outline,
-              text: 'To pomaga uporzadkowac dokumenty; nie jest porada prawna.',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: documentDateController,
-              keyboardType: TextInputType.datetime,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Data dokumentu',
-                hintText: 'RRRR-MM-DD',
-                prefixIcon: Icon(Icons.event_note_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: merchantController,
-              textCapitalization: TextCapitalization.words,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Sprzedawca lub wystawca',
-                prefixIcon: Icon(Icons.storefront_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: documentNumberController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Numer dokumentu',
-                prefixIcon: Icon(Icons.tag_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: paymentMethodController,
-              textInputAction: TextInputAction.done,
-              decoration: const InputDecoration(
-                labelText: 'Metoda platnosci',
-                prefixIcon: Icon(Icons.credit_card_outlined),
-              ),
-            ),
-            const SizedBox(height: 8),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              tristate: true,
-              value: buyerNamePresent,
-              onChanged: onBuyerNamePresentChanged,
-              title: const Text('Na dokumencie jest imie/nazwisko kupujacego'),
-              subtitle: Text(_buyerNameStateLabel(buyerNamePresent)),
+            _ExpenseVerificationFields(
+              evidenceType: evidenceType,
+              serviceDateController: serviceDateController,
+              documentDateController: documentDateController,
+              merchantController: merchantController,
+              documentNumberController: documentNumberController,
+              paymentMethodController: paymentMethodController,
+              buyerNamePresent: buyerNamePresent,
+              onEvidenceTypeChanged: onEvidenceTypeChanged,
+              onBuyerNamePresentChanged: onBuyerNamePresentChanged,
+              initiallyExpanded: true,
             ),
             const SizedBox(height: 12),
             Wrap(

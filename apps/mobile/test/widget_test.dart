@@ -175,6 +175,79 @@ void main() {
     }
   });
 
+  test(
+    'duplicate expense matcher handles document, provider/date, and misses',
+    () {
+      final health = expenseCategories.firstWhere(
+        (category) => category.id == 'health',
+      );
+      final existing = testExpense(
+        id: 'health-1',
+        title: 'Ortodonta',
+        amountCents: 12000,
+        expenseDate: '2026-06-20',
+        category: health,
+        verification: const EvidenceMetadata(
+          serviceDate: '2026-06-20',
+          documentDate: '2026-06-21',
+          merchant: 'Orto Dent',
+          documentNumber: 'FV-7',
+        ),
+      );
+
+      final documentNumberMatches = findPotentialDuplicateExpenses(
+        candidate: ExpenseDuplicateCandidate(
+          amountCents: 99999,
+          expenseDate: '2026-07-01',
+          childName: 'Antek',
+          category: health,
+          verification: const EvidenceMetadata(documentNumber: 'fv-7'),
+        ),
+        existingExpenses: [existing],
+      );
+      expect(documentNumberMatches, hasLength(1));
+      expect(
+        documentNumberMatches.single.reasons,
+        contains('ten sam numer dokumentu'),
+      );
+
+      final providerDateAmountMatches = findPotentialDuplicateExpenses(
+        candidate: ExpenseDuplicateCandidate(
+          amountCents: 12100,
+          expenseDate: '2026-06-22',
+          childName: 'Antek',
+          category: health,
+          verification: const EvidenceMetadata(
+            serviceDate: '2026-06-22',
+            merchant: 'orto dent',
+          ),
+        ),
+        existingExpenses: [existing],
+      );
+      expect(providerDateAmountMatches, hasLength(1));
+      expect(
+        providerDateAmountMatches.single.reasons,
+        contains('podobna kwota'),
+      );
+      expect(
+        providerDateAmountMatches.single.reasons,
+        contains('ten sam wystawca'),
+      );
+
+      final falsePositiveMisses = findPotentialDuplicateExpenses(
+        candidate: ExpenseDuplicateCandidate(
+          amountCents: 12100,
+          expenseDate: '2026-08-10',
+          childName: 'Antek',
+          category: health,
+          verification: const EvidenceMetadata(merchant: 'Inna klinika'),
+        ),
+        existingExpenses: [existing],
+      );
+      expect(falsePositiveMisses, isEmpty);
+    },
+  );
+
   testWidgets('telemetry sanitizer removes PII and precise amounts', (_) async {
     final sanitized = sanitizeTelemetryParameters({
       'screen': 'dashboard',
@@ -304,9 +377,11 @@ void main() {
     await tester.pump();
 
     expect(find.text('Nowy koszt'), findsOneWidget);
-    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
     await tester.pumpAndSettle();
-    expect(find.text('Zapisz koszt'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Zapisz koszt'), findsOneWidget);
 
     await tester.tap(find.text('Kosztorys'));
     await tester.pumpAndSettle();
@@ -804,9 +879,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Lekarze i leki'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Zapisz koszt'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Koszty'));
@@ -856,9 +933,11 @@ void main() {
       editableTextByKey(const Key('original-receipt-amount-field')),
       '25,50',
     );
-    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Zapisz koszt'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
     await tester.pumpAndSettle();
 
     expect(find.text('Potwierdz walute rozliczenia'), findsOneWidget);
@@ -1054,6 +1133,80 @@ void main() {
     expect(savedExpense!.childInfoCard?.isShared, isTrue);
   });
 
+  testWidgets('add expense warns about similar bill and links related record', (
+    WidgetTester tester,
+  ) async {
+    ExpenseEntry? savedExpense;
+    final health = expenseCategories.firstWhere(
+      (category) => category.id == 'health',
+    );
+    final existingExpense = testExpense(
+      id: 'expense-existing',
+      title: 'Ortodonta',
+      amountCents: 12000,
+      expenseDate: '2026-06-20',
+      category: health,
+      status: ExpenseStatus.accepted,
+      verification: const EvidenceMetadata(
+        serviceDate: '2026-06-20',
+        merchant: 'Orto Dent',
+        documentNumber: 'FV-7',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            attachmentStorage: InMemoryAttachmentStorage(),
+            currentDate: DateTime.utc(2026, 6, 20),
+            existingExpenses: [existingExpense],
+            onExpenseSaved: (expense) => savedExpense = expense,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).at(0), '120');
+    await tester.ensureVisible(find.text('Lekarze i leki'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lekarze i leki'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Ten koszt wyglada podobnie do juz zapisanego'),
+      findsOneWidget,
+    );
+    expect(find.text('Ortodonta'), findsOneWidget);
+    expect(find.textContaining('podobna kwota'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Zobacz istniejacy'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Zobacz istniejacy'));
+    await tester.pumpAndSettle();
+    expect(find.text('Status: Zaakceptowany'), findsOneWidget);
+    await tester.tap(find.text('Powiaz jako related').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Powiazany rekord: Ortodonta'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(savedExpense, isNotNull);
+    expect(savedExpense!.relatedExpenseId, 'expense-existing');
+    expect(savedExpense!.relatedExpense?.title, 'Ortodonta');
+  });
+
   testWidgets('add expense previews shared agreement rules and thresholds', (
     WidgetTester tester,
   ) async {
@@ -1063,7 +1216,7 @@ void main() {
 
     expect(find.text('Regula kosztu: Jedzenie'), findsOneWidget);
     expect(find.text('Domyslny podzial 50/50.'), findsOneWidget);
-    expect(find.textContaining('nie jest porada prawna'), findsOneWidget);
+    expect(find.textContaining('nie jest porada prawna'), findsWidgets);
 
     await tester.enterText(find.byType(TextField).at(0), '250');
     await tester.ensureVisible(find.text('Zajecia dodatkowe'));
@@ -1085,9 +1238,13 @@ void main() {
     await tester.enterText(find.byType(TextField).at(0), '12,50');
     await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
     await tester.enterText(find.byType(TextField).at(2), 'Obiad');
-    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Zapisz koszt'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
     await tester.pumpAndSettle();
 
     expect(find.text('Koszt zapisany.'), findsOneWidget);
@@ -1144,9 +1301,11 @@ void main() {
     expect(find.text('2026-07-01'), findsOneWidget);
     expect(find.text('Czesne lipiec'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Zapisz koszt'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Koszty'));
@@ -1192,9 +1351,11 @@ void main() {
     await tester.tap(find.text('Mama Oli').last);
     await tester.pumpAndSettle();
     expect(find.text('Reczna etykieta platnika'), findsOneWidget);
-    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Zapisz koszt'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Koszty'));
@@ -1233,9 +1394,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Drugi rodzic').last);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Zapisz koszt'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Koszty'));
@@ -1310,9 +1473,11 @@ void main() {
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Zapisz koszt'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Koszty'));
     await tester.pumpAndSettle();
@@ -1349,9 +1514,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('PDF'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Zapisz koszt'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Zapisz koszt'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
     await tester.pumpAndSettle();
 
     expect(
@@ -1533,6 +1700,18 @@ void main() {
                   title: 'Ubezpieczenie i lekarz',
                   isShared: true,
                 ),
+                verification: const EvidenceMetadata(
+                  serviceDate: '2026-06-19',
+                  merchant: 'Apteka Testowa',
+                  documentNumber: 'FV/20/06',
+                ),
+                relatedExpense: const ExpenseRelatedRecordLink(
+                  id: 'related-1',
+                  title: 'Poprzedni rachunek',
+                  expenseDate: '2026-06-19',
+                  amountCents: 9800,
+                  status: ExpenseStatus.accepted,
+                ),
               ),
               testExpense(
                 id: '2',
@@ -1558,8 +1737,8 @@ void main() {
     expect(find.text('Podglad PDF: rachunek.pdf'), findsOneWidget);
     expect(find.text('Dowod kosztu'), findsOneWidget);
     expect(find.text('Faktura imienna'), findsOneWidget);
-    expect(find.text('Apteka Testowa'), findsOneWidget);
-    expect(find.text('FV/20/06'), findsOneWidget);
+    expect(find.text('Apteka Testowa'), findsWidgets);
+    expect(find.text('FV/20/06'), findsWidgets);
     expect(
       find.text('Kontekst dziecka: Ubezpieczenie i lekarz'),
       findsOneWidget,
@@ -1568,7 +1747,11 @@ void main() {
       find.textContaining('Tresc zostaje w profilu dziecka'),
       findsOneWidget,
     );
-    expect(find.textContaining('nie jest porada prawna'), findsOneWidget);
+    expect(find.text('Related records'), findsOneWidget);
+    expect(find.textContaining('Poprzedni rachunek'), findsOneWidget);
+    expect(find.text('Pola weryfikacyjne'), findsOneWidget);
+    expect(find.text('2026-06-19'), findsWidgets);
+    expect(find.textContaining('nie jest porada prawna'), findsWidgets);
     expect(find.text('Twoja rola: autor kosztu'), findsOneWidget);
     expect(find.text('Edytuj koszt'), findsOneWidget);
     expect(find.text('Oznacz jako sporne'), findsNothing);
@@ -2764,6 +2947,8 @@ ExpenseEntry testExpense({
   ExpenseAttachment? attachment,
   ExpenseCalendarEventLink? calendarEvent,
   ChildInfoCardLink? childInfoCard,
+  EvidenceMetadata? verification,
+  ExpenseRelatedRecordLink? relatedExpense,
 }) {
   return ExpenseEntry(
     id: id,
@@ -2779,6 +2964,8 @@ ExpenseEntry testExpense({
     attachment: attachment,
     calendarEvent: calendarEvent,
     childInfoCard: childInfoCard,
+    verification: verification,
+    relatedExpense: relatedExpense,
   );
 }
 

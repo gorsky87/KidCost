@@ -59,6 +59,8 @@ class ExpenseEntry {
     this.originalReceiptCurrency,
     this.calendarEvent,
     this.childInfoCard,
+    this.verification,
+    this.relatedExpense,
   });
 
   final String id;
@@ -79,11 +81,17 @@ class ExpenseEntry {
   final String? originalReceiptCurrency;
   final ExpenseCalendarEventLink? calendarEvent;
   final ChildInfoCardLink? childInfoCard;
+  final EvidenceMetadata? verification;
+  final ExpenseRelatedRecordLink? relatedExpense;
 
   String? get calendarEventId => calendarEvent?.id;
   String? get calendarEventTitle => calendarEvent?.title;
   String? get calendarEventDate => calendarEvent?.eventDate;
   String? get childInfoCardId => childInfoCard?.id;
+  String? get relatedExpenseId => relatedExpense?.id;
+
+  EvidenceMetadata? get searchableEvidence =>
+      verification ?? attachment?.evidence;
 
   bool get hasOriginalReceiptAmount =>
       originalReceiptAmountCents != null &&
@@ -117,6 +125,8 @@ class ExpenseEntry {
     String? originalReceiptCurrency,
     ExpenseCalendarEventLink? calendarEvent,
     ChildInfoCardLink? childInfoCard,
+    EvidenceMetadata? verification,
+    ExpenseRelatedRecordLink? relatedExpense,
   }) {
     return ExpenseEntry(
       id: id,
@@ -139,8 +149,29 @@ class ExpenseEntry {
           originalReceiptCurrency ?? this.originalReceiptCurrency,
       calendarEvent: calendarEvent ?? this.calendarEvent,
       childInfoCard: childInfoCard ?? this.childInfoCard,
+      verification: verification ?? this.verification,
+      relatedExpense: relatedExpense ?? this.relatedExpense,
     );
   }
+}
+
+class ExpenseRelatedRecordLink {
+  const ExpenseRelatedRecordLink({
+    required this.id,
+    required this.title,
+    required this.expenseDate,
+    required this.amountCents,
+    required this.status,
+  });
+
+  final String id;
+  final String title;
+  final String expenseDate;
+  final int amountCents;
+  final ExpenseStatus status;
+
+  String get summary =>
+      '$expenseDate - ${formatCents(amountCents)} - ${status.label}';
 }
 
 class ExpenseTemplate {
@@ -265,6 +296,7 @@ enum AttachmentStatus { uploaded, failed }
 class EvidenceMetadata {
   const EvidenceMetadata({
     this.type,
+    this.serviceDate,
     this.documentDate,
     this.merchant,
     this.documentNumber,
@@ -273,6 +305,7 @@ class EvidenceMetadata {
   });
 
   final EvidenceType? type;
+  final String? serviceDate;
   final String? documentDate;
   final String? merchant;
   final String? documentNumber;
@@ -281,6 +314,7 @@ class EvidenceMetadata {
 
   bool get hasDetails {
     return type != null ||
+        _hasText(serviceDate) ||
         _hasText(documentDate) ||
         _hasText(merchant) ||
         _hasText(documentNumber) ||
@@ -291,6 +325,165 @@ class EvidenceMetadata {
   static bool _hasText(String? value) {
     return value != null && value.trim().isNotEmpty;
   }
+}
+
+class ExpenseDuplicateCandidate {
+  const ExpenseDuplicateCandidate({
+    required this.amountCents,
+    required this.expenseDate,
+    required this.childName,
+    required this.category,
+    this.verification,
+  });
+
+  final int amountCents;
+  final String expenseDate;
+  final String childName;
+  final ExpenseCategory category;
+  final EvidenceMetadata? verification;
+}
+
+class PotentialDuplicateExpense {
+  const PotentialDuplicateExpense({
+    required this.expense,
+    required this.reasons,
+  });
+
+  final ExpenseEntry expense;
+  final List<String> reasons;
+}
+
+List<PotentialDuplicateExpense> findPotentialDuplicateExpenses({
+  required ExpenseDuplicateCandidate candidate,
+  required Iterable<ExpenseEntry> existingExpenses,
+  int maxResults = 3,
+}) {
+  if (candidate.amountCents <= 0) {
+    return const [];
+  }
+
+  final matches = <PotentialDuplicateExpense>[];
+  for (final expense in existingExpenses) {
+    final reasons = _duplicateReasons(candidate, expense);
+    if (reasons.isNotEmpty) {
+      matches.add(
+        PotentialDuplicateExpense(expense: expense, reasons: reasons),
+      );
+    }
+  }
+
+  matches.sort((left, right) {
+    final reasonCount = right.reasons.length.compareTo(left.reasons.length);
+    if (reasonCount != 0) return reasonCount;
+    return right.expense.expenseDate.compareTo(left.expense.expenseDate);
+  });
+  return List.unmodifiable(matches.take(maxResults));
+}
+
+ExpenseRelatedRecordLink relatedRecordLinkForExpense(ExpenseEntry expense) {
+  return ExpenseRelatedRecordLink(
+    id: expense.id,
+    title: expense.title,
+    expenseDate: expense.expenseDate,
+    amountCents: expense.amountCents,
+    status: expense.status,
+  );
+}
+
+List<String> _duplicateReasons(
+  ExpenseDuplicateCandidate candidate,
+  ExpenseEntry expense,
+) {
+  if (_normalize(candidate.childName) != _normalize(expense.childName)) {
+    return const [];
+  }
+  if (candidate.category.id != expense.category.id) {
+    return const [];
+  }
+
+  final candidateEvidence = candidate.verification;
+  final existingEvidence = expense.searchableEvidence;
+  final reasons = <String>['to samo dziecko i kategoria'];
+
+  final candidateDocumentNumber = _normalize(candidateEvidence?.documentNumber);
+  final existingDocumentNumber = _normalize(existingEvidence?.documentNumber);
+  if (candidateDocumentNumber.isNotEmpty &&
+      candidateDocumentNumber == existingDocumentNumber) {
+    return List.unmodifiable([...reasons, 'ten sam numer dokumentu']);
+  }
+
+  if (!_amountsAreClose(candidate.amountCents, expense.amountCents)) {
+    return const [];
+  }
+  reasons.add('podobna kwota');
+
+  final candidateMerchant = _normalize(candidateEvidence?.merchant);
+  final existingMerchant = _normalize(existingEvidence?.merchant);
+  final hasSameProvider =
+      candidateMerchant.isNotEmpty && candidateMerchant == existingMerchant;
+  if (hasSameProvider) {
+    reasons.add('ten sam wystawca');
+  }
+
+  final hasMatchingDate = _datesOverlap(
+    candidateDates: [
+      candidateEvidence?.serviceDate,
+      candidateEvidence?.documentDate,
+      candidate.expenseDate,
+    ],
+    existingDates: [
+      existingEvidence?.serviceDate,
+      existingEvidence?.documentDate,
+      expense.expenseDate,
+    ],
+  );
+  if (hasMatchingDate) {
+    reasons.add('podobna data uslugi lub dokumentu');
+  }
+
+  if (!hasSameProvider && !hasMatchingDate) {
+    return const [];
+  }
+  return List.unmodifiable(reasons);
+}
+
+bool _amountsAreClose(int candidateAmount, int existingAmount) {
+  final difference = (candidateAmount - existingAmount).abs();
+  final tolerance = (candidateAmount * 0.02).round();
+  return difference <= (tolerance < 100 ? 100 : tolerance);
+}
+
+bool _datesOverlap({
+  required Iterable<String?> candidateDates,
+  required Iterable<String?> existingDates,
+}) {
+  final parsedCandidateDates = candidateDates
+      .map(_parseIsoDate)
+      .whereType<DateTime>();
+  final parsedExistingDates = existingDates
+      .map(_parseIsoDate)
+      .whereType<DateTime>();
+
+  for (final candidateDate in parsedCandidateDates) {
+    for (final existingDate in parsedExistingDates) {
+      if (candidateDate.difference(existingDate).inDays.abs() <= 3) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+DateTime? _parseIsoDate(String? value) {
+  final text = value?.trim();
+  if (text == null || text.isEmpty) {
+    return null;
+  }
+  return DateTime.tryParse(text);
+}
+
+String _normalize(String? value) {
+  return value == null ? '' : value.trim().toLowerCase();
 }
 
 enum EvidenceType { receipt, invoice, bankConfirmation, onlineOrder, other }
