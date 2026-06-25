@@ -10,14 +10,28 @@ Data: 2026-06-24
 - Release channel: `beta`
 - Android application id: `pl.kidcost.app`
 - iOS bundle id: `pl.kidcost.app`
-- Analytics i crash reporting: wylaczone do czasu dodania projektu Firebase i plikow platformowych poza repo.
+- Analytics i crash reporting: domyslnie wylaczone; wlaczenie wymaga projektu Firebase, plikow platformowych poza repo oraz adaptera Firebase Analytics/Crashlytics w aplikacji.
 
 ## Komendy
 
 ```sh
 scripts/verify_beta_release_config.sh
+scripts/verify_observability_privacy_smoke.sh --check-only
 scripts/build_beta_artifacts.sh --check-only
 cd apps/mobile && flutter analyze && flutter test
+```
+
+Smoke observability zapisuje raport QA w
+`build/release/observability-privacy-smoke.md`.
+
+Po dodaniu runtime adaptera Firebase oraz sekretow Firebase:
+
+```sh
+KIDCOST_ANALYTICS_ENABLED=true \
+KIDCOST_CRASH_REPORTING_ENABLED=true \
+KIDCOST_FIREBASE_ANDROID_CONFIG=/secure/path/google-services.json \
+KIDCOST_FIREBASE_IOS_CONFIG=/secure/path/GoogleService-Info.plist \
+scripts/build_beta_artifacts.sh --check-only
 ```
 
 Po dodaniu sekretow signing i kont sklepowych:
