@@ -41,6 +41,7 @@ class _ProofLibraryScreenState extends State<ProofLibraryScreen> {
       filter: _filter,
       reportedProofIds: widget.reportedProofIds,
     );
+    final missingProofCount = widget.expenses.length - records.length;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -77,11 +78,16 @@ class _ProofLibraryScreenState extends State<ProofLibraryScreen> {
           },
         ),
         const SizedBox(height: 12),
+        if (missingProofCount > 0) ...[
+          _MissingProofsNotice(count: missingProofCount),
+          const SizedBox(height: 12),
+        ],
         if (records.isEmpty)
-          const _ProofEmptyState(
+          _ProofEmptyState(
             title: 'Brak dowodow',
-            subtitle:
-                'Dodaj paragon, fakture, PDF albo metadane dowodu przy koszcie.',
+            subtitle: missingProofCount == 1
+                ? '1 koszt nie ma jeszcze zalacznika ani metadanych dowodu.'
+                : '$missingProofCount koszty nie maja jeszcze zalacznikow ani metadanych dowodu.',
           )
         else if (filteredRecords.isEmpty)
           _ProofEmptyState(
@@ -302,6 +308,27 @@ class _ProofFilterCard extends StatelessWidget {
   List<String> _uniqueValues(Iterable<String> values) {
     return values.toSet().toList()
       ..sort((first, second) => second.compareTo(first));
+  }
+}
+
+class _MissingProofsNotice extends StatelessWidget {
+  const _MissingProofsNotice({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = count == 1
+        ? '1 koszt jest widoczny w historii, ale nie trafi do biblioteki dowodow, dopoki nie dostanie pliku albo metadanych dowodu.'
+        : '$count koszty sa widoczne w historii, ale nie trafia do biblioteki dowodow, dopoki nie dostana pliku albo metadanych dowodu.';
+
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.info_outline),
+        title: const Text('Brakujace dowody'),
+        subtitle: Text(subtitle),
+      ),
+    );
   }
 }
 

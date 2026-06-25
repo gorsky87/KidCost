@@ -2784,6 +2784,7 @@ void main() {
                   ),
                 ),
               ),
+              testExpense(id: 'lunch', title: 'Obiad bez paragonu'),
             ],
           ),
         ),
@@ -2791,6 +2792,11 @@ void main() {
     );
 
     expect(find.text('Biblioteka dowodow'), findsOneWidget);
+    expect(find.text('Brakujace dowody'), findsOneWidget);
+    expect(
+      find.textContaining('1 koszt jest widoczny w historii'),
+      findsOneWidget,
+    );
     expect(find.text('Ksiazki'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Basen'),
