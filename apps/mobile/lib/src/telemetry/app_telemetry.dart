@@ -75,6 +75,46 @@ class NoopTelemetry extends AppTelemetry {
   void recordError(Object error, StackTrace stackTrace, {String? reason}) {}
 }
 
+class PrivacySafeTelemetry extends AppTelemetry {
+  const PrivacySafeTelemetry(this.delegate);
+
+  final AppTelemetry delegate;
+
+  @override
+  Future<void> track(
+    TelemetryEvent event, {
+    Map<String, Object?> parameters = const {},
+  }) {
+    return delegate.track(
+      event,
+      parameters: sanitizeTelemetryParameters(parameters),
+    );
+  }
+
+  @override
+  void recordError(Object error, StackTrace stackTrace, {String? reason}) {
+    delegate.recordError(
+      PrivacySafeTelemetryError(error.runtimeType.toString()),
+      stackTrace,
+      reason: sanitizeCrashReason(reason),
+    );
+  }
+
+  @override
+  void dispose() {
+    delegate.dispose();
+  }
+}
+
+class PrivacySafeTelemetryError {
+  const PrivacySafeTelemetryError(this.typeName);
+
+  final String typeName;
+
+  @override
+  String toString() => typeName.trim().isEmpty ? 'Error' : typeName;
+}
+
 Map<String, Object> sanitizeTelemetryParameters(Map<String, Object?> input) {
   final sanitized = <String, Object>{};
   for (final entry in input.entries) {
@@ -90,6 +130,17 @@ Map<String, Object> sanitizeTelemetryParameters(Map<String, Object?> input) {
     }
   }
   return sanitized;
+}
+
+String? sanitizeCrashReason(String? reason) {
+  final normalized = reason?.trim();
+  if (normalized == null ||
+      normalized.isEmpty ||
+      _looksSensitive(normalized) ||
+      !_safeCrashReasonPattern.hasMatch(normalized)) {
+    return null;
+  }
+  return normalized;
 }
 
 const _allowedParameterKeys = {
@@ -156,8 +207,14 @@ const _allowedParameterKeys = {
   'include_context_in_report',
 };
 
+final _safeCrashReasonPattern = RegExp(r'^[a-z0-9_./:-]+$');
+
 bool _looksSensitive(String value) {
   return value.contains('@') ||
+      value.contains('://') ||
+      value.startsWith('/') ||
+      value.contains('\\') ||
+      value.contains(RegExp(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/')) ||
       value.contains(RegExp(r'\d+[,.]\d{2}')) ||
       value.length > 64;
 }

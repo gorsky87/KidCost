@@ -81,6 +81,17 @@ REPORT
 
 analytics_define="$(normalize_bool "$analytics_enabled")"
 crash_reporting_define="$(normalize_bool "$crash_reporting_enabled")"
+android_firebase_configured=false
+ios_firebase_configured=false
+
+if [[ "$analytics_define" == "true" || "$crash_reporting_define" == "true" ]]; then
+  if [[ -n "${KIDCOST_FIREBASE_ANDROID_CONFIG:-}" ]]; then
+    android_firebase_configured=true
+  fi
+  if [[ -n "${KIDCOST_FIREBASE_IOS_CONFIG:-}" ]]; then
+    ios_firebase_configured=true
+  fi
+fi
 
 append_report ""
 append_report "## Observability flags"
@@ -90,6 +101,8 @@ append_report "- KIDCOST_CRASH_REPORTING_ENABLED=$crash_reporting_define"
 if [[ "$analytics_define" == "true" || "$crash_reporting_define" == "true" ]]; then
   append_report "- Firebase Android config supplied via KIDCOST_FIREBASE_ANDROID_CONFIG."
   append_report "- Firebase iOS config supplied via KIDCOST_FIREBASE_IOS_CONFIG."
+  append_report "- Android KIDCOST_FIREBASE_CONFIGURED=$android_firebase_configured"
+  append_report "- iOS KIDCOST_FIREBASE_CONFIGURED=$ios_firebase_configured"
 fi
 
 android_blocked=0
@@ -133,7 +146,8 @@ if [[ "$mode" == "all" || "$mode" == "android" ]]; then
       --dart-define=KIDCOST_BUILD_NAME=1.0.0 \
       --dart-define=KIDCOST_BUILD_NUMBER=2 \
       --dart-define=KIDCOST_ANALYTICS_ENABLED="$analytics_define" \
-      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED="$crash_reporting_define"
+      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED="$crash_reporting_define" \
+      --dart-define=KIDCOST_FIREBASE_CONFIGURED="$android_firebase_configured"
     append_report ""
     append_report "## Android artifact"
     append_report ""
@@ -154,7 +168,8 @@ if [[ "$mode" == "all" || "$mode" == "ios" ]]; then
       --dart-define=KIDCOST_BUILD_NAME=1.0.0 \
       --dart-define=KIDCOST_BUILD_NUMBER=2 \
       --dart-define=KIDCOST_ANALYTICS_ENABLED="$analytics_define" \
-      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED="$crash_reporting_define"
+      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED="$crash_reporting_define" \
+      --dart-define=KIDCOST_FIREBASE_CONFIGURED="$ios_firebase_configured"
     append_report ""
     append_report "## iOS artifact"
     append_report ""
