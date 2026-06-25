@@ -1,5 +1,6 @@
 export 'src/balance.dart';
 export 'src/entitlements.dart';
+export 'src/expense_category.dart';
 export 'src/fee_waiver_policy.dart';
 export 'src/expense_status.dart';
 export 'src/notification_preferences.dart';
