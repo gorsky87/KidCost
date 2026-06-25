@@ -4,6 +4,7 @@ enum PremiumDiscoveryPoint {
   receiptOcr,
   reportExport,
   calendarExport,
+  historicalImport,
   expenseHistory,
   accountPlan,
 }
@@ -52,6 +53,16 @@ extension PremiumDiscoveryPointDetails on PremiumDiscoveryPoint {
               'Tworzenie i przegladanie dni opieki w aplikacji zostaje w podstawowym przeplywie.',
           candidateFeature:
               'Kandydat Premium: manualny eksport ICS i przyszly feed subskrybowany.',
+        );
+      case PremiumDiscoveryPoint.historicalImport:
+        return const PremiumDiscoveryMessage(
+          title: 'Import historii jako szybki start',
+          body:
+              'Wiekszy import CSV, arkuszy i batch paragonow moze oszczedzic reczne przepisywanie starych kosztow.',
+          freeBaseline:
+              'Pojedyncze dodawanie kosztow i istniejace rekordy zostaja dostepne bez paywalla.',
+          candidateFeature:
+              'Kandydat Premium: bulk import, mapping kolumn i szkice do potwierdzenia.',
         );
       case PremiumDiscoveryPoint.expenseHistory:
         return const PremiumDiscoveryMessage(

@@ -109,6 +109,10 @@ class _KidCostShellState extends State<KidCostShell> {
         showExpenseHistoryPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.expenseHistory,
         ),
+        showHistoricalImportPremiumHint: !_isPremiumHintDismissed(
+          PremiumDiscoveryPoint.historicalImport,
+        ),
+        telemetry: widget.telemetry,
         onPremiumHintDismissed: _dismissPremiumHint,
       ),
     ),

@@ -279,6 +279,14 @@ void main() {
       'has_alternating_custody_note': true,
       'has_free_text_assumption': true,
       'free_text_assumption': 'Rodzice wpisali prywatne zalozenie',
+      'import_type': 'csv_preview',
+      'import_row_count': 3,
+      'import_file_count': 2,
+      'import_error_count': 1,
+      'import_duplicate_count': 1,
+      'draft_expense_count': 2,
+      'merchant': 'Apteka Testowa',
+      'note': 'Prywatna notatka z importu',
     });
 
     expect(sanitized, {
@@ -305,6 +313,12 @@ void main() {
       'has_child_tax_relief_note': true,
       'has_alternating_custody_note': true,
       'has_free_text_assumption': true,
+      'import_type': 'csv_preview',
+      'import_row_count': 3,
+      'import_file_count': 2,
+      'import_error_count': 1,
+      'import_duplicate_count': 1,
+      'draft_expense_count': 2,
     });
   });
 
@@ -880,6 +894,89 @@ void main() {
       scrollable: find.byType(Scrollable).last,
     );
     expect(find.text('Zobacz trial'), findsOneWidget);
+  });
+
+  testWidgets('historical import previews drafts without creating expenses', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final telemetry = RecordingTelemetry();
+    final dismissed = <PremiumDiscoveryPoint>[];
+    final expenses = [testExpense(id: '1', title: 'Obiad')];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            expenses: expenses,
+            showHistoricalImportPremiumHint: true,
+            telemetry: telemetry,
+            onPremiumHintDismissed: dismissed.add,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Import historycznych kosztow'), findsOneWidget);
+    expect(find.text('Manualny koszt zostaje free'), findsOneWidget);
+    expect(find.text('Import historii jako szybki start'), findsOneWidget);
+
+    final previewButton = find.byKey(
+      const Key('historical-import-preview-button'),
+    );
+    await tester.ensureVisible(previewButton);
+    await tester.tap(previewButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Preview importu'), findsOneWidget);
+    expect(
+      find.textContaining('Nie zapisujemy finalnych kosztow bez potwierdzenia'),
+      findsOneWidget,
+    );
+    expect(find.text('Szkic do potwierdzenia'), findsOneWidget);
+    expect(find.text('Wymaga sprawdzenia'), findsOneWidget);
+    expect(find.text('Blad walidacji'), findsOneWidget);
+    expect(find.textContaining('Mozliwy duplikat'), findsOneWidget);
+    expect(find.textContaining('Brakuje daty albo kwoty'), findsOneWidget);
+    expect(find.text('Obiad'), findsOneWidget);
+    expect(expenses, hasLength(1));
+
+    expect(telemetry.eventNames, contains('historical_import_previewed'));
+    expect(telemetry.events.last.parameters, {
+      'import_type': 'csv_preview',
+      'import_row_count': 3,
+      'import_file_count': 2,
+      'import_error_count': 1,
+      'import_duplicate_count': 1,
+      'draft_expense_count': 2,
+      'feature': 'historical_import',
+      'surface': 'expenses',
+    });
+
+    final draftButton = find.byKey(const Key('historical-import-draft-button'));
+    await tester.ensureVisible(draftButton);
+    await tester.tap(draftButton);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('nie finalne koszty'), findsOneWidget);
+    expect(expenses, hasLength(1));
+
+    final cancelButton = find.byKey(
+      const Key('historical-import-cancel-button'),
+    );
+    await tester.ensureVisible(cancelButton);
+    await tester.tap(cancelButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Preview importu'), findsNothing);
+    expect(expenses, hasLength(1));
+
+    await tester.tap(
+      find.byKey(const Key('premium-discovery-dismiss-historicalImport')),
+    );
+    await tester.pumpAndSettle();
+    expect(dismissed, [PremiumDiscoveryPoint.historicalImport]);
   });
 
   testWidgets('add expense validates amount and date', (

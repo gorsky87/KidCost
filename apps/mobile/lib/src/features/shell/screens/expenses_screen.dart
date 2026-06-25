@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
+import '../../../telemetry/app_telemetry.dart';
 import '../../child_info/child_info_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
@@ -17,6 +20,8 @@ class ExpensesScreen extends StatefulWidget {
     this.initialFilterRequest,
     this.currentDate,
     this.showExpenseHistoryPremiumHint = false,
+    this.showHistoricalImportPremiumHint = false,
+    this.telemetry = const NoopTelemetry(),
     this.onExpenseChanged,
     this.onPremiumHintDismissed,
     super.key,
@@ -28,6 +33,8 @@ class ExpensesScreen extends StatefulWidget {
   final ExpenseListFilterRequest? initialFilterRequest;
   final DateTime? currentDate;
   final bool showExpenseHistoryPremiumHint;
+  final bool showHistoricalImportPremiumHint;
+  final AppTelemetry telemetry;
   final ValueChanged<ExpenseEntry>? onExpenseChanged;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
@@ -42,7 +49,32 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   ExpenseStatus? _statusFilter;
   String? _payerFilter;
   bool _showOverdueReimbursements = false;
+  bool _showHistoricalImportPreview = false;
   _ExpenseSort _sort = _ExpenseSort.newest;
+
+  void _openHistoricalImportPreview() {
+    setState(() => _showHistoricalImportPreview = true);
+    unawaited(
+      widget.telemetry.track(
+        TelemetryEvent.historicalImportPreviewed,
+        parameters: _historicalImportTelemetryProperties(),
+      ),
+    );
+  }
+
+  Map<String, Object> _historicalImportTelemetryProperties() {
+    const preview = HistoricalImportPreview.sample;
+    return {
+      'import_type': 'csv_preview',
+      'import_row_count': preview.rows.length,
+      'import_file_count': preview.batchReceiptFileCount,
+      'import_error_count': preview.validationErrorCount,
+      'import_duplicate_count': preview.duplicateWarningCount,
+      'draft_expense_count': preview.draftExpenseCount,
+      'feature': 'historical_import',
+      'surface': 'expenses',
+    };
+  }
 
   @override
   void initState() {
@@ -96,8 +128,20 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     if (widget.expenses.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(16),
-        children: const [
-          _EmptyExpensesTile(
+        children: [
+          _HistoricalImportActivationCard(
+            showPremiumHint: widget.showHistoricalImportPremiumHint,
+            showPreview: _showHistoricalImportPreview,
+            onPreview: _openHistoricalImportPreview,
+            onCancelPreview: () {
+              setState(() => _showHistoricalImportPreview = false);
+            },
+            onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+              PremiumDiscoveryPoint.historicalImport,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const _EmptyExpensesTile(
             title: 'Brak kosztow',
             subtitle: 'Lista bedzie pokazywac koszty, statusy i zalaczniki.',
           ),
@@ -135,6 +179,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 PremiumDiscoveryPoint.expenseHistory,
               ),
             ),
+        if (widget.showHistoricalImportPremiumHint ||
+            _showHistoricalImportPreview) ...[
+          const SizedBox(height: 12),
+          _HistoricalImportActivationCard(
+            showPremiumHint: widget.showHistoricalImportPremiumHint,
+            showPreview: _showHistoricalImportPreview,
+            onPreview: _openHistoricalImportPreview,
+            onCancelPreview: () {
+              setState(() => _showHistoricalImportPreview = false);
+            },
+            onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
+              PremiumDiscoveryPoint.historicalImport,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -389,6 +448,249 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   List<String> _uniqueValues(Iterable<String> values) {
     return values.toSet().toList()..sort();
+  }
+}
+
+class HistoricalImportPreview {
+  const HistoricalImportPreview({
+    required this.rows,
+    required this.batchReceiptFileCount,
+  });
+
+  final List<HistoricalImportDraftRow> rows;
+  final int batchReceiptFileCount;
+
+  int get validationErrorCount =>
+      rows.where((row) => row.validationError != null).length;
+
+  int get duplicateWarningCount =>
+      rows.where((row) => row.duplicateWarning != null).length;
+
+  int get draftExpenseCount => rows.where((row) => row.canBecomeDraft).length;
+
+  static const sample = HistoricalImportPreview(
+    batchReceiptFileCount: 2,
+    rows: [
+      HistoricalImportDraftRow(
+        sourceRow: 1,
+        mappedDate: '2026-05-04',
+        mappedAmount: '84,20 PLN',
+        mappedCategory: 'Szkola/przedszkole',
+        statusLabel: 'Szkic do potwierdzenia',
+      ),
+      HistoricalImportDraftRow(
+        sourceRow: 2,
+        mappedDate: '2026-05-05',
+        mappedAmount: '129,00 PLN',
+        mappedCategory: 'Lekarze i leki',
+        statusLabel: 'Wymaga sprawdzenia',
+        duplicateWarning: 'Mozliwy duplikat: Apteka z 2026-05-05.',
+      ),
+      HistoricalImportDraftRow(
+        sourceRow: 3,
+        mappedDate: '',
+        mappedAmount: 'brak kwoty',
+        mappedCategory: 'Inne',
+        statusLabel: 'Blad walidacji',
+        validationError: 'Brakuje daty albo kwoty.',
+      ),
+    ],
+  );
+}
+
+class HistoricalImportDraftRow {
+  const HistoricalImportDraftRow({
+    required this.sourceRow,
+    required this.mappedDate,
+    required this.mappedAmount,
+    required this.mappedCategory,
+    required this.statusLabel,
+    this.validationError,
+    this.duplicateWarning,
+  });
+
+  final int sourceRow;
+  final String mappedDate;
+  final String mappedAmount;
+  final String mappedCategory;
+  final String statusLabel;
+  final String? validationError;
+  final String? duplicateWarning;
+
+  bool get canBecomeDraft => validationError == null;
+}
+
+class _HistoricalImportActivationCard extends StatelessWidget {
+  const _HistoricalImportActivationCard({
+    required this.showPremiumHint,
+    required this.showPreview,
+    required this.onPreview,
+    required this.onCancelPreview,
+    required this.onPremiumHintDismissed,
+  });
+
+  final bool showPremiumHint;
+  final bool showPreview;
+  final VoidCallback onPreview;
+  final VoidCallback onCancelPreview;
+  final VoidCallback onPremiumHintDismissed;
+
+  @override
+  Widget build(BuildContext context) {
+    const preview = HistoricalImportPreview.sample;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.upload_file_outlined),
+              title: const Text('Import historycznych kosztow'),
+              subtitle: const Text(
+                'CSV, arkusze i batch paragonow zaczynaja jako szkice do potwierdzenia.',
+              ),
+            ),
+            const Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(label: Text('Free: 3 wiersze preview')),
+                Chip(label: Text('Trial/Premium: bulk import')),
+                Chip(label: Text('Manualny koszt zostaje free')),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Mapowanie MVP: data, kwota, waluta, placacy, dziecko, kategoria, merchant, notatka, status i referencja zalacznika.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (showPremiumHint) ...[
+              const SizedBox(height: 8),
+              PremiumDiscoveryCard(
+                point: PremiumDiscoveryPoint.historicalImport,
+                compact: true,
+                onDismiss: onPremiumHintDismissed,
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  key: const Key('historical-import-preview-button'),
+                  onPressed: onPreview,
+                  icon: const Icon(Icons.table_chart_outlined),
+                  label: const Text('Podglad importu CSV'),
+                ),
+                if (showPreview)
+                  TextButton.icon(
+                    key: const Key('historical-import-cancel-button'),
+                    onPressed: onCancelPreview,
+                    icon: const Icon(Icons.undo_outlined),
+                    label: const Text('Anuluj preview'),
+                  ),
+              ],
+            ),
+            if (showPreview) ...[
+              const SizedBox(height: 12),
+              _HistoricalImportPreviewPanel(preview: preview),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoricalImportPreviewPanel extends StatelessWidget {
+  const _HistoricalImportPreviewPanel({required this.preview});
+
+  final HistoricalImportPreview preview;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Preview importu',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Nie zapisujemy finalnych kosztow bez potwierdzenia. Popraw bledy albo anuluj preview, zeby wrocic bez zmian.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(label: Text('${preview.rows.length} wiersze')),
+                Chip(label: Text('${preview.draftExpenseCount} szkice')),
+                Chip(
+                  label: Text(
+                    '${preview.batchReceiptFileCount} pliki paragonow',
+                  ),
+                ),
+                Chip(label: Text('${preview.validationErrorCount} bledy')),
+                Chip(
+                  label: Text(
+                    '${preview.duplicateWarningCount} ostrzezenia duplikatu',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            for (final row in preview.rows)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(child: Text(row.sourceRow.toString())),
+                title: Text(row.statusLabel),
+                subtitle: Text(
+                  [
+                    if (row.mappedDate.isNotEmpty) row.mappedDate,
+                    row.mappedAmount,
+                    row.mappedCategory,
+                    if (row.duplicateWarning != null) row.duplicateWarning!,
+                    if (row.validationError != null) row.validationError!,
+                  ].join(' • '),
+                ),
+              ),
+            Builder(
+              builder: (context) {
+                return OutlinedButton.icon(
+                  key: const Key('historical-import-draft-button'),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Utworzono by szkice do potwierdzenia, nie finalne koszty.',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: const Text('Utworz szkice do potwierdzenia'),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
