@@ -9,14 +9,6 @@
 
 begin;
 
-create or replace function auth.uid()
-returns uuid
-language sql
-stable
-as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-$$;
-
 create temp table monthly_report_ids (
   name text primary key,
   id uuid not null
@@ -46,7 +38,12 @@ insert into public.profiles (id, display_name, email)
 values
   ((select id from monthly_report_ids where name = 'owner'), 'Owner', 'monthly-owner@example.com'),
   ((select id from monthly_report_ids where name = 'co_parent'), 'Co Parent', 'monthly-co-parent@example.com'),
-  ((select id from monthly_report_ids where name = 'outsider'), 'Outsider', 'monthly-outsider@example.com');
+  ((select id from monthly_report_ids where name = 'outsider'), 'Outsider', 'monthly-outsider@example.com')
+on conflict (id) do update
+set
+  display_name = excluded.display_name,
+  email = excluded.email,
+  updated_at = now();
 
 insert into public.families (id, name, created_by)
 values
@@ -243,11 +240,11 @@ begin
     '2026-06-01'
   );
 
-  if position('data,dziecko,kategoria,opis,płacący,kwota,status,typ_dowodu' in csv_export) <> 1 then
+  if position('data,dziecko,kategoria,grupa_raportu,opis,płacący,kwota,status,typ_dowodu' in csv_export) <> 1 then
     raise exception 'monthly report CSV header is wrong: %', csv_export;
   end if;
 
-  if position('"2026-06-03","Child A","school","Books","Owner","120.00","accepted","invoice"' in csv_export) = 0 then
+  if position('"2026-06-03","Child A","school","","Books","Owner","120.00","accepted","invoice"' in csv_export) = 0 then
     raise exception 'monthly report CSV row is missing: %', csv_export;
   end if;
 
@@ -263,7 +260,7 @@ begin
   if public.monthly_expense_report_csv(
     (select id from monthly_report_ids where name = 'family_id'),
     '2026-07-01'
-  ) <> 'data,dziecko,kategoria,opis,płacący,kwota,status,typ_dowodu' then
+  ) <> 'data,dziecko,kategoria,grupa_raportu,opis,płacący,kwota,status,typ_dowodu' then
     raise exception 'empty monthly report CSV should contain only a header';
   end if;
 end $$;

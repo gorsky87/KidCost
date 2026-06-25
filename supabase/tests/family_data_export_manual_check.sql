@@ -9,14 +9,6 @@
 
 begin;
 
-create or replace function auth.uid()
-returns uuid
-language sql
-stable
-as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-$$;
-
 create temp table family_export_ids (
   name text primary key,
   id uuid not null
@@ -47,7 +39,12 @@ insert into public.profiles (id, display_name, email)
 values
   ((select id from family_export_ids where name = 'owner'), 'Owner', 'export-owner@example.com'),
   ((select id from family_export_ids where name = 'co_parent'), 'Co Parent', 'export-co-parent@example.com'),
-  ((select id from family_export_ids where name = 'outsider'), 'Outsider', 'export-outsider@example.com');
+  ((select id from family_export_ids where name = 'outsider'), 'Outsider', 'export-outsider@example.com')
+on conflict (id) do update
+set
+  display_name = excluded.display_name,
+  email = excluded.email,
+  updated_at = now();
 
 insert into public.families (id, name, created_by)
 values
@@ -237,6 +234,11 @@ begin
 
   if (export_payload->'recordCounts'->>'members')::integer <> 2 then
     raise exception 'family export member count is wrong: %', export_payload->'recordCounts'->>'members';
+  end if;
+
+  if (export_payload->'recordCounts'->>'familyExpenseCategories')::integer <> 0
+    or jsonb_array_length(export_payload->'familyExpenseCategories') <> 0 then
+    raise exception 'family export category section should be present and empty for this fixture: %', export_payload;
   end if;
 
   if (export_payload->'recordCounts'->>'children')::integer <> 1
