@@ -10,6 +10,7 @@ import '../../planned_purchases/planned_purchase_models.dart';
 import '../../premium/premium_discovery.dart';
 import '../../reports/context_log_models.dart';
 import '../../reports/mediation_report_pass.dart';
+import '../../reports/support_context_models.dart';
 
 enum _ReportMode { monthly, annual }
 
@@ -19,10 +20,12 @@ class ReportsScreen extends StatefulWidget {
     this.plannedPurchases = const [],
     this.custodyDays = const [],
     this.contextLogEntries = const [],
+    this.supportContextEntries = const [],
     this.currentDate,
     this.initialMediationReportPass,
     this.showReportExportPremiumHint = false,
     this.onContextLogEntrySaved,
+    this.onSupportContextEntrySaved,
     this.onOpenExpenseFilter,
     this.onPremiumHintDismissed,
     this.telemetry = const NoopTelemetry(),
@@ -33,10 +36,12 @@ class ReportsScreen extends StatefulWidget {
   final List<PlannedPurchase> plannedPurchases;
   final List<CustodyDay> custodyDays;
   final List<ContextLogEntry> contextLogEntries;
+  final List<SupportPaymentContextEntry> supportContextEntries;
   final DateTime? currentDate;
   final MediationReportPass? initialMediationReportPass;
   final bool showReportExportPremiumHint;
   final ValueChanged<ContextLogEntry>? onContextLogEntrySaved;
+  final ValueChanged<SupportPaymentContextEntry>? onSupportContextEntrySaved;
   final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
   final AppTelemetry telemetry;
@@ -106,6 +111,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       month: month,
       entries: widget.contextLogEntries,
     );
+    final monthlySupportContextEntries = supportContextEntriesForMonth(
+      month: month,
+      entries: widget.supportContextEntries,
+    );
     final previousMonthlyReport = MonthlyExpenseReport.fromExpenses(
       month: _previousMonthLabel(month),
       expenses: widget.expenses,
@@ -159,6 +168,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             plannedPurchases: monthlyPlans,
             parentingTimeContext: parentingTimeContext,
             contextEntries: monthlyContextEntries,
+            supportContextEntries: monthlySupportContextEntries,
             includeParentingTimeContext: _includeParentingTimeContext,
             polishContext: _polishReportContext,
             now: widget.currentDate ?? DateTime.now(),
@@ -175,6 +185,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               _updateParentingTimeContextEnabled(value, parentingTimeContext);
             },
             onContextLogEntrySaved: widget.onContextLogEntrySaved,
+            onSupportContextEntrySaved: widget.onSupportContextEntrySaved,
             onOpenExpenseFilter: widget.onOpenExpenseFilter,
             onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
               PremiumDiscoveryPoint.reportExport,
@@ -204,6 +215,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       for (final plan in widget.plannedPurchases)
         _monthFromDate(plan.targetDate),
       for (final day in widget.custodyDays) _monthFromDate(day.date),
+      for (final entry in widget.supportContextEntries)
+        _monthFromDate(entry.paymentDate),
     }.toList()..sort((first, second) => second.compareTo(first));
     return months;
   }
@@ -257,6 +270,7 @@ class _MonthlyReportView extends StatelessWidget {
     required this.plannedPurchases,
     required this.parentingTimeContext,
     required this.contextEntries,
+    required this.supportContextEntries,
     required this.includeParentingTimeContext,
     required this.polishContext,
     required this.now,
@@ -267,6 +281,7 @@ class _MonthlyReportView extends StatelessWidget {
     required this.onPolishContextChanged,
     required this.onParentingTimeContextEnabledChanged,
     required this.onContextLogEntrySaved,
+    required this.onSupportContextEntrySaved,
     required this.onOpenExpenseFilter,
     required this.onPremiumHintDismissed,
   });
@@ -278,6 +293,7 @@ class _MonthlyReportView extends StatelessWidget {
   final List<PlannedPurchase> plannedPurchases;
   final ParentingTimeReportContext parentingTimeContext;
   final List<ContextLogEntry> contextEntries;
+  final List<SupportPaymentContextEntry> supportContextEntries;
   final bool includeParentingTimeContext;
   final PolishReportContext polishContext;
   final DateTime now;
@@ -288,6 +304,7 @@ class _MonthlyReportView extends StatelessWidget {
   final ValueChanged<PolishReportContext> onPolishContextChanged;
   final ValueChanged<bool> onParentingTimeContextEnabledChanged;
   final ValueChanged<ContextLogEntry>? onContextLogEntrySaved;
+  final ValueChanged<SupportPaymentContextEntry>? onSupportContextEntrySaved;
   final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
   final VoidCallback onPremiumHintDismissed;
 
@@ -346,6 +363,13 @@ class _MonthlyReportView extends StatelessWidget {
           onContextLogEntrySaved: onContextLogEntrySaved,
         ),
         const SizedBox(height: 12),
+        _SupportContextReportCard(
+          month: month,
+          report: report,
+          entries: supportContextEntries,
+          onSupportContextEntrySaved: onSupportContextEntrySaved,
+        ),
+        const SizedBox(height: 12),
         if (report.expenses.isEmpty)
           const _EmptyReportCard()
         else ...[
@@ -374,6 +398,7 @@ class _MonthlyReportView extends StatelessWidget {
                 ? parentingTimeContext
                 : null,
             contextEntries: contextEntries,
+            supportContextEntries: supportContextEntries,
           ),
           showPremiumHint: showPremiumHint,
           onPremiumHintDismissed: onPremiumHintDismissed,
@@ -768,6 +793,342 @@ class _ContextLogReportCardState extends State<_ContextLogReportCard> {
           entry.canAppearInSharedReport
               ? 'Wpis kontekstu trafi do shared/pro report.'
               : 'Wpis kontekstu zapisany jako prywatny lub roboczy.',
+        ),
+      ),
+    );
+  }
+}
+
+const supportContextReportDisclaimer =
+    'Kontekst alimentow lub stalych przelewow jest informacja wpisana przez uzytkownika. Nie zmienia salda kosztow, nie jest kalkulatorem alimentow ani egzekucja ustalen prawnych.';
+
+class _SupportContextReportCard extends StatefulWidget {
+  const _SupportContextReportCard({
+    required this.month,
+    required this.report,
+    required this.entries,
+    required this.onSupportContextEntrySaved,
+  });
+
+  final String month;
+  final MonthlyExpenseReport report;
+  final List<SupportPaymentContextEntry> entries;
+  final ValueChanged<SupportPaymentContextEntry>? onSupportContextEntrySaved;
+
+  @override
+  State<_SupportContextReportCard> createState() =>
+      _SupportContextReportCardState();
+}
+
+class _SupportContextReportCardState extends State<_SupportContextReportCard> {
+  final _payerController = TextEditingController(text: 'Drugi rodzic');
+  final _recipientController = TextEditingController(text: 'Ty');
+  final _amountController = TextEditingController();
+  final _periodController = TextEditingController();
+  final _noteController = TextEditingController();
+  late String _familyContext;
+  late String _paymentDate;
+  SupportContextVisibility _visibility = SupportContextVisibility.private;
+  bool _includeInReport = false;
+  bool _hasProofAttachment = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _paymentDate = '${widget.month}-01';
+    _periodController.text = widget.month;
+    _familyContext = _familyOptions().first;
+  }
+
+  @override
+  void didUpdateWidget(covariant _SupportContextReportCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.month != widget.month) {
+      _paymentDate = '${widget.month}-01';
+      _periodController.text = widget.month;
+    }
+    final familyOptions = _familyOptions();
+    if (!familyOptions.contains(_familyContext)) {
+      _familyContext = familyOptions.first;
+    }
+  }
+
+  @override
+  void dispose() {
+    _payerController.dispose();
+    _recipientController.dispose();
+    _amountController.dispose();
+    _periodController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reportEntries = widget.entries
+        .where((entry) => entry.canAppearInSharedReport)
+        .toList();
+    final hiddenCount = widget.entries.length - reportEntries.length;
+
+    return Card(
+      child: ExpansionTile(
+        key: const Key('support-context-report-card'),
+        leading: const Icon(Icons.account_balance_outlined),
+        title: const Text('Kontekst alimentow i stalych przelewow'),
+        subtitle: Text(
+          widget.entries.isEmpty
+              ? 'Dodaj wpis tylko jako kontekst raportu, poza saldem kosztow.'
+              : '${widget.entries.length} wpisy, ${reportEntries.length} w eksporcie.',
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          Text(
+            supportContextReportDisclaimer,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          if (widget.entries.isEmpty)
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.info_outline),
+              title: Text('Brak wpisow w tym miesiacu'),
+              subtitle: Text(
+                'Wpisy kontekstu nie zwiekszaja kosztow, salda ani kwoty do zwrotu.',
+              ),
+            )
+          else ...[
+            for (final entry in widget.entries)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  entry.canAppearInSharedReport
+                      ? Icons.check_circle_outline
+                      : Icons.lock_outline,
+                ),
+                title: Text('${entry.paymentDate} - ${entry.amountLabel}'),
+                subtitle: Text(
+                  [
+                    entry.periodCovered,
+                    entry.visibility.label,
+                    if (entry.hasProofAttachment) 'dowod oznaczony',
+                    if (!entry.canAppearInSharedReport)
+                      'poza shared/pro export',
+                  ].join(' - '),
+                ),
+              ),
+            if (hiddenCount > 0)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: const Text('Prywatny kontekst chroniony'),
+                subtitle: Text(
+                  '$hiddenCount wpisow nie trafi do shared/pro export.',
+                ),
+              ),
+          ],
+          const Divider(height: 24),
+          DropdownButtonFormField<String>(
+            key: const Key('support-context-family-picker'),
+            initialValue: _familyContext,
+            decoration: const InputDecoration(
+              labelText: 'Dziecko / rodzina',
+              prefixIcon: Icon(Icons.family_restroom_outlined),
+            ),
+            items: [
+              for (final option in _familyOptions())
+                DropdownMenuItem(value: option, child: Text(option)),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => _familyContext = value);
+            },
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const Key('support-context-payer-field'),
+            controller: _payerController,
+            decoration: const InputDecoration(
+              labelText: 'Placacy',
+              prefixIcon: Icon(Icons.outbound_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const Key('support-context-recipient-field'),
+            controller: _recipientController,
+            decoration: const InputDecoration(
+              labelText: 'Odbiorca',
+              prefixIcon: Icon(Icons.move_to_inbox_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const Key('support-context-amount-field'),
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Kwota',
+              helperText: 'PLN, np. 1200,00.',
+              prefixIcon: Icon(Icons.payments_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const Key('support-context-date-field'),
+            initialValue: _paymentDate,
+            decoration: const InputDecoration(
+              labelText: 'Data platnosci',
+              helperText: 'Format RRRR-MM-DD.',
+              prefixIcon: Icon(Icons.event_outlined),
+            ),
+            onChanged: (value) => _paymentDate = value,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const Key('support-context-period-field'),
+            controller: _periodController,
+            decoration: const InputDecoration(
+              labelText: 'Okres, ktorego dotyczy',
+              helperText: 'Np. 2026-06 albo czerwiec 2026.',
+              prefixIcon: Icon(Icons.date_range_outlined),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<SupportContextVisibility>(
+            key: const Key('support-context-visibility-picker'),
+            segments: [
+              for (final visibility in SupportContextVisibility.values)
+                ButtonSegment(
+                  value: visibility,
+                  icon: Icon(
+                    visibility == SupportContextVisibility.private
+                        ? Icons.lock_outline
+                        : Icons.ios_share_outlined,
+                  ),
+                  label: Text(visibility.label),
+                ),
+            ],
+            selected: {_visibility},
+            onSelectionChanged: (selection) {
+              setState(() {
+                _visibility = selection.first;
+                if (_visibility == SupportContextVisibility.private) {
+                  _includeInReport = false;
+                }
+              });
+            },
+          ),
+          SwitchListTile(
+            key: const Key('support-context-report-switch'),
+            contentPadding: EdgeInsets.zero,
+            value: _includeInReport,
+            onChanged: _visibility == SupportContextVisibility.private
+                ? null
+                : (value) => setState(() => _includeInReport = value),
+            title: const Text('Dolacz do shared/pro report'),
+            subtitle: const Text(
+              'Wpis jest opisany jako kontekst uzytkownika, nie pozycja rozliczenia.',
+            ),
+          ),
+          CheckboxListTile(
+            key: const Key('support-context-proof-checkbox'),
+            contentPadding: EdgeInsets.zero,
+            value: _hasProofAttachment,
+            onChanged: (value) {
+              setState(() => _hasProofAttachment = value ?? false);
+            },
+            title: const Text('Oznacz, ze istnieje dowod platnosci'),
+            subtitle: const Text(
+              'Raport zapisuje tylko flage dowodu, bez tresci zalacznika.',
+            ),
+          ),
+          TextFormField(
+            key: const Key('support-context-note-field'),
+            controller: _noteController,
+            minLines: 2,
+            maxLines: 4,
+            maxLength: 280,
+            decoration: const InputDecoration(
+              labelText: 'Neutralna notatka',
+              helperText: 'Bez porad prawnych i bez audytu wydatkow domowych.',
+              prefixIcon: Icon(Icons.edit_note_outlined),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              key: const Key('support-context-save-button'),
+              onPressed: widget.onSupportContextEntrySaved == null
+                  ? null
+                  : _saveSupportContextEntry,
+              icon: const Icon(Icons.add_task_outlined),
+              label: const Text('Dodaj kontekst platnosci'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<String> _familyOptions() {
+    final children = {
+      for (final expense in widget.report.expenses)
+        if (expense.childName.trim().isNotEmpty) expense.childName.trim(),
+    }.toList()..sort();
+    if (children.isEmpty) {
+      return const ['Rodzina'];
+    }
+    return children;
+  }
+
+  void _saveSupportContextEntry() {
+    int amountCents;
+    try {
+      amountCents = parseAmountToCents(_amountController.text);
+    } on FormatException {
+      amountCents = 0;
+    }
+    final payer = _payerController.text.trim();
+    final recipient = _recipientController.text.trim();
+    final period = _periodController.text.trim();
+    if (amountCents <= 0 ||
+        payer.isEmpty ||
+        recipient.isEmpty ||
+        _paymentDate.trim().isEmpty ||
+        period.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Uzupelnij strony, kwote, date i okres platnosci.'),
+        ),
+      );
+      return;
+    }
+    final entry = SupportPaymentContextEntry.draft(
+      payer: payer,
+      recipient: recipient,
+      familyContext: _familyContext,
+      amountCents: amountCents,
+      currencyCode: 'PLN',
+      paymentDate: _paymentDate,
+      periodCovered: period,
+      visibility: _visibility,
+      includeInReport: _includeInReport,
+      hasProofAttachment: _hasProofAttachment,
+      note: _noteController.text,
+    );
+    widget.onSupportContextEntrySaved?.call(entry);
+    _amountController.clear();
+    _noteController.clear();
+    setState(() {
+      _visibility = SupportContextVisibility.private;
+      _includeInReport = false;
+      _hasProofAttachment = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          entry.canAppearInSharedReport
+              ? 'Kontekst platnosci trafi do shared/pro report poza saldem.'
+              : 'Kontekst platnosci zapisany prywatnie poza saldem.',
         ),
       ),
     );
@@ -1417,8 +1778,12 @@ class MonthlyExpenseReport {
     PolishReportContext? polishContext,
     ParentingTimeReportContext? parentingTimeContext,
     List<ContextLogEntry> contextEntries = const [],
+    List<SupportPaymentContextEntry> supportContextEntries = const [],
   }) {
     final reportContextEntries = contextEntries
+        .where((entry) => entry.canAppearInSharedReport)
+        .toList();
+    final reportSupportContextEntries = supportContextEntries
         .where((entry) => entry.canAppearInSharedReport)
         .toList();
     final rows = [
@@ -1570,6 +1935,43 @@ class MonthlyExpenseReport {
           [
             'pominieto_prywatne_lub_niezaznaczone',
             (contextEntries.length - reportContextEntries.length).toString(),
+            'Nie sa widoczne w shared/professional export.',
+          ],
+      ],
+      if (supportContextEntries.isNotEmpty) ...[
+        const <String>[],
+        ['sekcja', 'kontekst_alimentow_i_stalych_przelewow'],
+        ['disclaimer', supportContextReportDisclaimer],
+        const [
+          'payment_date',
+          'period',
+          'payer',
+          'recipient',
+          'child_or_family',
+          'amount',
+          'currency',
+          'visibility',
+          'proof_flag',
+          'note',
+        ],
+        for (final entry in reportSupportContextEntries)
+          [
+            entry.paymentDate,
+            entry.periodCovered,
+            entry.payer,
+            entry.recipient,
+            entry.familyContext,
+            entry.amountLabel,
+            entry.currencyCode,
+            entry.visibility.label,
+            entry.hasProofAttachment ? 'dowod_oznaczony' : 'brak_oznaczenia',
+            entry.note,
+          ],
+        if (reportSupportContextEntries.length != supportContextEntries.length)
+          [
+            'pominieto_prywatne_lub_niezaznaczone',
+            (supportContextEntries.length - reportSupportContextEntries.length)
+                .toString(),
             'Nie sa widoczne w shared/professional export.',
           ],
       ],

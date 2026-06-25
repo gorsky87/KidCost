@@ -12,6 +12,7 @@ import 'features/onboarding/family_onboarding_screen.dart';
 import 'features/onboarding/onboarding_profile.dart';
 import 'features/planned_purchases/planned_purchase_models.dart';
 import 'features/reports/context_log_models.dart';
+import 'features/reports/support_context_models.dart';
 import 'features/shell/kidcost_shell.dart';
 import 'telemetry/app_telemetry.dart';
 import 'theme/kidcost_theme.dart';
@@ -46,6 +47,7 @@ class _KidCostAppState extends State<KidCostApp> {
   List<PlannedPurchase> _plannedPurchases = const [];
   List<CustodyDay> _custodyDays = const [];
   List<ContextLogEntry> _contextLogEntries = const [];
+  List<SupportPaymentContextEntry> _supportContextEntries = const [];
   bool _isLoading = true;
   String? _startupMessage;
 
@@ -130,6 +132,7 @@ class _KidCostAppState extends State<KidCostApp> {
         plannedPurchases: _plannedPurchases,
         custodyDays: _custodyDays,
         contextLogEntries: _contextLogEntries,
+        supportContextEntries: _supportContextEntries,
         onExpenseSaved: (expense) {
           unawaited(
             widget.telemetry.track(
@@ -263,6 +266,21 @@ class _KidCostAppState extends State<KidCostApp> {
           );
           setState(() => _contextLogEntries = [..._contextLogEntries, entry]);
         },
+        onSupportContextEntrySaved: (entry) {
+          unawaited(
+            widget.telemetry.track(
+              TelemetryEvent.supportContextEntryCreated,
+              parameters: {
+                ...entry.analyticsProperties,
+                'surface': 'reports',
+                'release_channel': _config.releaseChannel,
+              },
+            ),
+          );
+          setState(
+            () => _supportContextEntries = [..._supportContextEntries, entry],
+          );
+        },
         onSignOut: _signOut,
         telemetry: widget.telemetry,
         currentDate: widget.currentDate,
@@ -323,6 +341,7 @@ class _KidCostAppState extends State<KidCostApp> {
         _plannedPurchases = const [];
         _custodyDays = const [];
         _contextLogEntries = const [];
+        _supportContextEntries = const [];
         _isLoading = false;
       });
     } on AuthFailure catch (error) {
