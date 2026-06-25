@@ -13,6 +13,7 @@ class ExpensesScreen extends StatefulWidget {
     required this.expenses,
     this.isLoading = false,
     this.errorMessage,
+    this.initialFilterRequest,
     this.showExpenseHistoryPremiumHint = false,
     this.onExpenseChanged,
     this.onPremiumHintDismissed,
@@ -22,6 +23,7 @@ class ExpensesScreen extends StatefulWidget {
   final List<ExpenseEntry> expenses;
   final bool isLoading;
   final String? errorMessage;
+  final ExpenseListFilterRequest? initialFilterRequest;
   final bool showExpenseHistoryPremiumHint;
   final ValueChanged<ExpenseEntry>? onExpenseChanged;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
@@ -37,6 +39,23 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   ExpenseStatus? _statusFilter;
   String? _payerFilter;
   _ExpenseSort _sort = _ExpenseSort.newest;
+
+  @override
+  void initState() {
+    super.initState();
+    _applyFilterRequest(widget.initialFilterRequest);
+  }
+
+  @override
+  void didUpdateWidget(covariant ExpensesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(
+      widget.initialFilterRequest,
+      oldWidget.initialFilterRequest,
+    )) {
+      _applyFilterRequest(widget.initialFilterRequest);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -320,6 +339,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       _statusFilter = null;
       _payerFilter = null;
     });
+  }
+
+  void _applyFilterRequest(ExpenseListFilterRequest? request) {
+    if (request == null) {
+      return;
+    }
+    _monthFilter = request.month;
+    _childFilter = request.childName;
+    _categoryFilter = request.categoryId;
+    _statusFilter = request.status;
+    _payerFilter = request.payerLabel;
   }
 
   String _monthFromDate(String date) {

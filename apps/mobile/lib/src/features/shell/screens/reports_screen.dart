@@ -11,6 +11,7 @@ class ReportsScreen extends StatefulWidget {
     required this.expenses,
     this.currentDate,
     this.showReportExportPremiumHint = false,
+    this.onOpenExpenseFilter,
     this.onPremiumHintDismissed,
     super.key,
   });
@@ -18,6 +19,7 @@ class ReportsScreen extends StatefulWidget {
   final List<ExpenseEntry> expenses;
   final DateTime? currentDate;
   final bool showReportExportPremiumHint;
+  final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
   @override
@@ -35,6 +37,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final month = _selectedMonth ?? months.first;
     final monthlyReport = MonthlyExpenseReport.fromExpenses(
       month: month,
+      expenses: widget.expenses,
+    );
+    final previousMonthlyReport = MonthlyExpenseReport.fromExpenses(
+      month: _previousMonthLabel(month),
       expenses: widget.expenses,
     );
     final years = _reportYears();
@@ -79,8 +85,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
             months: months,
             month: month,
             report: monthlyReport,
+            previousReport: previousMonthlyReport,
             showPremiumHint: widget.showReportExportPremiumHint,
             onMonthChanged: (value) => setState(() => _selectedMonth = value),
+            onOpenExpenseFilter: widget.onOpenExpenseFilter,
             onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
               PremiumDiscoveryPoint.reportExport,
             ),
@@ -129,6 +137,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
     return date.substring(0, 7);
   }
+
+  String _previousMonthLabel(String month) {
+    final parsed = DateTime.tryParse('$month-01');
+    if (parsed == null) {
+      return month;
+    }
+    final previous = DateTime(parsed.year, parsed.month - 1);
+    return _monthLabel(previous);
+  }
 }
 
 class _MonthlyReportView extends StatelessWidget {
@@ -136,16 +153,20 @@ class _MonthlyReportView extends StatelessWidget {
     required this.months,
     required this.month,
     required this.report,
+    required this.previousReport,
     required this.showPremiumHint,
     required this.onMonthChanged,
+    required this.onOpenExpenseFilter,
     required this.onPremiumHintDismissed,
   });
 
   final List<String> months;
   final String month;
   final MonthlyExpenseReport report;
+  final MonthlyExpenseReport previousReport;
   final bool showPremiumHint;
   final ValueChanged<String> onMonthChanged;
+  final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
   final VoidCallback onPremiumHintDismissed;
 
   @override
@@ -171,6 +192,12 @@ class _MonthlyReportView extends StatelessWidget {
           },
         ),
         const SizedBox(height: 16),
+        _MonthlyInsightsCard(
+          report: report,
+          previousReport: previousReport,
+          onOpenExpenseFilter: onOpenExpenseFilter,
+        ),
+        const SizedBox(height: 12),
         _ReportSummaryCard(report: report),
         const SizedBox(height: 12),
         _SettlementStatusCard(report: report),
@@ -361,6 +388,7 @@ class MonthlyExpenseReport {
     required this.byPayer,
     required this.byChild,
     required this.byCategory,
+    required this.byStatus,
     required this.disputedCents,
     required this.pendingCents,
     required this.settledCents,
@@ -383,6 +411,7 @@ class MonthlyExpenseReport {
     final byPayer = <String, int>{};
     final byChild = <String, int>{};
     final byCategory = <String, int>{};
+    final byStatus = <String, int>{};
     var totalCents = 0;
     var disputedCents = 0;
     var pendingCents = 0;
@@ -409,6 +438,11 @@ class MonthlyExpenseReport {
         (value) => value + expense.amountCents,
         ifAbsent: () => expense.amountCents,
       );
+      byStatus.update(
+        expense.status.label,
+        (value) => value + expense.amountCents,
+        ifAbsent: () => expense.amountCents,
+      );
 
       if (expense.status == ExpenseStatus.disputed) {
         disputedCents += expense.amountCents;
@@ -428,6 +462,7 @@ class MonthlyExpenseReport {
       byPayer: _sortedTotals(byPayer),
       byChild: _sortedTotals(byChild),
       byCategory: _sortedTotals(byCategory),
+      byStatus: _sortedTotals(byStatus),
       disputedCents: disputedCents,
       pendingCents: pendingCents,
       settledCents: settledCents,
@@ -442,6 +477,7 @@ class MonthlyExpenseReport {
   final Map<String, int> byPayer;
   final Map<String, int> byChild;
   final Map<String, int> byCategory;
+  final Map<String, int> byStatus;
   final int disputedCents;
   final int pendingCents;
   final int settledCents;
@@ -675,6 +711,194 @@ class AnnualExpenseReport {
     return rows
         .map((row) => row.map(MonthlyExpenseReport._csvCell).join(','))
         .join('\n');
+  }
+}
+
+class _MonthlyInsightsCard extends StatelessWidget {
+  const _MonthlyInsightsCard({
+    required this.report,
+    required this.previousReport,
+    required this.onOpenExpenseFilter,
+  });
+
+  final MonthlyExpenseReport report;
+  final MonthlyExpenseReport previousReport;
+  final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasExpenses = report.expenses.isNotEmpty;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.insights_outlined),
+              title: const Text('Miesieczne insighty'),
+              subtitle: Text(_trendText),
+              trailing: Text(formatCents(report.totalCents)),
+            ),
+            if (!hasExpenses)
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Brak wzorca kosztow'),
+                subtitle: Text(
+                  'Dodaj pierwszy koszt w tym miesiacu, a zobaczysz podzialy po dziecku, kategorii i statusie.',
+                ),
+              )
+            else ...[
+              _InsightBreakdownSection(
+                title: 'Najwieksze kategorie',
+                values: report.byCategory,
+                totalCents: report.totalCents,
+                requestFor: (label) => ExpenseListFilterRequest(
+                  month: report.month,
+                  categoryId: _categoryIdForLabel(label),
+                ),
+                onOpenExpenseFilter: onOpenExpenseFilter,
+              ),
+              _InsightBreakdownSection(
+                title: 'Dzieci',
+                values: report.byChild,
+                totalCents: report.totalCents,
+                requestFor: (label) => ExpenseListFilterRequest(
+                  month: report.month,
+                  childName: label,
+                ),
+                onOpenExpenseFilter: onOpenExpenseFilter,
+              ),
+              _InsightBreakdownSection(
+                title: 'Placacy',
+                values: report.byPayer,
+                totalCents: report.totalCents,
+                requestFor: (label) => ExpenseListFilterRequest(
+                  month: report.month,
+                  payerLabel: label,
+                ),
+                onOpenExpenseFilter: onOpenExpenseFilter,
+              ),
+              _InsightBreakdownSection(
+                title: 'Statusy',
+                values: report.byStatus,
+                totalCents: report.totalCents,
+                requestFor: (label) => ExpenseListFilterRequest(
+                  month: report.month,
+                  status: _statusForLabel(label),
+                ),
+                onOpenExpenseFilter: onOpenExpenseFilter,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String get _trendText {
+    if (previousReport.totalCents == 0 && report.totalCents == 0) {
+      return 'Brak kosztow w tym i poprzednim miesiacu.';
+    }
+    if (previousReport.totalCents == 0) {
+      return 'Pierwszy miesiac z kosztami do porownania.';
+    }
+    final difference = report.totalCents - previousReport.totalCents;
+    if (difference == 0) {
+      return 'Tyle samo co w poprzednim miesiacu.';
+    }
+    final direction = difference > 0 ? 'wiecej' : 'mniej';
+    return '${formatCents(difference.abs())} $direction niz w poprzednim miesiacu.';
+  }
+
+  String? _categoryIdForLabel(String label) {
+    for (final category in expenseCategories) {
+      if (category.label == label) {
+        return category.id;
+      }
+    }
+    return null;
+  }
+
+  ExpenseStatus? _statusForLabel(String label) {
+    for (final status in ExpenseStatus.values) {
+      if (status.label == label) {
+        return status;
+      }
+    }
+    return null;
+  }
+}
+
+class _InsightBreakdownSection extends StatelessWidget {
+  const _InsightBreakdownSection({
+    required this.title,
+    required this.values,
+    required this.totalCents,
+    required this.requestFor,
+    required this.onOpenExpenseFilter,
+  });
+
+  final String title;
+  final Map<String, int> values;
+  final int totalCents;
+  final ExpenseListFilterRequest Function(String label) requestFor;
+  final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = values.entries.toList()
+      ..sort((first, second) {
+        final byAmount = second.value.compareTo(first.value);
+        if (byAmount != 0) {
+          return byAmount;
+        }
+        return first.key.compareTo(second.key);
+      });
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 8),
+        Text(title, style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 4),
+        for (final entry in entries)
+          _InsightBreakdownRow(
+            label: entry.key,
+            amountCents: entry.value,
+            totalCents: totalCents,
+            onTap: onOpenExpenseFilter == null
+                ? null
+                : () => onOpenExpenseFilter!(requestFor(entry.key)),
+          ),
+      ],
+    );
+  }
+}
+
+class _InsightBreakdownRow extends StatelessWidget {
+  const _InsightBreakdownRow({
+    required this.label,
+    required this.amountCents,
+    required this.totalCents,
+    required this.onTap,
+  });
+
+  final String label;
+  final int amountCents;
+  final int totalCents;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final share = totalCents == 0 ? 0.0 : amountCents / totalCents;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(label),
+      subtitle: LinearProgressIndicator(value: share.clamp(0.0, 1.0)),
+      trailing: Text(formatCents(amountCents)),
+      onTap: onTap,
+    );
   }
 }
 
