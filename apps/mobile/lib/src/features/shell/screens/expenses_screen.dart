@@ -20,6 +20,7 @@ class ExpensesScreen extends StatefulWidget {
     this.errorMessage,
     this.initialFilterRequest,
     this.currentDate,
+    this.availableCategories = expenseCategories,
     this.showExpenseHistoryPremiumHint = false,
     this.showHistoricalImportPremiumHint = false,
     this.telemetry = const NoopTelemetry(),
@@ -33,6 +34,7 @@ class ExpensesScreen extends StatefulWidget {
   final String? errorMessage;
   final ExpenseListFilterRequest? initialFilterRequest;
   final DateTime? currentDate;
+  final List<ExpenseCategory> availableCategories;
   final bool showExpenseHistoryPremiumHint;
   final bool showHistoricalImportPremiumHint;
   final AppTelemetry telemetry;
@@ -220,6 +222,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final payers = _uniqueValues(
       submittedExpenses.map((expense) => expense.paidBy.label),
     );
+    final filterCategories = _filterCategories(submittedExpenses);
     final hasFilters =
         _monthFilter != null ||
         _childFilter != null ||
@@ -312,7 +315,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       value: null,
                       child: Text('Wszystkie'),
                     ),
-                    for (final category in expenseCategories)
+                    for (final category in filterCategories)
                       DropdownMenuItem(
                         value: category.id,
                         child: Text(category.label),
@@ -452,6 +455,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     return widget.expenses
         .where((expense) => !expense.isPrivateDraft && !expense.isArchivedDraft)
         .toList();
+  }
+
+  List<ExpenseCategory> _filterCategories(Iterable<ExpenseEntry> expenses) {
+    final categoriesById = <String, ExpenseCategory>{};
+    for (final category in widget.availableCategories) {
+      categoriesById[category.id] = category;
+    }
+    for (final expense in expenses) {
+      categoriesById.putIfAbsent(expense.category.id, () => expense.category);
+    }
+    return List.unmodifiable(categoriesById.values);
   }
 
   void _clearFilters() {

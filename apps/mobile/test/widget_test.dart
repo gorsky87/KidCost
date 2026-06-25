@@ -770,6 +770,11 @@ void main() {
     await tester.tap(find.text('Rodzina'));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('coparent@example.com'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('coparent@example.com'), findsOneWidget);
     expect(
       find.textContaining('nie ujawnia danych rodzinnych'),
@@ -1194,6 +1199,121 @@ void main() {
     expect(find.text('Ubezpieczenie i lekarz'), findsOneWidget);
     expect(find.textContaining('Wspoldzielona'), findsOneWidget);
   });
+
+  testWidgets(
+    'family expense categories appear in expense form and history filters',
+    (WidgetTester tester) async {
+      var categories = <ExpenseCategory>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                return FamilyScreen(
+                  profile: testProfile(),
+                  customExpenseCategories: categories,
+                  onCustomExpenseCategoriesChanged: (updatedCategories) {
+                    setState(() => categories = updatedCategories);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Dodaj kategorie kosztu'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('family-expense-category-name-field')),
+        'Ortodoncja',
+      );
+      await tester.enterText(
+        find.byKey(const Key('family-expense-category-report-group-field')),
+        'Zdrowie',
+      );
+      await tester.tap(find.text('Zapisz kategorie'));
+      await tester.pumpAndSettle();
+
+      expect(categories, hasLength(1));
+      expect(categories.single.label, 'Ortodoncja');
+      expect(categories.single.reportGroup, 'Zdrowie');
+      expect(find.text('Ortodoncja'), findsOneWidget);
+
+      ExpenseEntry? savedExpense;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AddExpenseScreen(
+              profile: testProfile(),
+              userEmail: 'parent@example.com',
+              attachmentStorage: InMemoryAttachmentStorage(),
+              availableCategories: activeExpenseCategories(categories),
+              onExpenseSaved: (expense) => savedExpense = expense,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Ortodoncja'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Ortodoncja'));
+      await tester.enterText(find.byType(TextField).at(0), '320');
+      await tester.enterText(
+        find.byKey(const Key('expense-title-field')),
+        'Aparat retencyjny',
+      );
+      await tester.scrollUntilVisible(
+        find.widgetWithText(FilledButton, 'Zapisz koszt'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+      await tester.pumpAndSettle();
+
+      expect(savedExpense, isNotNull);
+      expect(savedExpense!.category.label, 'Ortodoncja');
+      expect(savedExpense!.category.reportGroup, 'Zdrowie');
+
+      categories = [categories.single.archive()];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ExpensesScreen(
+              expenses: [savedExpense!],
+              availableCategories: activeExpenseCategories(categories),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Aparat retencyjny'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Aparat retencyjny'), findsOneWidget);
+      await tester.tap(find.text('Pokaz filtry i sortowanie'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('expense-category-filter')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ortodoncja').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Aparat retencyjny'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Aparat retencyjny'), findsOneWidget);
+    },
+  );
 
   testWidgets('premium discovery stays calm and dismissible', (
     WidgetTester tester,

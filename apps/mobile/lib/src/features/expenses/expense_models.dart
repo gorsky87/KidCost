@@ -5,10 +5,35 @@ import 'package:kidcost_domain/domain.dart' as domain;
 import '../child_info/child_info_models.dart';
 
 class ExpenseCategory {
-  const ExpenseCategory({required this.id, required this.label});
+  const ExpenseCategory({
+    required this.id,
+    required this.label,
+    this.reportGroup,
+    this.isArchived = false,
+  });
 
   final String id;
   final String label;
+  final String? reportGroup;
+  final bool isArchived;
+
+  bool get canBeUsedForNewExpense => !isArchived;
+
+  ExpenseCategory copyWith({
+    String? label,
+    String? reportGroup,
+    bool? isArchived,
+    bool clearReportGroup = false,
+  }) {
+    return ExpenseCategory(
+      id: id,
+      label: label ?? this.label,
+      reportGroup: clearReportGroup ? null : reportGroup ?? this.reportGroup,
+      isArchived: isArchived ?? this.isArchived,
+    );
+  }
+
+  ExpenseCategory archive() => copyWith(isArchived: true);
 }
 
 const expenseCategories = [
@@ -21,6 +46,15 @@ const expenseCategories = [
   ExpenseCategory(id: 'transport', label: 'Transport'),
   ExpenseCategory(id: 'other', label: 'Inne'),
 ];
+
+List<ExpenseCategory> activeExpenseCategories(
+  Iterable<ExpenseCategory> customCategories,
+) {
+  return List.unmodifiable([
+    ...expenseCategories,
+    ...customCategories.where((category) => category.canBeUsedForNewExpense),
+  ]);
+}
 
 class ExpenseCalendarEventLink {
   const ExpenseCalendarEventLink({
