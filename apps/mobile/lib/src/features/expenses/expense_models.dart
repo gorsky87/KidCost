@@ -155,6 +155,22 @@ class ExpenseEntry {
   }
 }
 
+class ExpenseListFilterRequest {
+  const ExpenseListFilterRequest({
+    required this.month,
+    this.childName,
+    this.categoryId,
+    this.status,
+    this.payerLabel,
+  });
+
+  final String month;
+  final String? childName;
+  final String? categoryId;
+  final ExpenseStatus? status;
+  final String? payerLabel;
+}
+
 class ExpenseRelatedRecordLink {
   const ExpenseRelatedRecordLink({
     required this.id,

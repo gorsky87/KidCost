@@ -2669,21 +2669,21 @@ void main() {
       find.text('Zaplaciles o 40,00 PLN wiecej niz Twoj udzial.'),
       findsOneWidget,
     );
-    expect(find.text('Wymaga wyjasnienia'), findsOneWidget);
-    expect(find.text('Do akceptacji'), findsOneWidget);
+    expect(find.text('Wymaga wyjasnienia'), findsWidgets);
+    expect(find.text('Do akceptacji'), findsWidgets);
     expect(find.text('Rozliczone'), findsWidgets);
     expect(find.text('20,00 PLN'), findsWidgets);
     await tester.scrollUntilVisible(find.text('Zaplacone przez rodzicow'), 180);
     expect(find.text('Zaplacone przez rodzicow'), findsOneWidget);
-    expect(find.text('parent@example.com'), findsOneWidget);
-    expect(find.text('Drugi rodzic'), findsOneWidget);
+    expect(find.text('parent@example.com'), findsWidgets);
+    expect(find.text('Drugi rodzic'), findsWidgets);
     await tester.scrollUntilVisible(find.text('Koszty dzieci'), 180);
     expect(find.text('Koszty dzieci'), findsOneWidget);
-    expect(find.text('Antek'), findsOneWidget);
+    expect(find.text('Antek'), findsWidgets);
     await tester.scrollUntilVisible(find.text('Kategorie kosztow'), 180);
     expect(find.text('Kategorie kosztow'), findsOneWidget);
-    expect(find.text('Jedzenie'), findsOneWidget);
-    expect(find.text('Lekarze i leki'), findsOneWidget);
+    expect(find.text('Jedzenie'), findsWidgets);
+    expect(find.text('Lekarze i leki'), findsWidgets);
     expect(find.text('Majowy koszt'), findsNothing);
 
     await tester.scrollUntilVisible(
@@ -2797,6 +2797,102 @@ void main() {
       expect(find.text('CSV: kidcost-report-2026-06.csv'), findsOneWidget);
     },
   );
+
+  testWidgets('monthly insights link report breakdowns to expense filters', (
+    WidgetTester tester,
+  ) async {
+    final openedFilters = <ExpenseListFilterRequest>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            onOpenExpenseFilter: openedFilters.add,
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+              testExpense(
+                id: '2',
+                title: 'Lekarz',
+                amountCents: 6000,
+                expenseDate: '2026-06-20',
+                category: expenseCategories[3],
+                paidBy: const ExpensePayer(
+                  id: 'co-parent',
+                  label: 'Drugi rodzic',
+                  isCurrentUser: false,
+                ),
+                status: ExpenseStatus.disputed,
+              ),
+              testExpense(
+                id: '3',
+                title: 'Majowy koszt',
+                amountCents: 13000,
+                expenseDate: '2026-05-20',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Miesieczne insighty'), findsOneWidget);
+    expect(
+      find.textContaining('50,00 PLN wiecej niz w poprzednim miesiacu'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Lekarze i leki').first);
+    await tester.pumpAndSettle();
+
+    expect(openedFilters, hasLength(1));
+    expect(openedFilters.single.month, '2026-06');
+    expect(openedFilters.single.categoryId, 'health');
+    expect(openedFilters.single.childName, isNull);
+    expect(openedFilters.single.status, isNull);
+  });
+
+  testWidgets('expenses screen applies report filter requests', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            initialFilterRequest: const ExpenseListFilterRequest(
+              month: '2026-06',
+              categoryId: 'health',
+              status: ExpenseStatus.disputed,
+            ),
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+              testExpense(
+                id: '2',
+                title: 'Lekarz',
+                amountCents: 6000,
+                expenseDate: '2026-06-20',
+                category: expenseCategories[3],
+                status: ExpenseStatus.disputed,
+              ),
+              testExpense(
+                id: '3',
+                title: 'Majowy lekarz',
+                amountCents: 7000,
+                expenseDate: '2026-05-20',
+                category: expenseCategories[3],
+                status: ExpenseStatus.disputed,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Lekarz'), findsOneWidget);
+    expect(find.text('Obiad'), findsNothing);
+    expect(find.text('Majowy lekarz'), findsNothing);
+    expect(find.text('Pokaz filtry i sortowanie'), findsOneWidget);
+  });
 
   testWidgets('monthly reports handle empty selected month', (
     WidgetTester tester,

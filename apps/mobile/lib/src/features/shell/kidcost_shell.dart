@@ -60,6 +60,7 @@ class KidCostShell extends StatefulWidget {
 class _KidCostShellState extends State<KidCostShell> {
   int _selectedIndex = 0;
   ExpenseTemplate? _pendingTemplate;
+  ExpenseListFilterRequest? _expenseFilterRequest;
   List<ChildInfoCard> _childInfoCards = const [];
   final Set<PremiumDiscoveryPoint> _dismissedPremiumHints = {};
 
@@ -102,6 +103,7 @@ class _KidCostShellState extends State<KidCostShell> {
       selectedIcon: Icons.receipt_long,
       screen: ExpensesScreen(
         expenses: widget.expenses,
+        initialFilterRequest: _expenseFilterRequest,
         onExpenseChanged: widget.onExpenseChanged,
         showExpenseHistoryPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.expenseHistory,
@@ -173,6 +175,12 @@ class _KidCostShellState extends State<KidCostShell> {
         showReportExportPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.reportExport,
         ),
+        onOpenExpenseFilter: (request) {
+          setState(() {
+            _expenseFilterRequest = request;
+            _selectedIndex = 1;
+          });
+        },
         onPremiumHintDismissed: _dismissPremiumHint,
       ),
     ),
