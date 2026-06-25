@@ -25,7 +25,15 @@ enum TelemetryEvent {
   professionalReportViewed('professional_report_viewed'),
   professionalReportDownloaded('professional_report_downloaded'),
   professionalAccessRevoked('professional_access_revoked'),
-  professionalAccessExpired('professional_access_expired');
+  professionalAccessExpired('professional_access_expired'),
+  reportPassPreviewViewed('report_pass_preview_viewed'),
+  reportPassPurchaseStarted('report_pass_purchase_started'),
+  reportPassPurchased('report_pass_purchased'),
+  reportPassGenerationStarted('report_pass_generation_started'),
+  reportPassGenerated('report_pass_generated'),
+  reportPassDownloaded('report_pass_downloaded'),
+  reportPassExpiredViewed('report_pass_expired_viewed'),
+  reportPassRefundRequested('report_pass_refund_requested');
 
   const TelemetryEvent(this.name);
 
@@ -103,6 +111,13 @@ const _allowedParameterKeys = {
   'expires_in_days',
   'professional_role',
   'report_month',
+  'pass_state',
+  'range_type',
+  'expense_count',
+  'has_receipts',
+  'has_disputed_items',
+  'regenerations_remaining',
+  'export_format',
 };
 
 bool _looksSensitive(String value) {

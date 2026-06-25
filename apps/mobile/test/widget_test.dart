@@ -11,6 +11,7 @@ import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_visuals.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
 import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
+import 'package:kidcost_mobile/src/features/reports/mediation_report_pass.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/add_expense_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
@@ -2699,6 +2700,103 @@ void main() {
     expect(find.textContaining('"2026-06-20","Lekarz"'), findsOneWidget);
     expect(find.textContaining('"Faktura imienna"'), findsOneWidget);
   });
+
+  testWidgets(
+    'mediation report pass previews, purchases, and generates packet',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ReportsScreen(
+              currentDate: DateTime.utc(2026, 6, 24),
+              expenses: [
+                testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+                testExpense(
+                  id: '2',
+                  title: 'Lekarz',
+                  amountCents: 6000,
+                  expenseDate: '2026-06-20',
+                  category: expenseCategories[3],
+                  status: ExpenseStatus.disputed,
+                  attachment: const ExpenseAttachment(
+                    fileName: 'faktura.pdf',
+                    contentType: 'application/pdf',
+                    status: AttachmentStatus.uploaded,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Jednorazowy pakiet mediacyjny'),
+        180,
+      );
+      expect(find.text('Podglad pakietu mediacyjnego'), findsOneWidget);
+      expect(find.text('Ukryta w preview'), findsOneWidget);
+      expect(find.textContaining('49 PLN jednorazowo'), findsOneWidget);
+      expect(find.textContaining('nie jest porada prawna'), findsWidgets);
+      expect(find.textContaining('podstawowy CSV pozostaja'), findsOneWidget);
+
+      final purchaseButton = find.widgetWithText(FilledButton, 'Kup pass demo');
+      await tester.ensureVisible(purchaseButton);
+      await tester.pumpAndSettle();
+      await tester.tap(purchaseButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pass aktywny'), findsOneWidget);
+      expect(find.textContaining('Pozostale regeneracje: 3'), findsOneWidget);
+
+      final generateButton = find.widgetWithText(
+        OutlinedButton,
+        'Wygeneruj pakiet',
+      );
+      await tester.ensureVisible(generateButton);
+      await tester.pumpAndSettle();
+      await tester.tap(generateButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pakiet mediacyjny wygenerowany'), findsOneWidget);
+      expect(find.text('kidcost-mediation-packet-2026-06.pdf'), findsOneWidget);
+      expect(find.text('Lekarz'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'mediation report pass shows expired state without blocking CSV',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ReportsScreen(
+              currentDate: DateTime.utc(2026, 6, 24),
+              initialMediationReportPass: MediationReportPass(
+                purchasedAt: DateTime.utc(2026, 5, 1),
+                expiresAt: DateTime.utc(2026, 5, 15),
+                downloadsAvailableUntil: DateTime.utc(2026, 5, 31),
+              ),
+              expenses: [
+                testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await tester.scrollUntilVisible(
+        find.text('Jednorazowy pakiet mediacyjny'),
+        180,
+      );
+      expect(find.text('Pass wygasl'), findsOneWidget);
+      expect(
+        find.textContaining('Dane i podstawowy CSV nadal sa dostepne'),
+        findsOneWidget,
+      );
+      expect(find.text('CSV: kidcost-report-2026-06.csv'), findsOneWidget);
+    },
+  );
 
   testWidgets('monthly reports handle empty selected month', (
     WidgetTester tester,

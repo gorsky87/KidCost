@@ -3,6 +3,7 @@ import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../expenses/expense_models.dart';
 import '../../premium/premium_discovery.dart';
+import '../../reports/mediation_report_pass.dart';
 
 enum _ReportMode { monthly, annual }
 
@@ -10,6 +11,7 @@ class ReportsScreen extends StatefulWidget {
   const ReportsScreen({
     required this.expenses,
     this.currentDate,
+    this.initialMediationReportPass,
     this.showReportExportPremiumHint = false,
     this.onPremiumHintDismissed,
     super.key,
@@ -17,6 +19,7 @@ class ReportsScreen extends StatefulWidget {
 
   final List<ExpenseEntry> expenses;
   final DateTime? currentDate;
+  final MediationReportPass? initialMediationReportPass;
   final bool showReportExportPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
@@ -28,6 +31,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
   _ReportMode _reportMode = _ReportMode.monthly;
   String? _selectedMonth;
   int? _selectedYear;
+  MediationReportPass? _mediationReportPass;
+
+  @override
+  void initState() {
+    super.initState();
+    _mediationReportPass = widget.initialMediationReportPass;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +89,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
             months: months,
             month: month,
             report: monthlyReport,
+            now: widget.currentDate ?? DateTime.now(),
+            mediationReportPass: _mediationReportPass,
+            onMediationReportPassChanged: (pass) {
+              setState(() => _mediationReportPass = pass);
+            },
             showPremiumHint: widget.showReportExportPremiumHint,
             onMonthChanged: (value) => setState(() => _selectedMonth = value),
             onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
@@ -136,6 +151,9 @@ class _MonthlyReportView extends StatelessWidget {
     required this.months,
     required this.month,
     required this.report,
+    required this.now,
+    required this.mediationReportPass,
+    required this.onMediationReportPassChanged,
     required this.showPremiumHint,
     required this.onMonthChanged,
     required this.onPremiumHintDismissed,
@@ -144,6 +162,9 @@ class _MonthlyReportView extends StatelessWidget {
   final List<String> months;
   final String month;
   final MonthlyExpenseReport report;
+  final DateTime now;
+  final MediationReportPass? mediationReportPass;
+  final ValueChanged<MediationReportPass?> onMediationReportPassChanged;
   final bool showPremiumHint;
   final ValueChanged<String> onMonthChanged;
   final VoidCallback onPremiumHintDismissed;
@@ -193,6 +214,13 @@ class _MonthlyReportView extends StatelessWidget {
           csv: report.toCsv(),
           showPremiumHint: showPremiumHint,
           onPremiumHintDismissed: onPremiumHintDismissed,
+        ),
+        const SizedBox(height: 12),
+        _MediationReportPassCard(
+          report: report,
+          now: now,
+          pass: mediationReportPass,
+          onPassChanged: onMediationReportPassChanged,
         ),
         const SizedBox(height: 12),
         _ProfessionalAccessCard(periodLabel: report.month),
@@ -1032,6 +1060,348 @@ class _ExportCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _MediationReportPassCard extends StatelessWidget {
+  const _MediationReportPassCard({
+    required this.report,
+    required this.now,
+    required this.pass,
+    required this.onPassChanged,
+  });
+
+  final MonthlyExpenseReport report;
+  final DateTime now;
+  final MediationReportPass? pass;
+  final ValueChanged<MediationReportPass?> onPassChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final activePass = pass;
+    final state = activePass?.stateAt(now) ?? MediationReportPassState.locked;
+    final packet = MediationReportPacket(
+      rangeLabel: report.month,
+      expenses: report.expenses,
+      generatedAt: now,
+      isRedactedPreview: state != MediationReportPassState.active,
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.balance_outlined),
+              title: const Text('Jednorazowy pakiet mediacyjny'),
+              subtitle: Text(
+                '$mediationReportPassPriceHypothesis. Wazny $mediationReportPassExpiryDays dni, '
+                '$mediationReportPassRegenerationLimit regeneracje, pobrania przez $mediationReportPassDownloadWindowDays dni.',
+              ),
+            ),
+            Text(mediationReportPassFreeAccessCopy),
+            const SizedBox(height: 6),
+            Text(
+              mediationReportPassLegalCopy,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            _MediationPacketPreview(packet: packet),
+            const SizedBox(height: 12),
+            _MediationPassStateBanner(pass: activePass, state: state),
+            const SizedBox(height: 12),
+            _MediationPassActions(
+              state: state,
+              pass: activePass,
+              onPurchase: () {
+                onPassChanged(MediationReportPass.purchase(now));
+              },
+              onGenerate: activePass == null
+                  ? null
+                  : () {
+                      onPassChanged(activePass.useRegeneration());
+                      _showGeneratedPacket(context, packet.copyUnlocked());
+                    },
+              onRefund: activePass == null
+                  ? null
+                  : () {
+                      onPassChanged(
+                        MediationReportPass(
+                          purchasedAt: activePass.purchasedAt,
+                          expiresAt: activePass.expiresAt,
+                          downloadsAvailableUntil:
+                              activePass.downloadsAvailableUntil,
+                          regenerationsRemaining:
+                              activePass.regenerationsRemaining,
+                          refunded: true,
+                        ),
+                      );
+                    },
+            ),
+            const SizedBox(height: 12),
+            const _MediationPassEdgeCases(),
+            const SizedBox(height: 12),
+            const _MediationPassAnalytics(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGeneratedPacket(
+    BuildContext context,
+    MediationReportPacket packet,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.75,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                Text(
+                  'Pakiet mediacyjny wygenerowany',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(packet.fileName),
+                const SizedBox(height: 8),
+                Text(packet.csvFileName),
+                const SizedBox(height: 12),
+                const Text(mediationReportPassLegalCopy),
+                const SizedBox(height: 12),
+                for (final expense in packet.expenses)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(expense.title),
+                    subtitle: Text(
+                      '${expense.expenseDate} - ${expense.status.label}',
+                    ),
+                    trailing: Text(formatCents(expense.amountCents)),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+extension on MediationReportPacket {
+  MediationReportPacket copyUnlocked() {
+    return MediationReportPacket(
+      rangeLabel: rangeLabel,
+      expenses: expenses,
+      generatedAt: generatedAt,
+      isRedactedPreview: false,
+    );
+  }
+}
+
+class _MediationPacketPreview extends StatelessWidget {
+  const _MediationPacketPreview({required this.packet});
+
+  final MediationReportPacket packet;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: Icon(
+              packet.isRedactedPreview
+                  ? Icons.visibility_off_outlined
+                  : Icons.description_outlined,
+            ),
+            title: Text(packet.previewTitle),
+            subtitle: Text(
+              packet.isRedactedPreview
+                  ? 'Podglad ukrywa szczegoly rekordow przed zakupem passu.'
+                  : 'Zakres ${packet.rangeLabel} jest odblokowany dla tego passu.',
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long_outlined),
+            title: const Text('Koszty w pakiecie'),
+            trailing: Text(packet.expenses.length.toString()),
+          ),
+          ListTile(
+            leading: const Icon(Icons.payments_outlined),
+            title: const Text('Suma'),
+            trailing: Text(
+              packet.isRedactedPreview
+                  ? 'Ukryta w preview'
+                  : formatCents(packet.totalCents),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.warning_amber_outlined),
+            title: const Text('Otwarte lub sporne pozycje'),
+            trailing: Text(
+              (packet.pendingCount + packet.disputedCount).toString(),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.attachment_outlined),
+            title: const Text('Indeks dowodow'),
+            trailing: Text(packet.receiptCount.toString()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MediationPassStateBanner extends StatelessWidget {
+  const _MediationPassStateBanner({required this.pass, required this.state});
+
+  final MediationReportPass? pass;
+  final MediationReportPassState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = switch (state) {
+      MediationReportPassState.locked =>
+        'Preview jest darmowy. Zakup passu odblokuje jeden pakiet dla tego zakresu.',
+      MediationReportPassState.active =>
+        'Pass aktywny do ${pass!.expiresAt.toIso8601String().substring(0, 10)}. Pozostale regeneracje: ${pass!.regenerationsRemaining}.',
+      MediationReportPassState.exhausted =>
+        'Limit regeneracji zostal wykorzystany. Pobrania poprzednich plikow sa dostepne do ${pass!.downloadsAvailableUntil.toIso8601String().substring(0, 10)}.',
+      MediationReportPassState.expired =>
+        'Pass wygasl albo zostal zwrocony. Dane i podstawowy CSV nadal sa dostepne.',
+    };
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(
+          state == MediationReportPassState.active
+              ? Icons.lock_open_outlined
+              : Icons.lock_outline,
+        ),
+        title: Text(_stateLabel(state)),
+        subtitle: Text(text),
+      ),
+    );
+  }
+
+  String _stateLabel(MediationReportPassState state) {
+    return switch (state) {
+      MediationReportPassState.locked => 'Pass nieaktywny',
+      MediationReportPassState.active => 'Pass aktywny',
+      MediationReportPassState.exhausted => 'Limit regeneracji',
+      MediationReportPassState.expired => 'Pass wygasl',
+    };
+  }
+}
+
+class _MediationPassActions extends StatelessWidget {
+  const _MediationPassActions({
+    required this.state,
+    required this.pass,
+    required this.onPurchase,
+    required this.onGenerate,
+    required this.onRefund,
+  });
+
+  final MediationReportPassState state;
+  final MediationReportPass? pass;
+  final VoidCallback onPurchase;
+  final VoidCallback? onGenerate;
+  final VoidCallback? onRefund;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        FilledButton.icon(
+          onPressed: state == MediationReportPassState.locked
+              ? onPurchase
+              : null,
+          icon: const Icon(Icons.shopping_bag_outlined),
+          label: const Text('Kup pass demo'),
+        ),
+        OutlinedButton.icon(
+          onPressed: state == MediationReportPassState.active
+              ? onGenerate
+              : null,
+          icon: const Icon(Icons.picture_as_pdf_outlined),
+          label: const Text('Wygeneruj pakiet'),
+        ),
+        TextButton.icon(
+          onPressed: pass == null || state == MediationReportPassState.expired
+              ? null
+              : onRefund,
+          icon: const Icon(Icons.undo_outlined),
+          label: const Text('Oznacz refund'),
+        ),
+      ],
+    );
+  }
+}
+
+class _MediationPassEdgeCases extends StatelessWidget {
+  const _MediationPassEdgeCases();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: Icon(Icons.rule_outlined),
+            title: Text('Zasady entitlement'),
+            subtitle: Text(
+              'Premium uzytkownik widzi pakiet bez dodatkowego paywalla; free uzytkownik nie traci dostepu do rekordow ani CSV.',
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.report_problem_outlined),
+            title: Text('Edge cases'),
+            subtitle: Text(
+              'Failed purchase nie tworzy passu. Refund wygasza pass. Usuniete dowody sa oznaczone jako brakujace, a nie ukrywane.',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MediationPassAnalytics extends StatelessWidget {
+  const _MediationPassAnalytics();
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      leading: const Icon(Icons.analytics_outlined),
+      title: const Text('Analityka bez danych wrazliwych'),
+      subtitle: const Text(
+        'Eventy nie zawieraja nazw dzieci, tresci paragonow ani kwot.',
+      ),
+      children: [
+        ListTile(
+          title: const Text('Eventy'),
+          subtitle: Text(mediationReportPassTelemetryEvents.join(', ')),
+        ),
+        ListTile(
+          title: const Text('Wymagane properties'),
+          subtitle: Text(mediationReportPassTelemetryProperties.join(', ')),
+        ),
+      ],
     );
   }
 }
