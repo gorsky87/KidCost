@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
+import '../../settlements/settlement_split_rule.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
@@ -14,6 +16,7 @@ class DashboardScreen extends StatelessWidget {
     required this.onOpenExpenses,
     required this.onOpenReports,
     required this.onOpenFamily,
+    this.settlementSplitRule = SettlementSplitRule.equal,
     this.currentDate,
     super.key,
   });
@@ -26,6 +29,7 @@ class DashboardScreen extends StatelessWidget {
   final VoidCallback onOpenExpenses;
   final VoidCallback onOpenReports;
   final VoidCallback onOpenFamily;
+  final SettlementSplitRule settlementSplitRule;
   final DateTime? currentDate;
 
   @override
@@ -40,7 +44,10 @@ class DashboardScreen extends StatelessWidget {
     final submittedMonthExpenses = monthExpenses
         .where((expense) => !expense.isPrivateDraft)
         .toList();
-    final summary = _DashboardSummary.fromExpenses(submittedMonthExpenses);
+    final summary = _DashboardSummary.fromExpenses(
+      submittedMonthExpenses,
+      settlementSplitRule: settlementSplitRule,
+    );
     final recentExpenses = [...submittedMonthExpenses]
       ..sort((first, second) {
         final dateComparison = second.expenseDate.compareTo(first.expenseDate);
@@ -87,7 +94,7 @@ class DashboardScreen extends StatelessWidget {
           value: summary.balanceText(profile),
           helper: profile.isSoloFamily
               ? 'Prywatny szkic 50/50 widoczny tylko dla Ciebie.'
-              : 'Liczymy prosty podzial 50/50 w ${profile.familyCurrency}.',
+              : '${settlementSplitRule.dashboardHelper} Waluta: ${profile.familyCurrency}.',
         ),
         const SizedBox(height: 8),
         _NeedsAttentionCard(
@@ -596,9 +603,13 @@ class _DashboardSummary {
     required this.totalCents,
     required this.currentUserPaidCents,
     required this.coParentPaidCents,
+    required this.currentUserNetCents,
   });
 
-  factory _DashboardSummary.fromExpenses(List<ExpenseEntry> expenses) {
+  factory _DashboardSummary.fromExpenses(
+    List<ExpenseEntry> expenses, {
+    required SettlementSplitRule settlementSplitRule,
+  }) {
     final totalCents = expenses.fold<int>(
       0,
       (sum, expense) => sum + expense.amountCents,
@@ -606,17 +617,40 @@ class _DashboardSummary {
     final currentUserPaidCents = expenses
         .where((expense) => expense.paidBy.isCurrentUser)
         .fold<int>(0, (sum, expense) => sum + expense.amountCents);
+    final balance = domain.calculateBalance(
+      splitRule: settlementSplitRule.toDomainRule(
+        currentUserParticipantId: _currentUserParticipantId,
+        coParentParticipantId: _coParentParticipantId,
+      ),
+      expenses: [
+        for (final expense in expenses)
+          domain.ExpenseInput(
+            id: expense.id,
+            amountCents: expense.settlementBalanceAmountCents,
+            paidBy: expense.paidBy.isCurrentUser
+                ? _currentUserParticipantId
+                : _coParentParticipantId,
+            status: expense.status.name,
+          ),
+      ].where((expense) => expense.amountCents > 0),
+    );
+    final currentUserNetCents = balance.participantBalances
+        .where((balance) => balance.participantId == _currentUserParticipantId)
+        .single
+        .netCents;
 
     return _DashboardSummary(
       totalCents: totalCents,
       currentUserPaidCents: currentUserPaidCents,
       coParentPaidCents: totalCents - currentUserPaidCents,
+      currentUserNetCents: currentUserNetCents,
     );
   }
 
   final int totalCents;
   final int currentUserPaidCents;
   final int coParentPaidCents;
+  final int currentUserNetCents;
 
   String balanceText(OnboardingProfile profile) {
     if (totalCents == 0) {
@@ -625,23 +659,24 @@ class _DashboardSummary {
           : 'Brak kosztow do wyrownania';
     }
 
-    final halfCents = totalCents ~/ 2;
-    final currentUserShare = currentUserPaidCents - halfCents;
-    if (currentUserShare == 0) {
+    if (currentUserNetCents == 0) {
       return profile.isSoloFamily
           ? 'Roboczo: saldo wychodzi na zero'
           : 'Jestescie rozliczeni na zero';
     }
 
-    if (currentUserShare > 0) {
+    if (currentUserNetCents > 0) {
       final prefix = profile.isSoloFamily ? 'Roboczo: ' : '';
-      return '$prefix${profile.coParentLabel} oddaje Tobie ${formatCents(currentUserShare, currencyCode: profile.familyCurrency)}';
+      return '$prefix${profile.coParentLabel} oddaje Tobie ${formatCents(currentUserNetCents, currencyCode: profile.familyCurrency)}';
     }
 
     final prefix = profile.isSoloFamily ? 'Roboczo: ' : '';
-    return '${prefix}Ty oddajesz ${_coParentDativeLabel(profile.coParentLabel)} ${formatCents(-currentUserShare, currencyCode: profile.familyCurrency)}';
+    return '${prefix}Ty oddajesz ${_coParentDativeLabel(profile.coParentLabel)} ${formatCents(-currentUserNetCents, currencyCode: profile.familyCurrency)}';
   }
 }
+
+const _currentUserParticipantId = 'current-user';
+const _coParentParticipantId = 'co-parent';
 
 String _coParentDativeLabel(String label) {
   if (label == 'Drugi rodzic') {

@@ -5,6 +5,7 @@ import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../premium/premium_discovery.dart';
 import '../../premium/premium_paywall_screen.dart';
+import '../../settlements/settlement_split_rule.dart';
 import '../../../telemetry/app_telemetry.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,6 +17,8 @@ class SettingsScreen extends StatefulWidget {
     this.showAccountPlanPremiumHint = false,
     this.onPremiumHintDismissed,
     this.onRequestFamilyExport,
+    this.settlementSplitRule = SettlementSplitRule.equal,
+    this.onSettlementSplitRuleChanged,
     super.key,
   });
 
@@ -26,6 +29,8 @@ class SettingsScreen extends StatefulWidget {
   final bool showAccountPlanPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
   final Future<void> Function()? onRequestFamilyExport;
+  final SettlementSplitRule settlementSplitRule;
+  final ValueChanged<SettlementSplitRule>? onSettlementSplitRuleChanged;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -43,6 +48,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _permissionPromptSeen = false;
   bool _familyExportRequested = false;
   bool _betaFeedbackDraftReady = false;
+  late SettlementSplitRule _settlementSplitRule;
+
+  @override
+  void initState() {
+    super.initState();
+    _settlementSplitRule = widget.settlementSplitRule;
+  }
+
+  @override
+  void didUpdateWidget(SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.settlementSplitRule != oldWidget.settlementSplitRule) {
+      _settlementSplitRule = widget.settlementSplitRule;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,6 +150,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Poprosimy o zgode dopiero w kontekscie wspolnego kosztu.',
             );
           },
+        ),
+        const Divider(),
+        const ListTile(
+          leading: Icon(Icons.balance_outlined),
+          title: Text('Zasady rozliczen'),
+          subtitle: Text(
+            'Domyslna proporcja dla wspolnych kosztow widoczna przy saldzie.',
+          ),
+        ),
+        RadioGroup<SettlementSplitRule>(
+          groupValue: _settlementSplitRule,
+          onChanged: _setSettlementSplitRule,
+          child: Column(
+            children: [
+              for (final rule in SettlementSplitRule.presets)
+                RadioListTile<SettlementSplitRule>(
+                  secondary: const Icon(Icons.percent_outlined),
+                  title: Text(rule.label),
+                  subtitle: Text(rule.description),
+                  value: rule,
+                ),
+            ],
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.info_outline),
+          title: Text('Aktywna regula: ${_settlementSplitRule.label}'),
+          subtitle: Text(_settlementSplitRule.dashboardHelper),
         ),
         const Divider(),
         if (widget.showAccountPlanPremiumHint) ...[
@@ -281,6 +329,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _setBalanceReminderPush(bool value) {
     setState(() => _balanceReminderPush = value);
+  }
+
+  void _setSettlementSplitRule(SettlementSplitRule? value) {
+    if (value == null) {
+      return;
+    }
+    setState(() => _settlementSplitRule = value);
+    widget.onSettlementSplitRuleChanged?.call(value);
   }
 
   Future<void> _requestFamilyExport() async {

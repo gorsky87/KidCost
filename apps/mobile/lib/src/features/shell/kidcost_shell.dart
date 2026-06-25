@@ -12,6 +12,7 @@ import '../premium/premium_discovery.dart';
 import '../privacy/private_preview_protection.dart';
 import '../reports/context_log_models.dart';
 import '../reports/support_context_models.dart';
+import '../settlements/settlement_split_rule.dart';
 import '../../telemetry/app_telemetry.dart';
 import 'screens/add_expense_screen.dart';
 import 'screens/custody_calendar_screen.dart';
@@ -86,6 +87,7 @@ class _KidCostShellState extends State<KidCostShell>
   List<ChildInfoCard> _childInfoCards = const [];
   final Set<PremiumDiscoveryPoint> _dismissedPremiumHints = {};
   bool _hideSensitivePreview = false;
+  SettlementSplitRule _settlementSplitRule = SettlementSplitRule.equal;
 
   @override
   void initState() {
@@ -122,6 +124,7 @@ class _KidCostShellState extends State<KidCostShell>
       screen: DashboardScreen(
         profile: widget.onboardingProfile,
         expenses: widget.expenses,
+        settlementSplitRule: _settlementSplitRule,
         custodyDays: widget.custodyDays,
         currentDate: widget.currentDate,
         onAddExpense: () {
@@ -293,6 +296,10 @@ class _KidCostShellState extends State<KidCostShell>
         ),
         onPremiumHintDismissed: _dismissPremiumHint,
         telemetry: widget.telemetry,
+        settlementSplitRule: _settlementSplitRule,
+        onSettlementSplitRuleChanged: (rule) {
+          setState(() => _settlementSplitRule = rule);
+        },
         onSignOut: widget.onSignOut,
       ),
     ),
