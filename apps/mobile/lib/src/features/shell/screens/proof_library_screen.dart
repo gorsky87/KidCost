@@ -7,11 +7,15 @@ class ProofLibraryScreen extends StatefulWidget {
   const ProofLibraryScreen({
     required this.expenses,
     this.initialFilter = const ProofLibraryFilter(),
+    this.reportedProofIds = const {},
+    this.showReportInclusionState = false,
     super.key,
   });
 
   final List<ExpenseEntry> expenses;
   final ProofLibraryFilter initialFilter;
+  final Set<String> reportedProofIds;
+  final bool showReportInclusionState;
 
   @override
   State<ProofLibraryScreen> createState() => _ProofLibraryScreenState();
@@ -35,6 +39,7 @@ class _ProofLibraryScreenState extends State<ProofLibraryScreen> {
     final filteredRecords = filterProofRecords(
       records: records,
       filter: _filter,
+      reportedProofIds: widget.reportedProofIds,
     );
 
     return ListView(
@@ -64,6 +69,7 @@ class _ProofLibraryScreenState extends State<ProofLibraryScreen> {
           records: records,
           filter: _filter,
           queryController: _queryController,
+          showReportInclusionState: widget.showReportInclusionState,
           onChanged: (filter) => setState(() => _filter = filter),
           onClear: () {
             _queryController.clear();
@@ -92,7 +98,11 @@ class _ProofLibraryScreenState extends State<ProofLibraryScreen> {
           )
         else
           for (final record in filteredRecords)
-            _ProofRecordCard(record: record),
+            _ProofRecordCard(
+              record: record,
+              includedInReport: widget.reportedProofIds.contains(record.id),
+              showReportInclusionState: widget.showReportInclusionState,
+            ),
       ],
     );
   }
@@ -103,6 +113,7 @@ class _ProofFilterCard extends StatelessWidget {
     required this.records,
     required this.filter,
     required this.queryController,
+    required this.showReportInclusionState,
     required this.onChanged,
     required this.onClear,
   });
@@ -110,6 +121,7 @@ class _ProofFilterCard extends StatelessWidget {
   final List<ProofRecord> records;
   final ProofLibraryFilter filter;
   final TextEditingController queryController;
+  final bool showReportInclusionState;
   final ValueChanged<ProofLibraryFilter> onChanged;
   final VoidCallback onClear;
 
@@ -253,6 +265,34 @@ class _ProofFilterCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (showReportInclusionState) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<bool>(
+                key: const Key('proof-library-report-inclusion-filter'),
+                initialValue: filter.includedInReport,
+                decoration: const InputDecoration(
+                  labelText: 'Stan w raporcie',
+                  prefixIcon: Icon(Icons.library_add_check_outlined),
+                ),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Wszystkie')),
+                  DropdownMenuItem(
+                    value: true,
+                    child: Text('Uwzglednione w raporcie'),
+                  ),
+                  DropdownMenuItem(
+                    value: false,
+                    child: Text('Nieoznaczone w raporcie'),
+                  ),
+                ],
+                onChanged: (value) => onChanged(
+                  filter.copyWith(
+                    includedInReport: value,
+                    clearIncludedInReport: value == null,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -266,9 +306,15 @@ class _ProofFilterCard extends StatelessWidget {
 }
 
 class _ProofRecordCard extends StatelessWidget {
-  const _ProofRecordCard({required this.record});
+  const _ProofRecordCard({
+    required this.record,
+    required this.includedInReport,
+    required this.showReportInclusionState,
+  });
 
   final ProofRecord record;
+  final bool includedInReport;
+  final bool showReportInclusionState;
 
   @override
   Widget build(BuildContext context) {
@@ -288,6 +334,10 @@ class _ProofRecordCard extends StatelessWidget {
             record.month,
             record.proofTypeLabel,
             record.attachmentStateLabel,
+            if (showReportInclusionState)
+              includedInReport
+                  ? 'Uwzglednione w raporcie'
+                  : 'Nieoznaczone w raporcie',
           ].join(' • '),
         ),
         trailing: Column(

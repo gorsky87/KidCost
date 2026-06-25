@@ -12,6 +12,7 @@ import '../../premium/premium_discovery.dart';
 import '../../reports/context_log_models.dart';
 import '../../reports/mediation_report_pass.dart';
 import '../../reports/support_context_models.dart';
+import 'proof_library_screen.dart';
 
 enum _ReportMode { monthly, annual }
 
@@ -59,6 +60,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   PolishReportContext _polishReportContext = const PolishReportContext();
   bool _includeParentingTimeContext = true;
   final Set<String> _excludedProofIds = {};
+  final Set<String> _reportedProofIds = {};
 
   void _updatePolishReportContext(PolishReportContext value) {
     setState(() => _polishReportContext = value);
@@ -176,6 +178,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             now: widget.currentDate ?? DateTime.now(),
             mediationReportPass: _mediationReportPass,
             excludedProofIds: _excludedProofIds,
+            reportedProofIds: _reportedProofIds,
             onMediationReportPassChanged: (pass) {
               setState(() => _mediationReportPass = pass);
             },
@@ -187,6 +190,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   _excludedProofIds.add(proofId);
                 }
               });
+            },
+            onReportGenerated: (proofIds) {
+              setState(() => _reportedProofIds.addAll(proofIds));
             },
             showPremiumHint: widget.showReportExportPremiumHint,
             onMonthChanged: (value) => setState(() => _selectedMonth = value),
@@ -288,8 +294,10 @@ class _MonthlyReportView extends StatelessWidget {
     required this.now,
     required this.mediationReportPass,
     required this.excludedProofIds,
+    required this.reportedProofIds,
     required this.onMediationReportPassChanged,
     required this.onProofIncludedChanged,
+    required this.onReportGenerated,
     required this.showPremiumHint,
     required this.onMonthChanged,
     required this.onPolishContextChanged,
@@ -313,8 +321,10 @@ class _MonthlyReportView extends StatelessWidget {
   final DateTime now;
   final MediationReportPass? mediationReportPass;
   final Set<String> excludedProofIds;
+  final Set<String> reportedProofIds;
   final ValueChanged<MediationReportPass?> onMediationReportPassChanged;
   final void Function(String proofId, bool included) onProofIncludedChanged;
+  final ValueChanged<Set<String>> onReportGenerated;
   final bool showPremiumHint;
   final ValueChanged<String> onMonthChanged;
   final ValueChanged<PolishReportContext> onPolishContextChanged;
@@ -413,8 +423,10 @@ class _MonthlyReportView extends StatelessWidget {
         const SizedBox(height: 12),
         _ReportProofReviewCard(
           month: month,
+          expenses: report.expenses,
           proofs: proofRecords,
           includedProofIds: includedProofIds,
+          reportedProofIds: reportedProofIds,
           expenseCount: report.expenses.length,
           onProofIncludedChanged: onProofIncludedChanged,
         ),
@@ -433,6 +445,7 @@ class _MonthlyReportView extends StatelessWidget {
           ),
           showPremiumHint: showPremiumHint,
           onPremiumHintDismissed: onPremiumHintDismissed,
+          onExported: () => onReportGenerated(includedProofIds),
         ),
         const SizedBox(height: 12),
         _MediationReportPassCard(
@@ -2950,15 +2963,19 @@ bool _hasReadinessText(String? value) {
 class _ReportProofReviewCard extends StatelessWidget {
   const _ReportProofReviewCard({
     required this.month,
+    required this.expenses,
     required this.proofs,
     required this.includedProofIds,
+    required this.reportedProofIds,
     required this.expenseCount,
     required this.onProofIncludedChanged,
   });
 
   final String month;
+  final List<ExpenseEntry> expenses;
   final List<ProofRecord> proofs;
   final Set<String> includedProofIds;
+  final Set<String> reportedProofIds;
   final int expenseCount;
   final void Function(String proofId, bool included) onProofIncludedChanged;
 
@@ -2981,6 +2998,25 @@ class _ReportProofReviewCard extends StatelessWidget {
               title: const Text('Przeglad dowodow raportu'),
               subtitle: Text(
                 '$includedCount z ${proofs.length} dowodow dolaczonych do sekcji dowodow za $month.',
+              ),
+              trailing: IconButton(
+                key: const Key('report-proof-library-button'),
+                tooltip: 'Otworz biblioteke dowodow raportu',
+                onPressed: proofs.isEmpty
+                    ? null
+                    : () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (context) => ProofLibraryScreen(
+                              expenses: expenses,
+                              initialFilter: ProofLibraryFilter(month: month),
+                              reportedProofIds: reportedProofIds,
+                              showReportInclusionState: true,
+                            ),
+                          ),
+                        );
+                      },
+                icon: const Icon(Icons.folder_copy_outlined),
               ),
             ),
             if (proofs.isEmpty)
@@ -3008,6 +3044,8 @@ class _ReportProofReviewCard extends StatelessWidget {
                       includedProofIds.contains(proof.id)
                           ? 'dolaczony do raportu'
                           : 'pominiety w raporcie',
+                      if (reportedProofIds.contains(proof.id))
+                        'uwzgledniony w wygenerowanym raporcie',
                     ].join(' • '),
                   ),
                 ),
@@ -3061,6 +3099,7 @@ class _ExportCard extends StatelessWidget {
     required this.csv,
     required this.showPremiumHint,
     required this.onPremiumHintDismissed,
+    this.onExported,
   });
 
   final String title;
@@ -3068,6 +3107,7 @@ class _ExportCard extends StatelessWidget {
   final String csv;
   final bool showPremiumHint;
   final VoidCallback onPremiumHintDismissed;
+  final VoidCallback? onExported;
 
   @override
   Widget build(BuildContext context) {
@@ -3080,7 +3120,10 @@ class _ExportCard extends StatelessWidget {
             Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             FilledButton.icon(
-              onPressed: () => _showCsvPreview(context),
+              onPressed: () {
+                onExported?.call();
+                _showCsvPreview(context);
+              },
               icon: const Icon(Icons.table_view_outlined),
               label: Text('CSV: $fileName'),
             ),

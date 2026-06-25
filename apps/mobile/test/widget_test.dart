@@ -311,6 +311,13 @@ void main() {
     expect(filtered, hasLength(1));
     expect(filtered.single.expenseTitle, 'Ortodonta');
     expect(filtered.single.proofTypeLabel, 'Paragon');
+
+    final reportedOnly = filterProofRecords(
+      records: records,
+      filter: const ProofLibraryFilter(includedInReport: true),
+      reportedProofIds: {'proof-school-books'},
+    );
+    expect(reportedOnly.map((record) => record.id), ['proof-school-books']);
   });
 
   testWidgets('telemetry sanitizer removes PII and precise amounts', (_) async {
@@ -4728,6 +4735,76 @@ void main() {
     expect(find.text('Eksport CSV'), findsOneWidget);
     expect(find.textContaining('dowody_raportu'), findsOneWidget);
     expect(find.textContaining('pominieto_w_przegladzie'), findsOneWidget);
+  });
+
+  testWidgets('monthly reports mark proofs after CSV export', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 6000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(
+                id: 'ortho',
+                title: 'Faktura za ortodonte',
+                amountCents: 48000,
+                category: expenseCategories[3],
+                attachment: const ExpenseAttachment(
+                  fileName: 'ortodonta.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    merchant: 'Orto Dent',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('CSV: kidcost-report-2026-06.csv'),
+      180,
+    );
+    await tester.tap(find.text('CSV: kidcost-report-2026-06.csv'));
+    await tester.pumpAndSettle();
+    expect(find.text('Eksport CSV'), findsOneWidget);
+
+    Navigator.of(tester.element(find.text('Eksport CSV'))).pop();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.textContaining('uwzgledniony w wygenerowanym raporcie'),
+      180,
+    );
+    expect(
+      find.textContaining('uwzgledniony w wygenerowanym raporcie'),
+      findsOneWidget,
+    );
+
+    final libraryButton = find.byKey(const Key('report-proof-library-button'));
+    await tester.scrollUntilVisible(libraryButton, 180);
+    await tester.tap(libraryButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Biblioteka dowodow'), findsOneWidget);
+    expect(find.textContaining('Uwzglednione w raporcie'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const Key('proof-library-report-inclusion-filter')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Uwzglednione w raporcie').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Faktura za ortodonte'), findsOneWidget);
   });
 
   testWidgets('monthly reports show evidence readiness before export', (

@@ -137,6 +137,7 @@ class ProofLibraryFilter {
     this.categoryId,
     this.status,
     this.evidenceType,
+    this.includedInReport,
     this.query = '',
   });
 
@@ -145,6 +146,7 @@ class ProofLibraryFilter {
   final String? categoryId;
   final ExpenseStatus? status;
   final EvidenceType? evidenceType;
+  final bool? includedInReport;
   final String query;
 
   String get normalizedQuery => query.trim().toLowerCase();
@@ -155,6 +157,7 @@ class ProofLibraryFilter {
         categoryId != null ||
         status != null ||
         evidenceType != null ||
+        includedInReport != null ||
         normalizedQuery.isNotEmpty;
   }
 
@@ -164,12 +167,14 @@ class ProofLibraryFilter {
     String? categoryId,
     ExpenseStatus? status,
     EvidenceType? evidenceType,
+    bool? includedInReport,
     String? query,
     bool clearMonth = false,
     bool clearChildName = false,
     bool clearCategoryId = false,
     bool clearStatus = false,
     bool clearEvidenceType = false,
+    bool clearIncludedInReport = false,
   }) {
     return ProofLibraryFilter(
       month: clearMonth ? null : month ?? this.month,
@@ -179,6 +184,9 @@ class ProofLibraryFilter {
       evidenceType: clearEvidenceType
           ? null
           : evidenceType ?? this.evidenceType,
+      includedInReport: clearIncludedInReport
+          ? null
+          : includedInReport ?? this.includedInReport,
       query: query ?? this.query,
     );
   }
@@ -196,8 +204,19 @@ List<ProofRecord> proofRecordsFromExpenses(Iterable<ExpenseEntry> expenses) {
 List<ProofRecord> filterProofRecords({
   required Iterable<ProofRecord> records,
   required ProofLibraryFilter filter,
+  Set<String> reportedProofIds = const {},
 }) {
-  return List.unmodifiable(records.where((record) => record.matches(filter)));
+  return List.unmodifiable(
+    records.where((record) {
+      if (!record.matches(filter)) return false;
+      final includedInReport = filter.includedInReport;
+      if (includedInReport != null &&
+          reportedProofIds.contains(record.id) != includedInReport) {
+        return false;
+      }
+      return true;
+    }),
+  );
 }
 
 String monthFromIsoDate(String date) {
