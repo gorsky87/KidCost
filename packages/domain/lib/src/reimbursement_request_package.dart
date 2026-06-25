@@ -1,3 +1,5 @@
+import 'reimbursement_deadlines.dart';
+
 enum ReimbursementRequestDeliveryChannel {
   shareSheet,
   emailReadyCopy,
@@ -54,6 +56,7 @@ class ReimbursementRequestPacket {
     required this.promisesPaymentProcessing,
     required this.claimsLegalCertification,
     this.tokenExpiresAt,
+    this.deadlines,
     this.note,
   });
 
@@ -72,6 +75,7 @@ class ReimbursementRequestPacket {
   final bool promisesPaymentProcessing;
   final bool claimsLegalCertification;
   final DateTime? tokenExpiresAt;
+  final ReimbursementDeadlineSnapshot? deadlines;
   final String? note;
 
   bool get hasSecureScopedToken {
@@ -164,6 +168,7 @@ ReimbursementRequestPacket buildReimbursementRequestPacket({
   required DateTime createdAt,
   required ReimbursementRequestDeliveryChannel deliveryChannel,
   DateTime? tokenExpiresAt,
+  ReimbursementDeadlineSnapshot? deadlines,
   String? note,
 }) {
   final normalizedPacketId = packetId.trim();
@@ -214,6 +219,7 @@ ReimbursementRequestPacket buildReimbursementRequestPacket({
     promisesPaymentProcessing: false,
     claimsLegalCertification: false,
     tokenExpiresAt: tokenExpiresAt?.toUtc(),
+    deadlines: deadlines,
     note: _normalizeOptional(note),
   );
 }
@@ -237,6 +243,12 @@ String reimbursementRequestShareText(ReimbursementRequestPacket packet) {
   final note = packet.note;
   if (note != null && note.isNotEmpty) {
     buffer.writeln('Note: $note');
+  }
+  final deadlines = packet.deadlines;
+  if (deadlines != null) {
+    buffer.writeln(
+      'Timing: ${reimbursementDeadlineTimingLabels[deadlines.timingState(now: packet.createdAt)]}',
+    );
   }
   buffer.writeln(packet.trustFooter);
   return buffer.toString().trim();

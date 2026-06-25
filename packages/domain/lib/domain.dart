@@ -6,6 +6,7 @@ export 'src/paywall_policy.dart';
 export 'src/premium_cancellation_policy.dart';
 export 'src/professional_access.dart';
 export 'src/professional_referral_kit.dart';
+export 'src/reimbursement_deadlines.dart';
 export 'src/reimbursement_request_package.dart';
 export 'src/safe_referral_policy.dart';
 export 'src/shared_expense_agreement.dart';
