@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 enum PremiumDiscoveryPoint {
   receiptOcr,
   reportExport,
+  calendarExport,
   expenseHistory,
   accountPlan,
 }
@@ -41,6 +42,16 @@ extension PremiumDiscoveryPointDetails on PremiumDiscoveryPoint {
           freeBaseline:
               'Podglad raportu i podstawowy CSV zostaja dostepne bez blokowania.',
           candidateFeature: 'Kandydat Premium: PDF, pakiet dowodow i historia.',
+        );
+      case PremiumDiscoveryPoint.calendarExport:
+        return const PremiumDiscoveryMessage(
+          title: 'Kalendarz poza KidCost',
+          body:
+              'Eksport ICS moze przeniesc plan opieki do Apple, Google lub Outlook bez pokazywania szczegolow kosztow.',
+          freeBaseline:
+              'Tworzenie i przegladanie dni opieki w aplikacji zostaje w podstawowym przeplywie.',
+          candidateFeature:
+              'Kandydat Premium: manualny eksport ICS i przyszly feed subskrybowany.',
         );
       case PremiumDiscoveryPoint.expenseHistory:
         return const PremiumDiscoveryMessage(
@@ -100,6 +111,7 @@ class PremiumDiscoveryCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
+                  key: Key('premium-discovery-dismiss-${point.name}'),
                   tooltip: 'Ukryj na teraz',
                   onPressed: onDismiss,
                   icon: const Icon(Icons.close),

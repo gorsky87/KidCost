@@ -12,6 +12,7 @@ enum EntitlementFeature {
   evidenceBundles,
   advancedSplitRules,
   calendarLinkedAllocation,
+  calendarIcsExport,
   prioritySupport,
 }
 
@@ -277,6 +278,24 @@ const kidCostEntitlementMatrix = [
     downgradeRule: 'Daty opieki i koszty pozostaja widoczne.',
     keepsExistingAccessOnDowngrade: true,
     rationale: 'To automatyzacja interpretacji, nie podstawowy ledger.',
+  ),
+  EntitlementDefinition(
+    feature: EntitlementFeature.calendarIcsExport,
+    label: 'Eksport ICS kalendarza',
+    free: EntitlementTier(
+      access: EntitlementAccess.premiumOnly,
+      summary:
+          'Podstawowy kalendarz zostaje w aplikacji; eksport ICS jest wygoda Premium.',
+    ),
+    premium: EntitlementTier(
+      access: EntitlementAccess.included,
+      summary: 'Manualny eksport ICS z neutralnymi tytulami wydarzen.',
+    ),
+    downgradeRule:
+        'Dni opieki pozostaja widoczne; nowe eksporty ICS wymagaja Premium.',
+    keepsExistingAccessOnDowngrade: true,
+    rationale:
+        'Interoperability z kalendarzem zewnetrznym jest wygoda, nie warunek dostepu do planu opieki.',
   ),
   EntitlementDefinition(
     feature: EntitlementFeature.prioritySupport,

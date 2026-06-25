@@ -6,6 +6,7 @@ void main() {
     testFreePlanKeepsCoreLedgerAvailable();
     testFreeLimitsCanBlockNewUsageWithoutHidingExistingData();
     testPremiumUnlocksAutomationAndReports();
+    testCalendarExportIsPremiumConvenience();
     testDowngradeKeepsCoreRecordsReadable();
     testFamilyPayerDoesNotBecomeSoleDataAdmin();
   });
@@ -62,6 +63,25 @@ void testPremiumUnlocksAutomationAndReports() {
   expectFalse(freeOcr.isAllowed);
   expectTrue(premiumOcr.isAllowed);
   expectTrue(premiumPdf.isAllowed);
+}
+
+void testCalendarExportIsPremiumConvenience() {
+  final freeExport = evaluateEntitlement(
+    plan: KidCostPlan.free,
+    feature: EntitlementFeature.calendarIcsExport,
+  );
+  final premiumExport = evaluateEntitlement(
+    plan: KidCostPlan.premium,
+    feature: EntitlementFeature.calendarIcsExport,
+  );
+  final definition = entitlementDefinitionFor(
+    EntitlementFeature.calendarIcsExport,
+  );
+
+  expectFalse(freeExport.isAllowed);
+  expectTrue(premiumExport.isAllowed);
+  expectTrue(definition.keepsExistingAccessOnDowngrade);
+  expectTrue(definition.downgradeRule.contains('Dni opieki'));
 }
 
 void testDowngradeKeepsCoreRecordsReadable() {

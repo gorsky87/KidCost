@@ -163,6 +163,11 @@ class _KidCostShellState extends State<KidCostShell> {
         custodyDays: widget.custodyDays,
         currentDate: widget.currentDate,
         expenses: widget.expenses,
+        showCalendarExportPremiumHint: !_isPremiumHintDismissed(
+          PremiumDiscoveryPoint.calendarExport,
+        ),
+        onPremiumHintDismissed: _dismissPremiumHint,
+        onCalendarExportPremiumIntent: _trackCalendarExportPremiumIntent,
         onCustodyDaysChanged: widget.onCustodyDaysChanged,
       ),
     ),
@@ -285,6 +290,20 @@ class _KidCostShellState extends State<KidCostShell> {
           'surface': 'dashboard',
           'trigger': 'dashboard_quick_entry',
           'feature': feature,
+        },
+      ),
+    );
+  }
+
+  void _trackCalendarExportPremiumIntent() {
+    unawaited(
+      widget.telemetry.track(
+        TelemetryEvent.premiumFeatureIntent,
+        parameters: const {
+          'feature': 'calendar_ics_export',
+          'surface': 'custody_calendar',
+          'trigger': 'calendar_export_intent',
+          'export_format': 'ics',
         },
       ),
     );

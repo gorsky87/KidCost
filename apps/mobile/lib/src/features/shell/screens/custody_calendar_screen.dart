@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
+import '../../premium/premium_discovery.dart';
 
 class CustodyCalendarScreen extends StatefulWidget {
   const CustodyCalendarScreen({
@@ -12,6 +14,9 @@ class CustodyCalendarScreen extends StatefulWidget {
     required this.onCustodyDaysChanged,
     this.expenses = const [],
     this.currentDate,
+    this.showCalendarExportPremiumHint = true,
+    this.onPremiumHintDismissed,
+    this.onCalendarExportPremiumIntent,
     super.key,
   });
 
@@ -21,6 +26,9 @@ class CustodyCalendarScreen extends StatefulWidget {
   final List<ExpenseEntry> expenses;
   final ValueChanged<List<CustodyDay>> onCustodyDaysChanged;
   final DateTime? currentDate;
+  final bool showCalendarExportPremiumHint;
+  final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
+  final VoidCallback? onCalendarExportPremiumIntent;
 
   @override
   State<CustodyCalendarScreen> createState() => _CustodyCalendarScreenState();
@@ -137,6 +145,16 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
               ),
           ],
         ),
+        if (widget.showCalendarExportPremiumHint) ...[
+          const SizedBox(height: 16),
+          _CalendarExportPremiumSection(
+            custodyDaysCount: widget.custodyDays.length,
+            onIntent: _showCalendarExportPremiumIntent,
+            onDismiss: () => widget.onPremiumHintDismissed?.call(
+              PremiumDiscoveryPoint.calendarExport,
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         _CustodyPresetCard(
           startDateController: _presetStartDateController,
@@ -272,6 +290,17 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
     );
   }
 
+  void _showCalendarExportPremiumIntent() {
+    widget.onCalendarExportPremiumIntent?.call();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Eksport ICS bedzie funkcja Premium; plan opieki zostaje dostepny tutaj.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _editDay(DateTime date) async {
     final formattedDate = formatCustodyDate(date);
     final existing = widget.custodyDays
@@ -371,6 +400,46 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
         parent: parent,
         createdAt: DateTime.now().toUtc(),
       ),
+    );
+  }
+}
+
+class _CalendarExportPremiumSection extends StatelessWidget {
+  const _CalendarExportPremiumSection({
+    required this.custodyDaysCount,
+    required this.onIntent,
+    required this.onDismiss,
+  });
+
+  final int custodyDaysCount;
+  final VoidCallback onIntent;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final entitlement = domain.entitlementDefinitionFor(
+      domain.EntitlementFeature.calendarIcsExport,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PremiumDiscoveryCard(
+          point: PremiumDiscoveryPoint.calendarExport,
+          onDismiss: onDismiss,
+          compact: true,
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: custodyDaysCount == 0 ? null : onIntent,
+          icon: const Icon(Icons.ios_share_outlined),
+          label: const Text('Eksport ICS (Premium)'),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${entitlement.free.summary} Eksport uzywa neutralnych tytulow wydarzen.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }

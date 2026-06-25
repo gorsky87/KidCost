@@ -778,9 +778,12 @@ void main() {
     expect(find.textContaining('podstawowy CSV zostaja'), findsOneWidget);
     expect(find.text('CSV: kidcost-report-2026-06.csv'), findsOneWidget);
 
-    await tester.ensureVisible(find.byTooltip('Ukryj na teraz'));
+    final dismissButton = find.byKey(
+      const Key('premium-discovery-dismiss-reportExport'),
+    );
+    await tester.ensureVisible(dismissButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Ukryj na teraz'));
+    await tester.tap(dismissButton);
     await tester.pumpAndSettle();
 
     expect(dismissed, [PremiumDiscoveryPoint.reportExport]);
@@ -2460,6 +2463,63 @@ void main() {
       find.textContaining('udzial drugiego rodzica: 25,00 PLN'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('custody calendar gates ICS export as Premium convenience', (
+    WidgetTester tester,
+  ) async {
+    var dismissedPoint = <PremiumDiscoveryPoint>[];
+    var intentCount = 0;
+    const parent = CustodyParent(
+      id: 'self',
+      label: 'parent@example.com',
+      isCurrentUser: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CustodyCalendarScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: [
+              CustodyDay(
+                id: 'custody-2026-06-24',
+                date: '2026-06-24',
+                childName: 'Antek',
+                parent: parent,
+                createdAt: DateTime.utc(2026, 6, 24),
+              ),
+            ],
+            onCalendarExportPremiumIntent: () => intentCount += 1,
+            onPremiumHintDismissed: dismissedPoint.add,
+            onCustodyDaysChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    await dragUntilPresent(tester, find.text('Kalendarz poza KidCost'));
+    expect(find.text('Kalendarz poza KidCost'), findsOneWidget);
+    expect(find.textContaining('neutralnych tytulow'), findsOneWidget);
+
+    final exportButton = find.widgetWithText(
+      OutlinedButton,
+      'Eksport ICS (Premium)',
+    );
+    await tester.ensureVisible(exportButton);
+    await tester.pumpAndSettle();
+    await tester.tap(exportButton);
+    await tester.pumpAndSettle();
+
+    expect(intentCount, 1);
+    expect(
+      find.textContaining('Eksport ICS bedzie funkcja Premium'),
+      findsOneWidget,
+    );
+
+    expect(dismissedPoint, isEmpty);
   });
 
   testWidgets('report csv includes linked calendar event and deadline dates', (

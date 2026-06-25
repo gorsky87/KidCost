@@ -175,6 +175,7 @@ const _premiumConvenienceFeatures = {
   EntitlementFeature.evidenceBundles,
   EntitlementFeature.advancedSplitRules,
   EntitlementFeature.calendarLinkedAllocation,
+  EntitlementFeature.calendarIcsExport,
   EntitlementFeature.prioritySupport,
 };
 

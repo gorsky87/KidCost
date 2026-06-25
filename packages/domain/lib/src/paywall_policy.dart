@@ -3,6 +3,7 @@ enum PaywallTrigger {
   afterFirstReceiptAttached,
   receiptOcrIntent,
   pdfReportPreview,
+  calendarExportIntent,
   storageLimitReached,
   historyLimitReached,
   afterCoParentInvite,
@@ -97,6 +98,15 @@ const kidCostPaywallTriggers = [
         'Formalny PDF jest wygoda premium; podstawowy CSV i widok raportu zostaja dostepne.',
     valueMoment: 'report_viewed',
     analyticsTriggerId: 'pdf_report_preview',
+  ),
+  PaywallTriggerDefinition(
+    trigger: PaywallTrigger.calendarExportIntent,
+    status: PaywallTriggerStatus.approved,
+    label: 'Przy probie eksportu kalendarza',
+    rationale:
+        'Eksport ICS jest wygoda interoperacyjnosci; plan opieki w aplikacji zostaje dostepny.',
+    valueMoment: 'custody_calendar_created',
+    analyticsTriggerId: 'calendar_export_intent',
   ),
   PaywallTriggerDefinition(
     trigger: PaywallTrigger.storageLimitReached,
@@ -196,9 +206,16 @@ const kidCostPremiumAnalyticsEvents = [
     requiredProperties: {'feature', 'surface', 'trigger'},
     rationale: 'Mierzy intencje uzycia funkcji premium przed paywallem.',
   ),
+  PremiumAnalyticsEventDefinition(
+    name: 'calendar_export_intent',
+    requiredProperties: {'feature', 'surface', 'trigger', 'export_format'},
+    rationale:
+        'Mierzy zainteresowanie eksportem ICS bez nazw dzieci, rodzicow i tytulow wydarzen.',
+  ),
 ];
 
 const premiumAnalyticsAllowedProperties = {
+  'export_format',
   'feature',
   'plan_context',
   'reason_code',

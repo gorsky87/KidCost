@@ -20,6 +20,7 @@ void testApprovedPaywallTriggersFollowValueMoments() {
   expectTrue(triggerIds.contains('after_first_receipt_attached'));
   expectTrue(triggerIds.contains('receipt_ocr_intent'));
   expectTrue(triggerIds.contains('pdf_report_preview'));
+  expectTrue(triggerIds.contains('calendar_export_intent'));
   expectTrue(triggerIds.contains('storage_limit_reached'));
   expectTrue(triggerIds.contains('history_limit_reached'));
   expectTrue(triggerIds.contains('after_coparent_invite'));
@@ -51,6 +52,7 @@ void testPremiumAnalyticsTaxonomyUsesSafeProperties() {
   expectTrue(eventNames.contains('premium_upgraded'));
   expectTrue(eventNames.contains('premium_downgraded'));
   expectTrue(eventNames.contains('premium_feature_intent'));
+  expectTrue(eventNames.contains('calendar_export_intent'));
   expectTrue(
     kidCostPremiumAnalyticsEvents.every(
       (definition) =>
