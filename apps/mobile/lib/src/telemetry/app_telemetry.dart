@@ -36,6 +36,7 @@ enum TelemetryEvent {
   reportPassRefundRequested('report_pass_refund_requested'),
   polishReportContextUpdated('polish_report_context_updated'),
   parentingTimeReportToggled('parenting_time_report_toggled'),
+  betaFeedbackDraftPrepared('beta_feedback_draft_prepared'),
   historicalImportPreviewed('historical_import_previewed'),
   plannedPurchaseCreated('planned_purchase_created'),
   plannedPurchaseStatusChanged('planned_purchase_status_changed'),
@@ -139,6 +140,10 @@ const _allowedParameterKeys = {
   'parenting_time_context_enabled',
   'custody_day_count',
   'source',
+  'feedback_category',
+  'has_reimbursement_impact',
+  'has_attachment_context',
+  'known_limitations_count',
 };
 
 bool _looksSensitive(String value) {

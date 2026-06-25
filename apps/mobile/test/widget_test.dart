@@ -290,6 +290,10 @@ void main() {
       'parenting_time_context_enabled': false,
       'custody_day_count': 4,
       'source': 'kidcost_custody_calendar',
+      'feedback_category': 'privacy_security',
+      'has_reimbursement_impact': true,
+      'has_attachment_context': true,
+      'known_limitations_count': 3,
       'merchant': 'Apteka Testowa',
       'note': 'Prywatna notatka z importu',
     });
@@ -327,6 +331,10 @@ void main() {
       'parenting_time_context_enabled': false,
       'custody_day_count': 4,
       'source': 'kidcost_custody_calendar',
+      'feedback_category': 'privacy_security',
+      'has_reimbursement_impact': true,
+      'has_attachment_context': true,
+      'known_limitations_count': 3,
     });
   });
 
@@ -789,6 +797,100 @@ void main() {
     expect(
       find.text('Poprosimy o zgode dopiero w kontekscie wspolnego kosztu.'),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('settings prepares safe beta feedback without PII telemetry', (
+    WidgetTester tester,
+  ) async {
+    final telemetry = RecordingTelemetry();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsScreen(
+            userEmail: 'parent@example.com',
+            isDemoSession: true,
+            telemetry: telemetry,
+            onSignOut: () async {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Feedback beta'), 160);
+    await tester.tap(find.text('Feedback beta'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('TestFlight/Google Play feedback'),
+      findsOneWidget,
+    );
+    expect(find.text('Znane ograniczenia bety'), findsOneWidget);
+    expect(find.text('Blocker bety'), findsOneWidget);
+    expect(find.text('Privacy/Security'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('open-beta-feedback-flow')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Feedback beta'), findsWidgets);
+    expect(find.textContaining('bez imion dzieci'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('beta-feedback-category-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Privacy/Security').last);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('beta-feedback-context-field')),
+      'Problem przy rozliczeniu Antka na 42,99 PLN',
+    );
+    await tester.enterText(
+      find.byKey(const Key('beta-feedback-steps-field')),
+      'Otworz raport i wybierz eksport.',
+    );
+    await tester.enterText(
+      find.byKey(const Key('beta-feedback-expected-field')),
+      'Aplikacja pokazuje bezpieczny komunikat.',
+    );
+    await tester.enterText(
+      find.byKey(const Key('beta-feedback-actual-field')),
+      'Widzimy za duzo danych.',
+    );
+    await tester.ensureVisible(find.text('Wplywa na rozliczenia'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wplywa na rozliczenia'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Wymaga screena albo zalacznika'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Wymaga screena albo zalacznika'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('beta-feedback-submit-button')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('beta-feedback-submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Szkic feedbacku gotowy'), findsOneWidget);
+    expect(telemetry.eventNames, ['beta_feedback_draft_prepared']);
+    expect(
+      telemetry.events.single.parameters['feedback_category'],
+      'privacy_security',
+    );
+    expect(
+      telemetry.events.single.parameters['has_reimbursement_impact'],
+      isTrue,
+    );
+    expect(
+      telemetry.events.single.parameters['has_attachment_context'],
+      isTrue,
+    );
+    expect(telemetry.events.single.parameters['known_limitations_count'], 3);
+    expect(
+      telemetry.events.single.parameters.values.contains(
+        'Problem przy rozliczeniu Antka na 42,99 PLN',
+      ),
+      isFalse,
     );
   });
 
