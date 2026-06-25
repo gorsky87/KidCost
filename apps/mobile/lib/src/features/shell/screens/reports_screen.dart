@@ -782,6 +782,8 @@ class MonthlyExpenseReport {
         'kategoria',
         'placacy',
         'status',
+        'dispute_reason',
+        'dispute_request',
         'request_type',
         'provider_name',
         'provider_reference',
@@ -806,6 +808,8 @@ class MonthlyExpenseReport {
           expense.category.label,
           expense.paidBy.label,
           expense.status.label,
+          expense.disputeDetails?.reason.label ?? '',
+          expense.disputeDetails?.correctionRequest ?? '',
           expense.reimbursementRequestKind.id,
           expense.providerPayment?.providerName ?? '',
           expense.providerPayment?.paymentReference ?? '',
@@ -998,6 +1002,8 @@ class AnnualExpenseReport {
         'kategoria',
         'placacy',
         'status',
+        'dispute_reason',
+        'dispute_request',
         'request_type',
         'provider_name',
         'provider_reference',
@@ -1022,6 +1028,8 @@ class AnnualExpenseReport {
           expense.category.label,
           expense.paidBy.label,
           expense.status.label,
+          expense.disputeDetails?.reason.label ?? '',
+          expense.disputeDetails?.correctionRequest ?? '',
           expense.reimbursementRequestKind.id,
           expense.providerPayment?.providerName ?? '',
           expense.providerPayment?.paymentReference ?? '',
@@ -1434,6 +1442,10 @@ class _AnnualExpenseListCard extends StatelessWidget {
                   [
                     expense.expenseDate,
                     expense.status.label,
+                    if (expense.disputeDetails != null)
+                      'spor: ${expense.disputeDetails!.reason.label}',
+                    if (expense.disputeDetails?.correctionRequest != null)
+                      'prosba: ${expense.disputeDetails!.correctionRequest}',
                     if (expense.originalReceiptAmountLabel != null)
                       'paragon: ${expense.originalReceiptAmountLabel}',
                   ].join(' • '),
@@ -1473,6 +1485,10 @@ class _ExpenseStatusCard extends StatelessWidget {
                   [
                     expense.expenseDate,
                     expense.status.label,
+                    if (expense.disputeDetails != null)
+                      'spor: ${expense.disputeDetails!.reason.label}',
+                    if (expense.disputeDetails?.correctionRequest != null)
+                      'prosba: ${expense.disputeDetails!.correctionRequest}',
                     if (expense.originalReceiptAmountLabel != null)
                       'paragon: ${expense.originalReceiptAmountLabel}',
                   ].join(' • '),

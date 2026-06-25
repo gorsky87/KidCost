@@ -53,6 +53,7 @@ class ExpenseEntry {
     required this.createdAt,
     this.status = ExpenseStatus.pending,
     this.statusComment,
+    this.disputeDetails,
     this.visibility = ExpenseVisibility.sharedFamily,
     this.attachment,
     this.sourceTemplateId,
@@ -78,6 +79,7 @@ class ExpenseEntry {
   final DateTime createdAt;
   final ExpenseStatus status;
   final String? statusComment;
+  final ExpenseDisputeDetails? disputeDetails;
   final ExpenseVisibility visibility;
   final ExpenseAttachment? attachment;
   final String? sourceTemplateId;
@@ -144,6 +146,9 @@ class ExpenseEntry {
     String? title,
     ExpenseStatus? status,
     String? statusComment,
+    ExpenseDisputeDetails? disputeDetails,
+    bool clearStatusComment = false,
+    bool clearDisputeDetails = false,
     ExpenseVisibility? visibility,
     ExpenseAttachment? attachment,
     String? sourceTemplateId,
@@ -168,7 +173,12 @@ class ExpenseEntry {
       title: title ?? this.title,
       createdAt: createdAt,
       status: status ?? this.status,
-      statusComment: statusComment ?? this.statusComment,
+      statusComment: clearStatusComment
+          ? null
+          : statusComment ?? this.statusComment,
+      disputeDetails: clearDisputeDetails
+          ? null
+          : disputeDetails ?? this.disputeDetails,
       visibility: visibility ?? this.visibility,
       attachment: attachment ?? this.attachment,
       sourceTemplateId: sourceTemplateId ?? this.sourceTemplateId,
@@ -683,6 +693,113 @@ extension EvidenceTypeDetails on EvidenceType {
 }
 
 enum ExpenseStatus { pending, accepted, disputed, settled }
+
+enum ExpenseDisputeReason {
+  missingProof,
+  wrongAmount,
+  notAgreed,
+  alreadyPaid,
+  wrongSplit,
+  other;
+
+  String get id {
+    switch (this) {
+      case ExpenseDisputeReason.missingProof:
+        return 'missing_proof';
+      case ExpenseDisputeReason.wrongAmount:
+        return 'wrong_amount';
+      case ExpenseDisputeReason.notAgreed:
+        return 'not_agreed';
+      case ExpenseDisputeReason.alreadyPaid:
+        return 'already_paid';
+      case ExpenseDisputeReason.wrongSplit:
+        return 'wrong_split';
+      case ExpenseDisputeReason.other:
+        return 'other';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case ExpenseDisputeReason.missingProof:
+        return 'Brakuje dowodu';
+      case ExpenseDisputeReason.wrongAmount:
+        return 'Kwota sie nie zgadza';
+      case ExpenseDisputeReason.notAgreed:
+        return 'Nie byl uzgodniony';
+      case ExpenseDisputeReason.alreadyPaid:
+        return 'Juz zaplacone';
+      case ExpenseDisputeReason.wrongSplit:
+        return 'Zly podzial';
+      case ExpenseDisputeReason.other:
+        return 'Inny powod';
+    }
+  }
+
+  String get requestHint {
+    switch (this) {
+      case ExpenseDisputeReason.missingProof:
+        return 'Np. dodaj paragon';
+      case ExpenseDisputeReason.wrongAmount:
+        return 'Np. popraw kwote';
+      case ExpenseDisputeReason.notAgreed:
+        return 'Np. wyjasnij ustalenie';
+      case ExpenseDisputeReason.alreadyPaid:
+        return 'Np. dolacz potwierdzenie platnosci';
+      case ExpenseDisputeReason.wrongSplit:
+        return 'Np. wyjasnij podzial';
+      case ExpenseDisputeReason.other:
+        return 'Np. opisz potrzebna korekte';
+    }
+  }
+
+  String get responseCta {
+    switch (this) {
+      case ExpenseDisputeReason.missingProof:
+        return 'Dodaj dowod';
+      case ExpenseDisputeReason.wrongAmount:
+        return 'Popraw kwote';
+      case ExpenseDisputeReason.notAgreed:
+        return 'Wyjasnij ustalenie';
+      case ExpenseDisputeReason.alreadyPaid:
+        return 'Sprawdz platnosc';
+      case ExpenseDisputeReason.wrongSplit:
+        return 'Wyjasnij podzial';
+      case ExpenseDisputeReason.other:
+        return 'Odpowiedz na prosbe';
+    }
+  }
+}
+
+class ExpenseDisputeDetails {
+  const ExpenseDisputeDetails({
+    required this.reason,
+    this.correctionRequest,
+    this.comment,
+  });
+
+  final ExpenseDisputeReason reason;
+  final String? correctionRequest;
+  final String? comment;
+
+  String get summaryText {
+    final parts = [
+      'Sporne: ${reason.label.toLowerCase()}.',
+      if (correctionRequest?.trim().isNotEmpty ?? false)
+        'Prosba: ${correctionRequest!.trim()}.',
+      if (comment?.trim().isNotEmpty ?? false) comment!.trim(),
+    ];
+    return parts.join(' ');
+  }
+
+  String get transitionComment {
+    final request = correctionRequest?.trim();
+    if (request != null && request.isNotEmpty) {
+      return '${reason.label}: $request';
+    }
+    return reason.label;
+  }
+}
 
 enum ExpenseVisibility { privateAuthor, sharedFamily }
 

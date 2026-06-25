@@ -2152,25 +2152,36 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Oznacz jako sporne'));
     await tester.pumpAndSettle();
-    expect(find.text('Komentarz do sporu'), findsOneWidget);
+    expect(find.text('Powod sporu'), findsOneWidget);
+    await tester.tap(find.text('Brakuje dowodu'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('expense-dispute-request')),
+      'Dodaj paragon',
+    );
     await tester.enterText(
       find.byKey(const Key('expense-dispute-comment')),
-      'Brakuje potwierdzenia platnosci.',
+      'Bez dowodu trudno potwierdzic koszt.',
     );
     await tester.tap(find.text('Zapisz spor'));
     await tester.pumpAndSettle();
 
     expect(find.text('Wymaga wyjasnienia'), findsWidgets);
+    expect(find.text('Spor: Brakuje dowodu'), findsOneWidget);
     expect(expenses.single.status, ExpenseStatus.disputed);
-    expect(expenses.single.statusComment, 'Brakuje potwierdzenia platnosci.');
+    expect(
+      expenses.single.disputeDetails?.reason,
+      ExpenseDisputeReason.missingProof,
+    );
+    expect(expenses.single.disputeDetails?.correctionRequest, 'Dodaj paragon');
+    expect(expenses.single.statusComment, 'Brakuje dowodu: Dodaj paragon');
 
     await tester.tap(find.text('Kolonie'));
     await tester.pumpAndSettle();
     expect(find.text('Potwierdz po wyjasnieniu'), findsOneWidget);
-    expect(
-      find.textContaining('Brakuje potwierdzenia platnosci.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Sporne: brakuje dowodu.'), findsWidgets);
+    expect(find.textContaining('Prosba: Dodaj paragon.'), findsWidgets);
+    expect(find.text('Dodaj dowod'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Potwierdz po wyjasnieniu'));
     await tester.pumpAndSettle();
@@ -2179,6 +2190,8 @@ void main() {
 
     expect(find.text('Zaakceptowany'), findsWidgets);
     expect(expenses.single.status, ExpenseStatus.accepted);
+    expect(expenses.single.disputeDetails, isNull);
+    expect(expenses.single.statusComment, isNull);
   });
 
   testWidgets('dashboard shows empty state and CTA opens add expense', (
@@ -3071,6 +3084,10 @@ void main() {
                   isCurrentUser: false,
                 ),
                 status: ExpenseStatus.disputed,
+                disputeDetails: const ExpenseDisputeDetails(
+                  reason: ExpenseDisputeReason.wrongAmount,
+                  correctionRequest: 'Popraw kwote',
+                ),
                 attachment: const ExpenseAttachment(
                   fileName: 'faktura.pdf',
                   contentType: 'application/pdf',
@@ -3125,6 +3142,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Wymaga wyjasnienia'), findsWidgets);
+    expect(find.textContaining('spor: Kwota sie nie zgadza'), findsOneWidget);
+    expect(find.textContaining('prosba: Popraw kwote'), findsOneWidget);
     expect(find.text('Do akceptacji'), findsWidgets);
     expect(find.text('Rozliczone'), findsWidgets);
     expect(find.text('20,00 PLN'), findsWidgets);
@@ -3153,6 +3172,10 @@ void main() {
     expect(find.text('kidcost-report-2026-06.csv'), findsOneWidget);
     expect(find.textContaining('"typ_dowodu"'), findsOneWidget);
     expect(find.textContaining('"2026-06-20","Lekarz"'), findsOneWidget);
+    expect(
+      find.textContaining('"Kwota sie nie zgadza","Popraw kwote"'),
+      findsOneWidget,
+    );
     expect(find.textContaining('"Faktura imienna"'), findsOneWidget);
   });
 
@@ -3741,6 +3764,7 @@ ExpenseEntry testExpense({
     isCurrentUser: true,
   ),
   ExpenseStatus status = ExpenseStatus.pending,
+  ExpenseDisputeDetails? disputeDetails,
   ExpenseVisibility visibility = ExpenseVisibility.sharedFamily,
   ExpenseAttachment? attachment,
   ExpenseCalendarEventLink? calendarEvent,
@@ -3761,6 +3785,7 @@ ExpenseEntry testExpense({
     paidBy: paidBy,
     title: title,
     status: status,
+    disputeDetails: disputeDetails,
     visibility: visibility,
     createdAt: DateTime.utc(2026, 6, 24),
     attachment: attachment,

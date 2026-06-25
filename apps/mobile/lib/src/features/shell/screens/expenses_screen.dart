@@ -456,6 +456,9 @@ class _ExpenseCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _ExpenseStatusBadge(status: expense.status),
+                if (expense.status == ExpenseStatus.disputed &&
+                    expense.disputeDetails != null)
+                  _DisputeReasonBadge(details: expense.disputeDetails!),
                 _ExpenseVisibilityBadge(visibility: expense.visibility),
                 if (expense.isPayProviderRequest)
                   _ProviderPaymentBadge(details: expense.providerPayment!),
@@ -488,7 +491,7 @@ class _ExpenseCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 12),
-                  _ExpenseStatusPanel(status: expense.status),
+                  _ExpenseStatusPanel(expense: expense),
                   if (expense.isPayProviderRequest) ...[
                     const SizedBox(height: 12),
                     _ProviderPaymentPanel(details: expense.providerPayment!),
@@ -739,13 +742,15 @@ class _ReimbursementDeadlineBadge extends StatelessWidget {
 }
 
 class _ExpenseStatusPanel extends StatelessWidget {
-  const _ExpenseStatusPanel({required this.status});
+  const _ExpenseStatusPanel({required this.expense});
 
-  final ExpenseStatus status;
+  final ExpenseEntry expense;
 
   @override
   Widget build(BuildContext context) {
+    final status = expense.status;
     final color = status.accentColor;
+    final disputeDetails = expense.disputeDetails;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
@@ -760,7 +765,48 @@ class _ExpenseStatusPanel extends StatelessWidget {
             _ExpenseStatusBadge(status: status),
             const SizedBox(height: 8),
             Text(status.description),
+            if (status == ExpenseStatus.disputed && disputeDetails != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                disputeDetails.summaryText,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ActionChip(
+                  avatar: const Icon(Icons.task_alt_outlined, size: 18),
+                  label: Text(disputeDetails.reason.responseCta),
+                  onPressed: () {},
+                ),
+              ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DisputeReasonBadge extends StatelessWidget {
+  const _DisputeReasonBadge({required this.details});
+
+  final ExpenseDisputeDetails details;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.error;
+    return Semantics(
+      container: true,
+      label: 'Powod sporu: ${details.reason.label}',
+      child: ExcludeSemantics(
+        child: Chip(
+          avatar: Icon(Icons.rule_outlined, color: color, size: 18),
+          label: Text('Spor: ${details.reason.label}'),
+          side: BorderSide(color: color.withValues(alpha: 0.32)),
+          backgroundColor: color.withValues(alpha: 0.1),
+          labelStyle: TextStyle(color: color),
+          visualDensity: VisualDensity.compact,
         ),
       ),
     );
@@ -984,13 +1030,14 @@ class _StatusActionsSection extends StatelessWidget {
       return;
     }
 
-    final comment = action.requiresComment
-        ? await _askForDisputeComment(context)
+    final disputeDetails = action.requiresComment
+        ? await _askForDisputeDetails(context)
         : null;
+    final comment = disputeDetails?.transitionComment;
     if (!context.mounted) {
       return;
     }
-    if (action.requiresComment && comment == null) {
+    if (action.requiresComment && disputeDetails == null) {
       return;
     }
     if (!_isStatusTransitionAllowed(action.targetStatus, comment: comment)) {
@@ -1001,7 +1048,13 @@ class _StatusActionsSection extends StatelessWidget {
     }
 
     onExpenseChanged!(
-      expense.copyWith(status: action.targetStatus, statusComment: comment),
+      expense.copyWith(
+        status: action.targetStatus,
+        statusComment: comment,
+        disputeDetails: disputeDetails,
+        clearStatusComment: action.targetStatus != ExpenseStatus.disputed,
+        clearDisputeDetails: action.targetStatus != ExpenseStatus.disputed,
+      ),
     );
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1028,40 +1081,114 @@ class _StatusActionsSection extends StatelessWidget {
     );
   }
 
-  Future<String?> _askForDisputeComment(BuildContext context) async {
+  Future<ExpenseDisputeDetails?> _askForDisputeDetails(
+    BuildContext context,
+  ) async {
+    var selectedReason = ExpenseDisputeReason.missingProof;
+    var correctionRequest = '';
     var comment = '';
-    return showDialog<String>(
+    return showModalBottomSheet<ExpenseDisputeDetails>(
       context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Komentarz do sporu'),
-          content: TextField(
-            key: const Key('expense-dispute-comment'),
-            autofocus: true,
-            minLines: 2,
-            maxLines: 4,
-            onChanged: (value) => comment = value,
-            decoration: const InputDecoration(
-              labelText: 'Co wymaga wyjasnienia?',
-              hintText: 'Np. brakuje potwierdzenia platnosci',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Anuluj'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final normalizedComment = comment.trim();
-                if (normalizedComment.isEmpty) {
-                  return;
-                }
-                Navigator.of(context).pop(normalizedComment);
-              },
-              child: const Text('Zapisz spor'),
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Powod sporu',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Wybierz jeden konkretny powod, zeby druga strona wiedziala, co poprawic.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final reason in ExpenseDisputeReason.values)
+                            ChoiceChip(
+                              key: Key('expense-dispute-reason-${reason.id}'),
+                              label: Text(reason.label),
+                              selected: selectedReason == reason,
+                              onSelected: (_) {
+                                setModalState(() => selectedReason = reason);
+                              },
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        key: const Key('expense-dispute-request'),
+                        minLines: 1,
+                        maxLines: 2,
+                        onChanged: (value) => correctionRequest = value,
+                        decoration: InputDecoration(
+                          labelText: 'O co prosisz?',
+                          hintText: selectedReason.requestHint,
+                          prefixIcon: const Icon(Icons.task_alt_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        key: const Key('expense-dispute-comment'),
+                        minLines: 2,
+                        maxLines: 4,
+                        onChanged: (value) => comment = value,
+                        decoration: const InputDecoration(
+                          labelText: 'Dodatkowy komentarz (opcjonalnie)',
+                          hintText: 'Krotko i rzeczowo, bez pelnego czatu',
+                          prefixIcon: Icon(Icons.notes_outlined),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            child: const Text('Anuluj'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: () {
+                              Navigator.of(context).pop(
+                                ExpenseDisputeDetails(
+                                  reason: selectedReason,
+                                  correctionRequest:
+                                      correctionRequest.trim().isEmpty
+                                      ? null
+                                      : correctionRequest.trim(),
+                                  comment: comment.trim().isEmpty
+                                      ? null
+                                      : comment.trim(),
+                                ),
+                              );
+                            },
+                            child: const Text('Zapisz spor'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -1374,6 +1501,8 @@ class _StatusHistoryPlaceholder extends StatelessWidget {
       subtitle: Text(
         [
           expense.status.historyPlaceholder,
+          if (expense.disputeDetails != null)
+            expense.disputeDetails!.summaryText,
           if (expense.statusComment != null)
             'Komentarz: ${expense.statusComment}',
         ].join('\n'),
