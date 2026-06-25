@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:kidcost_mobile/src/app.dart';
 import 'package:kidcost_mobile/src/features/auth/auth_repository.dart';
+import 'package:kidcost_mobile/src/features/child_info/child_info_models.dart';
 import 'package:kidcost_mobile/src/features/custody/custody_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
@@ -14,6 +15,7 @@ import 'package:kidcost_mobile/src/features/shell/screens/add_expense_screen.dar
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/family_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/monthly_cost_plan_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/settings_screen.dart';
@@ -610,6 +612,72 @@ void main() {
     expect(exportRequests, 1);
   });
 
+  testWidgets('family screen creates and edits child info cards', (
+    WidgetTester tester,
+  ) async {
+    var cards = <ChildInfoCard>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              return FamilyScreen(
+                profile: testProfile(),
+                childInfoCards: cards,
+                onChildInfoCardsChanged: (updatedCards) {
+                  setState(() => cards = updatedCards);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Karty informacji dziecka'), findsOneWidget);
+    await tester.tap(find.text('Dodaj karte informacji'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('child-info-type-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Opieka medyczna/ubezpieczenie').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('child-info-title-field')),
+      'Ubezpieczenie NFZ',
+    );
+    await tester.enterText(
+      find.byKey(const Key('child-info-note-field')),
+      'Numer polisy trzymamy w profilu dziecka.',
+    );
+    await tester.tap(find.text('Wspoldzielona w rodzinie'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz karte'));
+    await tester.pumpAndSettle();
+
+    expect(cards, hasLength(1));
+    expect(cards.single.isShared, isFalse);
+    expect(find.text('Ubezpieczenie NFZ'), findsOneWidget);
+    expect(find.textContaining('Prywatna'), findsOneWidget);
+
+    await tester.tap(find.text('Ubezpieczenie NFZ'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('child-info-title-field')),
+      'Ubezpieczenie i lekarz',
+    );
+    await tester.tap(find.text('Wspoldzielona w rodzinie'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapisz karte'));
+    await tester.pumpAndSettle();
+
+    expect(cards, hasLength(1));
+    expect(cards.single.title, 'Ubezpieczenie i lekarz');
+    expect(cards.single.isShared, isTrue);
+    expect(find.text('Ubezpieczenie i lekarz'), findsOneWidget);
+    expect(find.textContaining('Wspoldzielona'), findsOneWidget);
+  });
+
   testWidgets('premium discovery stays calm and dismissible', (
     WidgetTester tester,
   ) async {
@@ -926,6 +994,64 @@ void main() {
     expect(savedExpense!.calendarEventId, 'custody-2026-06-24');
     expect(savedExpense!.calendarEventTitle, 'Opieka: Drugi rodzic');
     expect(savedExpense!.calendarEventDate, '2026-06-24');
+  });
+
+  testWidgets('add expense can link a child info context card', (
+    WidgetTester tester,
+  ) async {
+    ExpenseEntry? savedExpense;
+    final medicalCard = ChildInfoCard(
+      id: 'medical-1',
+      type: ChildInfoCardType.medical,
+      title: 'Ubezpieczenie i lekarz',
+      note: 'Pediatra i numer ubezpieczenia sa w profilu dziecka.',
+      isShared: true,
+      updatedAt: DateTime.utc(2026, 6, 20),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            attachmentStorage: InMemoryAttachmentStorage(),
+            childInfoCards: [medicalCard],
+            onExpenseSaved: (expense) => savedExpense = expense,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).at(0), '120');
+    await tester.ensureVisible(find.text('Lekarze i leki'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lekarze i leki'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Podpowiedz z kart dziecka'), findsOneWidget);
+    expect(find.textContaining('Ubezpieczenie i lekarz'), findsWidgets);
+
+    await tester.tap(find.byKey(const Key('expense-child-info-card-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Ubezpieczenie i lekarz').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(savedExpense, isNotNull);
+    expect(savedExpense!.childInfoCardId, 'medical-1');
+    expect(savedExpense!.childInfoCard?.title, 'Ubezpieczenie i lekarz');
+    expect(
+      savedExpense!.childInfoCard?.typeLabel,
+      'Opieka medyczna/ubezpieczenie',
+    );
+    expect(savedExpense!.childInfoCard?.isShared, isTrue);
   });
 
   testWidgets('add expense previews shared agreement rules and thresholds', (
@@ -1401,6 +1527,12 @@ void main() {
                     buyerNamePresent: true,
                   ),
                 ),
+                childInfoCard: const ChildInfoCardLink(
+                  id: 'medical-1',
+                  typeLabel: 'Opieka medyczna/ubezpieczenie',
+                  title: 'Ubezpieczenie i lekarz',
+                  isShared: true,
+                ),
               ),
               testExpense(
                 id: '2',
@@ -1428,6 +1560,14 @@ void main() {
     expect(find.text('Faktura imienna'), findsOneWidget);
     expect(find.text('Apteka Testowa'), findsOneWidget);
     expect(find.text('FV/20/06'), findsOneWidget);
+    expect(
+      find.text('Kontekst dziecka: Ubezpieczenie i lekarz'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Tresc zostaje w profilu dziecka'),
+      findsOneWidget,
+    );
     expect(find.textContaining('nie jest porada prawna'), findsOneWidget);
     expect(find.text('Twoja rola: autor kosztu'), findsOneWidget);
     expect(find.text('Edytuj koszt'), findsOneWidget);
@@ -2623,6 +2763,7 @@ ExpenseEntry testExpense({
   ExpenseVisibility visibility = ExpenseVisibility.sharedFamily,
   ExpenseAttachment? attachment,
   ExpenseCalendarEventLink? calendarEvent,
+  ChildInfoCardLink? childInfoCard,
 }) {
   return ExpenseEntry(
     id: id,
@@ -2637,6 +2778,7 @@ ExpenseEntry testExpense({
     createdAt: DateTime.utc(2026, 6, 24),
     attachment: attachment,
     calendarEvent: calendarEvent,
+    childInfoCard: childInfoCard,
   );
 }
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../child_info/child_info_models.dart';
 import '../custody/custody_models.dart';
 import '../expenses/attachment_storage.dart';
 import '../expenses/expense_models.dart';
@@ -59,6 +60,7 @@ class KidCostShell extends StatefulWidget {
 class _KidCostShellState extends State<KidCostShell> {
   int _selectedIndex = 0;
   ExpenseTemplate? _pendingTemplate;
+  List<ChildInfoCard> _childInfoCards = const [];
   final Set<PremiumDiscoveryPoint> _dismissedPremiumHints = {};
 
   @override
@@ -119,6 +121,7 @@ class _KidCostShellState extends State<KidCostShell> {
         initialTemplate: _pendingTemplate,
         currentDate: widget.currentDate,
         calendarEvents: calendarEventsFromCustodyDays(widget.custodyDays),
+        childInfoCards: _childInfoCards,
         showReceiptOcrPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.receiptOcr,
         ),
@@ -175,7 +178,13 @@ class _KidCostShellState extends State<KidCostShell> {
       label: 'Rodzina',
       icon: Icons.group_outlined,
       selectedIcon: Icons.group,
-      screen: FamilyScreen(profile: widget.onboardingProfile),
+      screen: FamilyScreen(
+        profile: widget.onboardingProfile,
+        childInfoCards: _childInfoCards,
+        onChildInfoCardsChanged: (cards) {
+          setState(() => _childInfoCards = List.unmodifiable(cards));
+        },
+      ),
     ),
     _Destination(
       label: 'Kosztorys',

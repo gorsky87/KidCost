@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
+import '../../child_info/child_info_models.dart';
 import '../../expenses/attachment_storage.dart';
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
@@ -19,6 +20,7 @@ class AddExpenseScreen extends StatefulWidget {
     this.initialTemplate,
     this.currentDate,
     this.calendarEvents = const [],
+    this.childInfoCards = const [],
     this.showReceiptOcrPremiumHint = false,
     this.onPremiumHintDismissed,
     super.key,
@@ -31,6 +33,7 @@ class AddExpenseScreen extends StatefulWidget {
   final ExpenseTemplate? initialTemplate;
   final DateTime? currentDate;
   final List<ExpenseCalendarEventLink> calendarEvents;
+  final List<ChildInfoCard> childInfoCards;
   final bool showReceiptOcrPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
@@ -65,6 +68,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool _isSaving = false;
   bool _attachmentFailedOnLastSave = false;
   String? _calendarEventId;
+  String? _childInfoCardId;
   String? _amountError;
   String? _dateError;
   String? _payerError;
@@ -194,6 +198,38 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               setState(() => _category = category);
             },
           ),
+          if (widget.childInfoCards.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            if (_suggestedChildInfoCards.isNotEmpty) ...[
+              _ChildInfoSuggestionCard(cards: _suggestedChildInfoCards),
+              const SizedBox(height: 8),
+            ],
+            DropdownButtonFormField<String?>(
+              key: const Key('expense-child-info-card-picker'),
+              initialValue: _childInfoCardId,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Kontekst dziecka',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Bez karty informacji'),
+                ),
+                for (final card in widget.childInfoCards)
+                  DropdownMenuItem<String?>(
+                    value: card.id,
+                    child: Text(
+                      '${card.type.label}: ${card.title} (${card.visibilityLabel})',
+                    ),
+                  ),
+              ],
+              onChanged: _isSaving
+                  ? null
+                  : (cardId) => setState(() => _childInfoCardId = cardId),
+            ),
+          ],
           const SizedBox(height: 12),
           _SharedExpenseRuleCard(decision: _currentAgreementDecision),
           const SizedBox(height: 12),
@@ -478,6 +514,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       });
     }
 
+    if (!mounted) return;
     if (_usesForeignReceiptCurrency) {
       final confirmed = await showDialog<bool>(
         context: context,
@@ -565,6 +602,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ? null
           : _receiptCurrency,
       calendarEvent: _selectedCalendarEvent,
+      childInfoCard: _selectedChildInfoCard?.toLink(),
     );
 
     widget.onExpenseSaved(expense);
@@ -580,6 +618,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _receiptCurrency = widget.profile.familyCurrency;
       _originalReceiptAmountController.clear();
       _calendarEventId = null;
+      _childInfoCardId = null;
       _attachmentDraft = null;
       _clearEvidenceFields();
       _ocrDraftNeedsReview = false;
@@ -653,6 +692,24 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       }
     }
     return null;
+  }
+
+  ChildInfoCard? get _selectedChildInfoCard {
+    final selectedId = _childInfoCardId;
+    if (selectedId == null) return null;
+    for (final card in widget.childInfoCards) {
+      if (card.id == selectedId) {
+        return card;
+      }
+    }
+    return null;
+  }
+
+  List<ChildInfoCard> get _suggestedChildInfoCards {
+    return suggestedChildInfoCardsForExpenseCategory(
+      expenseCategoryId: _category.id,
+      cards: widget.childInfoCards,
+    );
   }
 
   int? get _originalReceiptAmountCents {
@@ -917,6 +974,24 @@ class _CalendarEventLinkCard extends StatelessWidget {
         subtitle: Text(
           'Koszt pojawi sie na szczegolach wydarzenia z dnia ${event.eventDate}.',
         ),
+      ),
+    );
+  }
+}
+
+class _ChildInfoSuggestionCard extends StatelessWidget {
+  const _ChildInfoSuggestionCard({required this.cards});
+
+  final List<ChildInfoCard> cards;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = cards.map((card) => card.title).join(', ');
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.tips_and_updates_outlined),
+        title: const Text('Podpowiedz z kart dziecka'),
+        subtitle: Text('Do tej kategorii pasuje: $labels.'),
       ),
     );
   }

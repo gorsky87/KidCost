@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../child_info/child_info_models.dart';
+
 class ExpenseCategory {
   const ExpenseCategory({required this.id, required this.label});
 
@@ -56,6 +58,7 @@ class ExpenseEntry {
     this.originalReceiptAmountCents,
     this.originalReceiptCurrency,
     this.calendarEvent,
+    this.childInfoCard,
   });
 
   final String id;
@@ -75,10 +78,12 @@ class ExpenseEntry {
   final int? originalReceiptAmountCents;
   final String? originalReceiptCurrency;
   final ExpenseCalendarEventLink? calendarEvent;
+  final ChildInfoCardLink? childInfoCard;
 
   String? get calendarEventId => calendarEvent?.id;
   String? get calendarEventTitle => calendarEvent?.title;
   String? get calendarEventDate => calendarEvent?.eventDate;
+  String? get childInfoCardId => childInfoCard?.id;
 
   bool get hasOriginalReceiptAmount =>
       originalReceiptAmountCents != null &&
@@ -111,6 +116,7 @@ class ExpenseEntry {
     int? originalReceiptAmountCents,
     String? originalReceiptCurrency,
     ExpenseCalendarEventLink? calendarEvent,
+    ChildInfoCardLink? childInfoCard,
   }) {
     return ExpenseEntry(
       id: id,
@@ -132,6 +138,7 @@ class ExpenseEntry {
       originalReceiptCurrency:
           originalReceiptCurrency ?? this.originalReceiptCurrency,
       calendarEvent: calendarEvent ?? this.calendarEvent,
+      childInfoCard: childInfoCard ?? this.childInfoCard,
     );
   }
 }

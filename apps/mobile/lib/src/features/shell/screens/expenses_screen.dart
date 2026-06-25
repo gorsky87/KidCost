@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
+import '../../child_info/child_info_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
 import '../../premium/premium_discovery.dart';
@@ -445,6 +446,10 @@ class _ExpenseCard extends StatelessWidget {
                     value: expense.visibility.description,
                   ),
                   _DetailRow(label: 'Data', value: expense.expenseDate),
+                  if (expense.childInfoCard != null) ...[
+                    const SizedBox(height: 8),
+                    _ChildInfoCardContext(link: expense.childInfoCard!),
+                  ],
                   if (!expense.status.canEdit)
                     const ListTile(
                       contentPadding: EdgeInsets.zero,
@@ -534,6 +539,27 @@ class _ExpenseStatusPanel extends StatelessWidget {
             const SizedBox(height: 8),
             Text(status.description),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChildInfoCardContext extends StatelessWidget {
+  const _ChildInfoCardContext({required this.link});
+
+  final ChildInfoCardLink link;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Icon(
+          link.isShared ? Icons.badge_outlined : Icons.lock_outline,
+        ),
+        title: Text('Kontekst dziecka: ${link.title}'),
+        subtitle: Text(
+          '${link.typeLabel} - karta ${link.visibilityLabel}. Tresc zostaje w profilu dziecka.',
         ),
       ),
     );
