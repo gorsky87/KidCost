@@ -1446,6 +1446,10 @@ class MonthlyExpenseReport {
         'typ_dowodu',
         'kwota_pln',
         'oryginalna_kwota_paragonu',
+        'pozycje_rachunku',
+        'suma_pozycji',
+        'reimbursable_pozycje',
+        'roznica_pozycji',
       ],
       for (final expense in expenses)
         [
@@ -1472,7 +1476,41 @@ class MonthlyExpenseReport {
           expense.attachment?.evidence?.type?.label ?? '',
           formatCents(expense.amountCents),
           expense.originalReceiptAmountLabel ?? '',
+          expense.lineItems.length.toString(),
+          expense.hasLineItems ? formatCents(expense.lineItemsTotalCents) : '',
+          expense.hasLineItems
+              ? formatCents(expense.lineItemsReimbursableCents)
+              : '',
+          expense.hasLineItems
+              ? formatCents(expense.lineItemsDifferenceCents)
+              : '',
         ],
+      if (expenses.any((expense) => expense.hasLineItems)) ...[
+        const <String>[],
+        ['sekcja', 'pozycje_rachunku'],
+        const [
+          'expense_id',
+          'expense_title',
+          'description',
+          'child',
+          'category',
+          'amount',
+          'reimbursable',
+          'split_override',
+        ],
+        for (final expense in expenses)
+          for (final item in expense.lineItems)
+            [
+              expense.id,
+              expense.title,
+              item.description,
+              item.childName,
+              item.category.label,
+              item.amountLabel,
+              item.isReimbursable ? 'tak' : 'nie',
+              item.splitPercent?.toString() ?? '',
+            ],
+      ],
       if (polishContext != null) ...[
         const <String>[],
         ['sekcja', 'zalozenia_i_swiadczenia_pl'],

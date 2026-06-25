@@ -103,6 +103,8 @@ const _allowedParameterKeys = {
   'to_status',
   'actor',
   'has_attachment',
+  'has_line_items',
+  'line_item_count',
   'has_status_comment',
   'content_type',
   'invitation_skipped',

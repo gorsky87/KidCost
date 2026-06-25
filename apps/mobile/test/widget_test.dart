@@ -260,6 +260,8 @@ void main() {
       'from_status': 'pending',
       'to_status': 'accepted',
       'actor': 'counterparty',
+      'has_line_items': true,
+      'line_item_count': 2,
       'has_status_comment': false,
       'email': 'parent@example.com',
       'child_name': 'Antek',
@@ -310,6 +312,8 @@ void main() {
       'from_status': 'pending',
       'to_status': 'accepted',
       'actor': 'counterparty',
+      'has_line_items': true,
+      'line_item_count': 2,
       'has_status_comment': false,
       'content_type': 'application/pdf',
       'release_channel': 'beta',
@@ -1374,6 +1378,114 @@ void main() {
     expect(savedExpense!.originalReceiptAmountLabel, '25,50 EUR');
   });
 
+  testWidgets('add expense saves reconciled line items for one receipt', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 2200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    ExpenseEntry? savedExpense;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            currentDate: DateTime.utc(2026, 6, 24),
+            attachmentStorage: InMemoryAttachmentStorage(),
+            onExpenseSaved: (expense) => savedExpense = expense,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).first, '120');
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('expense-title-field')),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.enterText(
+      find.byKey(const Key('expense-title-field')),
+      'Paragon szkolny',
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('add-expense-line-item-button')),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    await tester.tap(find.byKey(const Key('add-expense-line-item-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('line-item-description-field')),
+      'Zeszyty i papier',
+    );
+    await tester.enterText(
+      find.byKey(const Key('line-item-amount-field')),
+      '50',
+    );
+    await tester.tap(find.byKey(const Key('save-line-item-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('add-expense-line-item-button')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('line-item-description-field')),
+      'Leki po wizycie',
+    );
+    await tester.enterText(
+      find.byKey(const Key('line-item-amount-field')),
+      '70',
+    );
+    await tester.tap(find.byKey(const Key('line-item-category-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lekarze i leki').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('line-item-reimbursable-switch')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('line-item-split-field')),
+      '60',
+    );
+    await tester.tap(find.byKey(const Key('save-line-item-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Suma pozycji'), findsOneWidget);
+    expect(find.text('120,00 PLN'), findsWidgets);
+    expect(find.text('Zgodne z kosztem'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(savedExpense, isNotNull);
+    expect(savedExpense!.lineItems, hasLength(2));
+    expect(savedExpense!.lineItemsTotalCents, 12000);
+    expect(savedExpense!.lineItemsReimbursableCents, 5000);
+    expect(savedExpense!.lineItemsDifferenceCents, 0);
+    expect(savedExpense!.lineItems.first.category.label, 'Jedzenie');
+    expect(savedExpense!.lineItems.last.category.label, 'Lekarze i leki');
+    expect(savedExpense!.lineItems.last.isReimbursable, isFalse);
+    expect(savedExpense!.lineItems.last.splitPercent, 60);
+
+    final report = MonthlyExpenseReport.fromExpenses(
+      month: '2026-06',
+      expenses: [savedExpense!],
+    );
+    final csv = report.toCsv();
+    expect(csv, contains('"pozycje_rachunku"'));
+    expect(csv, contains('"Paragon szkolny","Zeszyty i papier"'));
+    expect(csv, contains('"Paragon szkolny","Leki po wizycie"'));
+    expect(csv, contains('"Lekarze i leki","70,00 PLN","nie","60"'));
+  });
+
   testWidgets('add expense saves reimbursement deadline dates', (
     WidgetTester tester,
   ) async {
@@ -1993,6 +2105,10 @@ void main() {
   testWidgets('optional PDF attachment is saved with the expense', (
     WidgetTester tester,
   ) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpSignedInOnboardedApp(tester);
     await tester.tap(find.text('Dodaj'));
     await tester.pumpAndSettle();
@@ -2000,9 +2116,18 @@ void main() {
     await tester.enterText(find.byType(TextField).at(0), '40');
     await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
     await tester.enterText(find.byType(TextField).at(2), 'Faktura');
-    await tester.ensureVisible(find.text('Dodaj paragon lub PDF'));
+    final addAttachmentButton = find.widgetWithText(
+      OutlinedButton,
+      'Dodaj paragon lub PDF',
+    );
+    await tester.scrollUntilVisible(
+      addAttachmentButton,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(addAttachmentButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Dodaj paragon lub PDF'));
+    await tester.tap(addAttachmentButton);
     await tester.pumpAndSettle();
     expect(find.text('Aparat'), findsOneWidget);
     expect(find.text('Galeria'), findsOneWidget);
@@ -2057,6 +2182,10 @@ void main() {
   testWidgets('attachment upload failure keeps the expense saved', (
     WidgetTester tester,
   ) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(
       KidCostApp(
         authRepository: InMemoryAuthRepository(),
@@ -2075,9 +2204,18 @@ void main() {
     await tester.enterText(find.byType(TextField).at(0), '40');
     await tester.enterText(find.byType(TextField).at(1), '2026-06-24');
     await tester.enterText(find.byType(TextField).at(2), 'Faktura');
-    await tester.ensureVisible(find.text('Dodaj paragon lub PDF'));
+    final addAttachmentButton = find.widgetWithText(
+      OutlinedButton,
+      'Dodaj paragon lub PDF',
+    );
+    await tester.scrollUntilVisible(
+      addAttachmentButton,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(addAttachmentButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Dodaj paragon lub PDF'));
+    await tester.tap(addAttachmentButton);
     await tester.pumpAndSettle();
     await tester.tap(find.text('PDF'));
     await tester.pumpAndSettle();
@@ -4604,6 +4742,7 @@ ExpenseEntry testExpense({
       ReimbursementRequestKind.reimburseParent,
   ProviderPaymentDetails? providerPayment,
   ExpenseDraftReview? draftReview,
+  List<ExpenseLineItem> lineItems = const [],
 }) {
   return ExpenseEntry(
     id: id,
@@ -4626,6 +4765,7 @@ ExpenseEntry testExpense({
     reimbursementRequestKind: reimbursementRequestKind,
     providerPayment: providerPayment,
     draftReview: draftReview,
+    lineItems: lineItems,
   );
 }
 
