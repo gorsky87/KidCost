@@ -1325,6 +1325,108 @@ void main() {
     expect(find.text('30,00 PLN'), findsOneWidget);
   });
 
+  testWidgets('add expense saves service period and shows it separately', (
+    WidgetTester tester,
+  ) async {
+    ExpenseEntry? savedExpense;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KidCostTheme.light(),
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            attachmentStorage: InMemoryAttachmentStorage(),
+            currentDate: DateTime.utc(2026, 6, 24),
+            onExpenseSaved: (expense) => savedExpense = expense,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), '180');
+    await tester.enterText(
+      find.byKey(const Key('expense-title-field')),
+      'Obiady szkolne',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('expense-service-period-section')),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('expense-service-period-section')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      editableTextByKey(const Key('expense-service-start-field')),
+      '2026-09-01',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('expense-service-end-field')),
+      '2026-09-30',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('expense-service-quantity-field')),
+      '18 obiadow',
+    );
+    await tester.enterText(
+      editableTextByKey(const Key('expense-service-scope-field')),
+      'Stolowka szkolna za wrzesien',
+    );
+
+    await tester.scrollUntilVisible(
+      find.widgetWithText(FilledButton, 'Zapisz koszt'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+    await tester.pumpAndSettle();
+
+    expect(savedExpense, isNotNull);
+    expect(savedExpense!.expenseDate, '2026-06-24');
+    expect(savedExpense!.servicePeriod?.startDate, '2026-09-01');
+    expect(savedExpense!.servicePeriod?.endDate, '2026-09-30');
+    expect(savedExpense!.servicePeriod?.quantityLabel, '18 obiadow');
+    expect(
+      savedExpense!.servicePeriod?.scopeNote,
+      'Stolowka szkolna za wrzesien',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KidCostTheme.light(),
+        home: Scaffold(body: ExpensesScreen(expenses: [savedExpense!])),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Data platnosci: 2026-06-24'), findsOneWidget);
+    expect(
+      find.textContaining('Okres uslugi: 2026-09-01 - 2026-09-30'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Obiady szkolne'));
+    await tester.pumpAndSettle();
+    expect(find.text('Data platnosci'), findsOneWidget);
+    expect(find.text('Okres i zakres uslugi'), findsOneWidget);
+    expect(find.text('Stolowka szkolna za wrzesien'), findsOneWidget);
+
+    final report = MonthlyExpenseReport.fromExpenses(
+      month: '2026-06',
+      expenses: [savedExpense!],
+    );
+    final csv = report.toCsv();
+    expect(csv, contains('"service_start","service_end","service_quantity"'));
+    expect(
+      csv,
+      contains(
+        '"2026-09-01","2026-09-30","18 obiadow","Stolowka szkolna za wrzesien"',
+      ),
+    );
+  });
+
   testWidgets('add expense keeps foreign receipt currency informational', (
     WidgetTester tester,
   ) async {
@@ -4942,6 +5044,7 @@ ExpenseEntry testExpense({
       ReimbursementRequestKind.reimburseParent,
   ProviderPaymentDetails? providerPayment,
   ExpenseDraftReview? draftReview,
+  ExpenseServicePeriod? servicePeriod,
   List<ExpenseLineItem> lineItems = const [],
 }) {
   return ExpenseEntry(
@@ -4965,6 +5068,7 @@ ExpenseEntry testExpense({
     reimbursementRequestKind: reimbursementRequestKind,
     providerPayment: providerPayment,
     draftReview: draftReview,
+    servicePeriod: servicePeriod,
     lineItems: lineItems,
   );
 }

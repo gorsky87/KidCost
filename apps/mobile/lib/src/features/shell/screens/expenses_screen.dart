@@ -889,7 +889,9 @@ class _ExpenseCard extends StatelessWidget {
               [
                 expense.category.label,
                 expense.childName,
-                expense.expenseDate,
+                'Data platnosci: ${expense.expenseDate}',
+                if (expense.hasServicePeriod)
+                  'Okres uslugi: ${expense.servicePeriod!.summaryLabel}',
                 'Zaplacil: ${expense.paidBy.label}',
                 if (expense.paidBy.isManual) 'platnik bez konta',
                 expense.visibility.label,
@@ -996,7 +998,12 @@ class _ExpenseCard extends StatelessWidget {
                     label: 'Widocznosc',
                     value: expense.visibility.description,
                   ),
-                  _DetailRow(label: 'Data', value: expense.expenseDate),
+                  _DetailRow(
+                    label: 'Data platnosci',
+                    value: expense.expenseDate,
+                  ),
+                  if (expense.hasServicePeriod)
+                    _ServicePeriodDetails(period: expense.servicePeriod!),
                   if (expense.childInfoCard != null) ...[
                     const SizedBox(height: 8),
                     _ChildInfoCardContext(link: expense.childInfoCard!),
@@ -1076,6 +1083,42 @@ String reimbursementDeadlineTimingLabelFor(
     case domain.ReimbursementDeadlineTimingState.noDates:
     case null:
       return 'Bez terminu';
+  }
+}
+
+class _ServicePeriodDetails extends StatelessWidget {
+  const _ServicePeriodDetails({required this.period});
+
+  final ExpenseServicePeriod period;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.date_range_outlined),
+              title: Text('Okres i zakres uslugi'),
+              subtitle: Text(
+                'To opisuje, co pokrywa koszt. Nie zmienia statusu akceptacji.',
+              ),
+            ),
+            if (period.startDate != null)
+              _DetailRow(label: 'Poczatek', value: period.startDate!),
+            if (period.endDate != null)
+              _DetailRow(label: 'Koniec', value: period.endDate!),
+            if (period.quantityLabel != null)
+              _DetailRow(label: 'Ilosc', value: period.quantityLabel!),
+            if (period.scopeNote != null)
+              _DetailRow(label: 'Zakres', value: period.scopeNote!),
+          ],
+        ),
+      ),
+    );
   }
 }
 

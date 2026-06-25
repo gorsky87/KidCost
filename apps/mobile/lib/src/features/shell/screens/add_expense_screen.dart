@@ -54,6 +54,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   final _amountController = TextEditingController();
   final _dateController = TextEditingController();
+  final _serviceStartController = TextEditingController();
+  final _serviceEndController = TextEditingController();
+  final _serviceQuantityController = TextEditingController();
+  final _serviceScopeController = TextEditingController();
   final _titleController = TextEditingController();
   final _manualPayerController = TextEditingController();
   final _serviceDateController = TextEditingController();
@@ -141,6 +145,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _documentNumberController.removeListener(_refreshDuplicatePreview);
     _amountController.dispose();
     _dateController.dispose();
+    _serviceStartController.dispose();
+    _serviceEndController.dispose();
+    _serviceQuantityController.dispose();
+    _serviceScopeController.dispose();
     _titleController.dispose();
     _manualPayerController.dispose();
     _serviceDateController.dispose();
@@ -392,6 +400,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               labelText: 'Opis lub nazwa kosztu',
               prefixIcon: Icon(Icons.notes_outlined),
             ),
+          ),
+          const SizedBox(height: 12),
+          _ServicePeriodFields(
+            startController: _serviceStartController,
+            endController: _serviceEndController,
+            quantityController: _serviceQuantityController,
+            scopeController: _serviceScopeController,
           ),
           const SizedBox(height: 12),
           _ExpenseLineItemsCard(
@@ -766,6 +781,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       originalReceiptCurrency: _originalReceiptAmountCents == null
           ? null
           : _receiptCurrency,
+      servicePeriod: _currentServicePeriod(),
       calendarEvent: _selectedCalendarEvent,
       childInfoCard: _selectedChildInfoCard?.toLink(),
       verification: _currentEvidenceMetadata(),
@@ -786,6 +802,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _amountController.clear();
       final currentDate = widget.currentDate ?? DateTime.now();
       _dateController.text = _formatDate(currentDate);
+      _serviceStartController.clear();
+      _serviceEndController.clear();
+      _serviceQuantityController.clear();
+      _serviceScopeController.clear();
       _titleController.clear();
       _category = expenseCategories.first;
       _payer = _payers.first;
@@ -1348,6 +1368,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     return metadata.hasDetails ? metadata : null;
   }
 
+  ExpenseServicePeriod? _currentServicePeriod() {
+    final servicePeriod = ExpenseServicePeriod(
+      startDate: _trimmedOrNull(_serviceStartController.text),
+      endDate: _trimmedOrNull(_serviceEndController.text),
+      quantityLabel: _trimmedOrNull(_serviceQuantityController.text),
+      scopeNote: _trimmedOrNull(_serviceScopeController.text),
+    );
+    return servicePeriod.hasDetails ? servicePeriod : null;
+  }
+
   String? _trimmedOrNull(String value) {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
@@ -1387,6 +1417,80 @@ class _CalendarEventLinkCard extends StatelessWidget {
           'Koszt pojawi sie na szczegolach wydarzenia z dnia ${event.eventDate}.',
         ),
       ),
+    );
+  }
+}
+
+class _ServicePeriodFields extends StatelessWidget {
+  const _ServicePeriodFields({
+    required this.startController,
+    required this.endController,
+    required this.quantityController,
+    required this.scopeController,
+  });
+
+  final TextEditingController startController;
+  final TextEditingController endController;
+  final TextEditingController quantityController;
+  final TextEditingController scopeController;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      key: const Key('expense-service-period-section'),
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.date_range_outlined),
+      title: const Text('Okres i zakres uslugi'),
+      subtitle: const Text('Opcjonalnie, gdy koszt pokrywa wiecej niz zakup.'),
+      children: [
+        TextField(
+          key: const Key('expense-service-start-field'),
+          controller: startController,
+          keyboardType: TextInputType.datetime,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Poczatek uslugi',
+            hintText: 'RRRR-MM-DD',
+            prefixIcon: Icon(Icons.event_available_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          key: const Key('expense-service-end-field'),
+          controller: endController,
+          keyboardType: TextInputType.datetime,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Koniec uslugi',
+            hintText: 'RRRR-MM-DD',
+            prefixIcon: Icon(Icons.event_busy_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          key: const Key('expense-service-quantity-field'),
+          controller: quantityController,
+          textInputAction: TextInputAction.next,
+          decoration: const InputDecoration(
+            labelText: 'Ilosc lub zakres',
+            hintText: 'np. 12 obiadow, 4 sesje, wrzesien',
+            prefixIcon: Icon(Icons.format_list_numbered_outlined),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          key: const Key('expense-service-scope-field'),
+          controller: scopeController,
+          textCapitalization: TextCapitalization.sentences,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Notatka zakresu',
+            hintText: 'Co dokladnie pokrywa platnosc',
+            prefixIcon: Icon(Icons.subject_outlined),
+          ),
+        ),
+      ],
     );
   }
 }

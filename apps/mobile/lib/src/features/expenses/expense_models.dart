@@ -68,6 +68,7 @@ class ExpenseEntry {
     this.reimbursementRequestKind = ReimbursementRequestKind.reimburseParent,
     this.providerPayment,
     this.draftReview,
+    this.servicePeriod,
     this.lineItems = const [],
   });
 
@@ -96,6 +97,7 @@ class ExpenseEntry {
   final ReimbursementRequestKind reimbursementRequestKind;
   final ProviderPaymentDetails? providerPayment;
   final ExpenseDraftReview? draftReview;
+  final ExpenseServicePeriod? servicePeriod;
   final List<ExpenseLineItem> lineItems;
 
   String? get calendarEventId => calendarEvent?.id;
@@ -116,6 +118,8 @@ class ExpenseEntry {
   bool get isArchivedDraft => draftReview?.archivedAt != null;
 
   bool get hasLineItems => lineItems.isNotEmpty;
+
+  bool get hasServicePeriod => servicePeriod?.hasDetails == true;
 
   int get lineItemsTotalCents =>
       lineItems.fold(0, (sum, item) => sum + item.amountCents);
@@ -184,6 +188,7 @@ class ExpenseEntry {
     ProviderPaymentDetails? providerPayment,
     ExpenseDraftReview? draftReview,
     bool clearDraftReview = false,
+    ExpenseServicePeriod? servicePeriod,
     List<ExpenseLineItem>? lineItems,
   }) {
     return ExpenseEntry(
@@ -220,8 +225,50 @@ class ExpenseEntry {
           reimbursementRequestKind ?? this.reimbursementRequestKind,
       providerPayment: providerPayment ?? this.providerPayment,
       draftReview: clearDraftReview ? null : draftReview ?? this.draftReview,
+      servicePeriod: servicePeriod ?? this.servicePeriod,
       lineItems: lineItems ?? this.lineItems,
     );
+  }
+}
+
+class ExpenseServicePeriod {
+  const ExpenseServicePeriod({
+    this.startDate,
+    this.endDate,
+    this.quantityLabel,
+    this.scopeNote,
+  });
+
+  final String? startDate;
+  final String? endDate;
+  final String? quantityLabel;
+  final String? scopeNote;
+
+  bool get hasDetails =>
+      startDate != null ||
+      endDate != null ||
+      quantityLabel != null ||
+      scopeNote != null;
+
+  String get periodLabel {
+    if (startDate != null && endDate != null) {
+      return '$startDate - $endDate';
+    }
+    if (startDate != null) {
+      return 'od $startDate';
+    }
+    if (endDate != null) {
+      return 'do $endDate';
+    }
+    return '';
+  }
+
+  String get summaryLabel {
+    return [
+      if (periodLabel.isNotEmpty) periodLabel,
+      ?quantityLabel,
+      ?scopeNote,
+    ].join(' • ');
   }
 }
 
