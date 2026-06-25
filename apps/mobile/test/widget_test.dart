@@ -4735,6 +4735,21 @@ void main() {
                   ),
                 ),
               ),
+              testExpense(
+                id: '3',
+                title: 'Okulary korekcyjne',
+                amountCents: 32000,
+                category: expenseCategories[3],
+                attachment: const ExpenseAttachment(
+                  fileName: 'okulary.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    merchant: 'Optyk Junior',
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -4743,11 +4758,31 @@ void main() {
 
     await tester.scrollUntilVisible(find.text('Przeglad dowodow raportu'), 180);
     expect(find.text('Przeglad dowodow raportu'), findsOneWidget);
-    expect(find.textContaining('1 z 1 dowodow dolaczonych'), findsOneWidget);
+    expect(find.textContaining('2 z 2 dowodow dolaczonych'), findsOneWidget);
     expect(
       find.textContaining('1 koszty w tym miesiacu nie maja dowodu'),
       findsOneWidget,
     );
+
+    final excludeAllButton = find.byKey(
+      const Key('report-proof-exclude-all-button'),
+    );
+    await tester.scrollUntilVisible(excludeAllButton, 180);
+    await tester.ensureVisible(excludeAllButton);
+    await tester.tap(excludeAllButton);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('0 z 2 dowodow dolaczonych'), findsOneWidget);
+    expect(find.textContaining('pominiety w raporcie'), findsNWidgets(2));
+
+    final includeAllButton = find.byKey(
+      const Key('report-proof-include-all-button'),
+    );
+    await tester.ensureVisible(includeAllButton);
+    await tester.tap(includeAllButton);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('2 z 2 dowodow dolaczonych'), findsOneWidget);
 
     final proofToggle = find.byKey(const Key('report-proof-proof-2'));
     await tester.scrollUntilVisible(proofToggle, 180);
@@ -4755,7 +4790,7 @@ void main() {
     await tester.tap(proofToggle);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('0 z 1 dowodow dolaczonych'), findsOneWidget);
+    expect(find.textContaining('1 z 2 dowodow dolaczonych'), findsOneWidget);
     expect(find.textContaining('pominiety w raporcie'), findsOneWidget);
 
     await tester.scrollUntilVisible(

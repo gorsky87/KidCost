@@ -3025,6 +3025,38 @@ class _ReportProofReviewCard extends StatelessWidget {
                 missingProofCount: missingProofCount,
               )
             else ...[
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    key: const Key('report-proof-include-all-button'),
+                    onPressed: includedCount == proofs.length
+                        ? null
+                        : () {
+                            for (final proof in proofs) {
+                              onProofIncludedChanged(proof.id, true);
+                            }
+                          },
+                    icon: const Icon(Icons.select_all_outlined),
+                    label: const Text('Dolacz wszystkie'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('report-proof-exclude-all-button'),
+                    onPressed: includedCount == 0
+                        ? null
+                        : () {
+                            for (final proof in proofs) {
+                              onProofIncludedChanged(proof.id, false);
+                            }
+                          },
+                    icon: const Icon(Icons.deselect_outlined),
+                    label: const Text('Pomin wszystkie'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               for (final proof in proofs)
                 CheckboxListTile(
                   key: Key('report-proof-${proof.id}'),
