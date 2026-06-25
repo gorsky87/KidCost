@@ -2823,6 +2823,19 @@ void main() {
                   ),
                 ),
               ),
+              testExpense(
+                id: 'retry',
+                title: 'Paragon do ponowienia',
+                attachment: const ExpenseAttachment(
+                  fileName: 'retry.jpg',
+                  contentType: 'image/jpeg',
+                  status: AttachmentStatus.failed,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.receipt,
+                    merchant: 'Apteka Testowa',
+                  ),
+                ),
+              ),
               testExpense(id: 'lunch', title: 'Obiad bez paragonu'),
             ],
           ),
@@ -2851,6 +2864,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Basen'), findsOneWidget);
+    expect(find.text('Ksiazki'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('proof-library-search-field')),
+      '',
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('proof-library-attachment-filter')),
+    );
+    await tester.tap(find.byKey(const Key('proof-library-attachment-filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Plik wymaga ponowienia').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Paragon do ponowienia'), findsOneWidget);
+    expect(find.text('Basen'), findsNothing);
     expect(find.text('Ksiazki'), findsNothing);
   });
 
