@@ -17,6 +17,7 @@ import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
 import 'package:kidcost_mobile/src/features/reports/context_log_models.dart';
 import 'package:kidcost_mobile/src/features/reports/mediation_report_pass.dart';
 import 'package:kidcost_mobile/src/features/reports/support_context_models.dart';
+import 'package:kidcost_mobile/src/features/settlements/settlement_split_rule.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/add_expense_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/dashboard_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/custody_calendar_screen.dart';
@@ -819,6 +820,45 @@ void main() {
       find.text('Poprosimy o zgode dopiero w kontekscie wspolnego kosztu.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('settings exposes family settlement split choices', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    SettlementSplitRule? selectedRule;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsScreen(
+            userEmail: 'parent@example.com',
+            isDemoSession: true,
+            onSignOut: () async {},
+            onSettlementSplitRuleChanged: (rule) {
+              selectedRule = rule;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Zasady rozliczen'), 120);
+    expect(find.text('Zasady rozliczen'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('50/50'), 60);
+    expect(find.text('50/50'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('70/30'), 60);
+    expect(find.text('70/30'), findsOneWidget);
+
+    await tester.tap(find.text('70/30'));
+    await tester.pumpAndSettle();
+
+    expect(selectedRule, SettlementSplitRule.seventyThirty);
+    expect(find.text('Aktywna regula: 70/30'), findsOneWidget);
   });
 
   testWidgets('settings prepares safe beta feedback without PII telemetry', (
@@ -3850,6 +3890,37 @@ void main() {
     expect(find.text('Lekarz'), findsWidgets);
     expect(find.text('Obiad'), findsWidgets);
     expect(find.text('Majowy koszt'), findsNothing);
+  });
+
+  testWidgets('dashboard recalculates balance with 70/30 split rule', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardScreen(
+            profile: testProfile(),
+            currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: const [],
+            settlementSplitRule: SettlementSplitRule.seventyThirty,
+            expenses: [
+              testExpense(id: '1', title: 'Szkola', amountCents: 10000),
+            ],
+            onAddExpense: () {},
+            onQuickReceiptDraft: () {},
+            onOpenExpenses: () {},
+            onOpenReports: () {},
+            onOpenFamily: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.textContaining('Drugi rodzic oddaje Tobie 30,00 PLN'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Liczymy podzial 70/30'), findsOneWidget);
   });
 
   testWidgets('dashboard explains when only co-parent paid this month', (
