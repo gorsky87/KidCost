@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
+import '../../custody/custody_ics_export.dart';
 import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
@@ -292,12 +294,15 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
   }
 
   Future<void> _showCalendarExportPremiumIntent() async {
+    final export = buildCustodyIcsExport(
+      custodyDays: widget.custodyDays,
+      privacyMode: CustodyIcsPrivacyMode.neutral,
+      generatedAt: widget.currentDate ?? DateTime.now().toUtc(),
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return _CalendarExportPreviewDialog(
-          custodyDaysCount: widget.custodyDays.length,
-        );
+        return _CalendarExportPreviewDialog(export: export);
       },
     );
     if (!mounted || confirmed != true) {
@@ -472,9 +477,9 @@ class _CalendarExportPremiumSection extends StatelessWidget {
 }
 
 class _CalendarExportPreviewDialog extends StatelessWidget {
-  const _CalendarExportPreviewDialog({required this.custodyDaysCount});
+  const _CalendarExportPreviewDialog({required this.export});
 
-  final int custodyDaysCount;
+  final CustodyIcsExport export;
 
   @override
   Widget build(BuildContext context) {
@@ -489,7 +494,7 @@ class _CalendarExportPreviewDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Gotowe do eksportu: $custodyDaysCount dni opieki w formacie ICS.',
+              'Gotowe do eksportu: ${export.eventCount} dni opieki w pliku ${export.fileName}.',
             ),
             const SizedBox(height: 12),
             const _CalendarExportPrivacyRow(
@@ -513,6 +518,12 @@ class _CalendarExportPreviewDialog extends StatelessWidget {
                 'Opcja pozostaje wylaczona do czasu pelnego Premium i osobnej zgody.',
               ),
             ),
+            const SizedBox(height: 8),
+            SelectableText(
+              export.content,
+              key: const Key('calendar-ics-preview'),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
         ),
       ),
@@ -520,6 +531,17 @@ class _CalendarExportPreviewDialog extends StatelessWidget {
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
           child: const Text('Nie teraz'),
+        ),
+        OutlinedButton.icon(
+          onPressed: () async {
+            await Clipboard.setData(ClipboardData(text: export.content));
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Tresc ICS skopiowana.')),
+            );
+          },
+          icon: const Icon(Icons.copy_outlined),
+          label: const Text('Kopiuj ICS'),
         ),
         FilledButton.icon(
           onPressed: () => Navigator.of(context).pop(true),

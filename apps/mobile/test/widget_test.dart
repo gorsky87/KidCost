@@ -6,6 +6,7 @@ import 'package:kidcost_domain/domain.dart' as domain;
 import 'package:kidcost_mobile/src/app.dart';
 import 'package:kidcost_mobile/src/features/auth/auth_repository.dart';
 import 'package:kidcost_mobile/src/features/child_info/child_info_models.dart';
+import 'package:kidcost_mobile/src/features/custody/custody_ics_export.dart';
 import 'package:kidcost_mobile/src/features/custody/custody_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
@@ -3179,13 +3180,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Eksport kalendarza Premium'), findsOneWidget);
-    expect(
-      find.text('Gotowe do eksportu: 1 dni opieki w formacie ICS.'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('1 dni opieki'), findsOneWidget);
+    expect(find.textContaining('kidcost-custody-2026-06-24'), findsOneWidget);
     expect(find.text('Domyslnie prywatnie'), findsOneWidget);
     expect(find.textContaining('bez imion dziecka'), findsOneWidget);
     expect(find.text('Dolacz szczegoly kosztow'), findsOneWidget);
+    final preview = find.byKey(const Key('calendar-ics-preview'));
+    expect(preview, findsOneWidget);
+    final neutralIcs = tester.widget<SelectableText>(preview).data!;
+    expect(neutralIcs, startsWith('BEGIN:VCALENDAR\r\n'));
+    expect(neutralIcs, contains('SUMMARY:KidCost plan opieki'));
+    expect(neutralIcs, isNot(contains('parent@example.com')));
+    expect(neutralIcs, isNot(contains('Antek')));
     expect(recordedIntent, isNull);
 
     await tester.tap(find.text('Zapisz intencje'));
@@ -3197,6 +3203,63 @@ void main() {
     expect(find.textContaining('Intencja eksportu zapisana'), findsOneWidget);
 
     expect(dismissedPoint, isEmpty);
+  });
+
+  test('custody ICS export defaults to privacy-safe all-day events', () {
+    const parent = CustodyParent(
+      id: 'self',
+      label: 'parent@example.com',
+      isCurrentUser: true,
+    );
+    final export = buildCustodyIcsExport(
+      custodyDays: [
+        CustodyDay(
+          id: 'custody-2026-06-24',
+          date: '2026-06-24',
+          childName: 'Antek',
+          parent: parent,
+          createdAt: DateTime.utc(2026, 6, 24),
+        ),
+      ],
+      privacyMode: CustodyIcsPrivacyMode.neutral,
+      generatedAt: DateTime.utc(2026, 6, 24, 10, 30),
+    );
+
+    expect(export.fileName, 'kidcost-custody-2026-06-24-2026-06-24.ics');
+    expect(export.eventCount, 1);
+    expect(export.content, startsWith('BEGIN:VCALENDAR\r\n'));
+    expect(export.content, contains('DTSTAMP:20260624T103000Z'));
+    expect(export.content, contains('DTSTART;VALUE=DATE:20260624'));
+    expect(export.content, contains('DTEND;VALUE=DATE:20260625'));
+    expect(export.content, contains('SUMMARY:KidCost plan opieki'));
+    expect(export.content, contains('X-KIDCOST-PRIVACY:neutral'));
+    expect(export.content, isNot(contains('parent@example.com')));
+    expect(export.content, isNot(contains('Antek')));
+  });
+
+  test('custody ICS detailed export escapes explicit details', () {
+    const parent = CustodyParent(
+      id: 'co-parent',
+      label: 'Drugi rodzic, dom',
+      isCurrentUser: false,
+    );
+    final export = buildCustodyIcsExport(
+      custodyDays: [
+        CustodyDay(
+          id: 'custody-2026-06-24',
+          date: '2026-06-24',
+          childName: 'Ola',
+          parent: parent,
+          createdAt: DateTime.utc(2026, 6, 24),
+        ),
+      ],
+      privacyMode: CustodyIcsPrivacyMode.detailed,
+      generatedAt: DateTime.utc(2026, 6, 24),
+    );
+
+    expect(export.content, contains(r'SUMMARY:Opieka: Drugi rodzic\, dom'));
+    expect(export.content, contains('Ola'));
+    expect(export.content, contains('X-KIDCOST-PRIVACY:detailed'));
   });
 
   testWidgets('report csv includes linked calendar event and deadline dates', (
