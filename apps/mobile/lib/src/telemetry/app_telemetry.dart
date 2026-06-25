@@ -139,6 +139,7 @@ const _allowedParameterKeys = {
   'planned_purchase_count',
   'parenting_time_context_enabled',
   'custody_day_count',
+  'has_detailed_export',
   'source',
   'feedback_category',
   'has_reimbursement_impact',

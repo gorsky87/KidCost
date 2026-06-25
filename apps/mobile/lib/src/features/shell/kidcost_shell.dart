@@ -359,15 +359,17 @@ class _KidCostShellState extends State<KidCostShell>
     );
   }
 
-  void _trackCalendarExportPremiumIntent() {
+  void _trackCalendarExportPremiumIntent(CalendarExportPremiumIntent intent) {
     unawaited(
       widget.telemetry.track(
         TelemetryEvent.premiumFeatureIntent,
-        parameters: const {
+        parameters: {
           'feature': 'calendar_ics_export',
           'surface': 'custody_calendar',
           'trigger': 'calendar_export_intent',
-          'export_format': 'ics',
+          'export_format': intent.exportFormat,
+          'custody_day_count': intent.custodyDaysCount,
+          'has_detailed_export': intent.includeDetailedExpenseContext,
         },
       ),
     );

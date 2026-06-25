@@ -289,6 +289,7 @@ void main() {
       'draft_expense_count': 2,
       'parenting_time_context_enabled': false,
       'custody_day_count': 4,
+      'has_detailed_export': false,
       'source': 'kidcost_custody_calendar',
       'feedback_category': 'privacy_security',
       'has_reimbursement_impact': true,
@@ -330,6 +331,7 @@ void main() {
       'draft_expense_count': 2,
       'parenting_time_context_enabled': false,
       'custody_day_count': 4,
+      'has_detailed_export': false,
       'source': 'kidcost_custody_calendar',
       'feedback_category': 'privacy_security',
       'has_reimbursement_impact': true,
@@ -2888,7 +2890,7 @@ void main() {
     WidgetTester tester,
   ) async {
     var dismissedPoint = <PremiumDiscoveryPoint>[];
-    var intentCount = 0;
+    CalendarExportPremiumIntent? recordedIntent;
     const parent = CustodyParent(
       id: 'self',
       label: 'parent@example.com',
@@ -2911,7 +2913,7 @@ void main() {
                 createdAt: DateTime.utc(2026, 6, 24),
               ),
             ],
-            onCalendarExportPremiumIntent: () => intentCount += 1,
+            onCalendarExportPremiumIntent: (intent) => recordedIntent = intent,
             onPremiumHintDismissed: dismissedPoint.add,
             onCustodyDaysChanged: (_) {},
           ),
@@ -2925,18 +2927,30 @@ void main() {
 
     final exportButton = find.widgetWithText(
       OutlinedButton,
-      'Eksport ICS (Premium)',
+      'Podglad eksportu ICS',
     );
     await tester.ensureVisible(exportButton);
     await tester.pumpAndSettle();
     await tester.tap(exportButton);
     await tester.pumpAndSettle();
 
-    expect(intentCount, 1);
+    expect(find.text('Eksport kalendarza Premium'), findsOneWidget);
     expect(
-      find.textContaining('Eksport ICS bedzie funkcja Premium'),
+      find.text('Gotowe do eksportu: 1 dni opieki w formacie ICS.'),
       findsOneWidget,
     );
+    expect(find.text('Domyslnie prywatnie'), findsOneWidget);
+    expect(find.textContaining('bez imion dziecka'), findsOneWidget);
+    expect(find.text('Dolacz szczegoly kosztow'), findsOneWidget);
+    expect(recordedIntent, isNull);
+
+    await tester.tap(find.text('Zapisz intencje'));
+    await tester.pumpAndSettle();
+
+    expect(recordedIntent?.custodyDaysCount, 1);
+    expect(recordedIntent?.exportFormat, 'ics');
+    expect(recordedIntent?.includeDetailedExpenseContext, isFalse);
+    expect(find.textContaining('Intencja eksportu zapisana'), findsOneWidget);
 
     expect(dismissedPoint, isEmpty);
   });

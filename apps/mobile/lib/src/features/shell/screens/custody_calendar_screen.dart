@@ -28,7 +28,8 @@ class CustodyCalendarScreen extends StatefulWidget {
   final DateTime? currentDate;
   final bool showCalendarExportPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
-  final VoidCallback? onCalendarExportPremiumIntent;
+  final ValueChanged<CalendarExportPremiumIntent>?
+  onCalendarExportPremiumIntent;
 
   @override
   State<CustodyCalendarScreen> createState() => _CustodyCalendarScreenState();
@@ -290,12 +291,26 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
     );
   }
 
-  void _showCalendarExportPremiumIntent() {
-    widget.onCalendarExportPremiumIntent?.call();
+  Future<void> _showCalendarExportPremiumIntent() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return _CalendarExportPreviewDialog(
+          custodyDaysCount: widget.custodyDays.length,
+        );
+      },
+    );
+    if (!mounted || confirmed != true) {
+      return;
+    }
+
+    widget.onCalendarExportPremiumIntent?.call(
+      CalendarExportPremiumIntent(custodyDaysCount: widget.custodyDays.length),
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Eksport ICS bedzie funkcja Premium; plan opieki zostaje dostepny tutaj.',
+          'Intencja eksportu zapisana; plan opieki zostaje dostepny tutaj.',
         ),
       ),
     );
@@ -404,6 +419,18 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
   }
 }
 
+class CalendarExportPremiumIntent {
+  const CalendarExportPremiumIntent({
+    required this.custodyDaysCount,
+    this.exportFormat = 'ics',
+    this.includeDetailedExpenseContext = false,
+  });
+
+  final int custodyDaysCount;
+  final String exportFormat;
+  final bool includeDetailedExpenseContext;
+}
+
 class _CalendarExportPremiumSection extends StatelessWidget {
   const _CalendarExportPremiumSection({
     required this.custodyDaysCount,
@@ -432,7 +459,7 @@ class _CalendarExportPremiumSection extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: custodyDaysCount == 0 ? null : onIntent,
           icon: const Icon(Icons.ios_share_outlined),
-          label: const Text('Eksport ICS (Premium)'),
+          label: const Text('Podglad eksportu ICS'),
         ),
         const SizedBox(height: 4),
         Text(
@@ -440,6 +467,107 @@ class _CalendarExportPremiumSection extends StatelessWidget {
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
+    );
+  }
+}
+
+class _CalendarExportPreviewDialog extends StatelessWidget {
+  const _CalendarExportPreviewDialog({required this.custodyDaysCount});
+
+  final int custodyDaysCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return AlertDialog(
+      key: const Key('calendar-export-preview-dialog'),
+      icon: Icon(Icons.calendar_month_outlined, color: colors.primary),
+      title: const Text('Eksport kalendarza Premium'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Gotowe do eksportu: $custodyDaysCount dni opieki w formacie ICS.',
+            ),
+            const SizedBox(height: 12),
+            const _CalendarExportPrivacyRow(
+              icon: Icons.lock_outline,
+              title: 'Domyslnie prywatnie',
+              body:
+                  'Tytuly wydarzen sa neutralne, bez imion dziecka, kwot, kosztow, lokalizacji i notatek.',
+            ),
+            const _CalendarExportPrivacyRow(
+              icon: Icons.event_available_outlined,
+              title: 'Tylko plan opieki',
+              body:
+                  'Linki do kosztow nie trafia do kalendarza bez osobnej zgody.',
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: false,
+              onChanged: null,
+              title: const Text('Dolacz szczegoly kosztow'),
+              subtitle: const Text(
+                'Opcja pozostaje wylaczona do czasu pelnego Premium i osobnej zgody.',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Nie teraz'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.of(context).pop(true),
+          icon: const Icon(Icons.workspace_premium_outlined),
+          label: const Text('Zapisz intencje'),
+        ),
+      ],
+    );
+  }
+}
+
+class _CalendarExportPrivacyRow extends StatelessWidget {
+  const _CalendarExportPrivacyRow({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(body, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
