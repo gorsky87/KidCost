@@ -3444,6 +3444,57 @@ void main() {
     expect(find.textContaining('"Faktura imienna"'), findsOneWidget);
   });
 
+  testWidgets('monthly reports list planned purchases outside totals', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+            ],
+            plannedPurchases: [
+              PlannedPurchase(
+                id: 'plan-1',
+                title: 'Buty do szkoly',
+                estimatedAmountCents: 18000,
+                category: expenseCategories[1],
+                childName: 'Antek',
+                targetDate: '2026-06-30',
+                approvalDeadline: '2026-06-26',
+                proposedSplitPercent: 50,
+                createdAt: DateTime.utc(2026, 6, 20),
+                status: PlannedPurchaseStatus.approved,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Zaplacone razem'), findsOneWidget);
+    expect(find.text('120,00 PLN'), findsWidgets);
+    expect(
+      find.textContaining('Drugi rodzic oddaje Tobie 60,00 PLN'),
+      findsOneWidget,
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Planowane zakupy w miesiacu'),
+      180,
+    );
+    expect(find.text('Planowane zakupy w miesiacu'), findsOneWidget);
+    expect(find.text('1 planow, 180,00 PLN poza saldem.'), findsOneWidget);
+    expect(find.text('Buty do szkoly'), findsOneWidget);
+    expect(
+      find.text('Zaakceptowane - Ubrania - zakup 2026-06-30'),
+      findsOneWidget,
+    );
+    expect(find.text('180,00 PLN'), findsOneWidget);
+  });
+
   testWidgets('monthly reports edit Polish context without changing balance', (
     WidgetTester tester,
   ) async {

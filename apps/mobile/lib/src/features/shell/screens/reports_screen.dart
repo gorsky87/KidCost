@@ -5,6 +5,7 @@ import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../../telemetry/app_telemetry.dart';
 import '../../expenses/expense_models.dart';
+import '../../planned_purchases/planned_purchase_models.dart';
 import '../../premium/premium_discovery.dart';
 import '../../reports/mediation_report_pass.dart';
 
@@ -13,6 +14,7 @@ enum _ReportMode { monthly, annual }
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({
     required this.expenses,
+    this.plannedPurchases = const [],
     this.currentDate,
     this.initialMediationReportPass,
     this.showReportExportPremiumHint = false,
@@ -23,6 +25,7 @@ class ReportsScreen extends StatefulWidget {
   });
 
   final List<ExpenseEntry> expenses;
+  final List<PlannedPurchase> plannedPurchases;
   final DateTime? currentDate;
   final MediationReportPass? initialMediationReportPass;
   final bool showReportExportPremiumHint;
@@ -65,6 +68,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
       month: month,
       expenses: widget.expenses,
     );
+    final monthlyPlans = widget.plannedPurchases
+        .where((plan) => _monthFromDate(plan.targetDate) == month)
+        .toList();
     final previousMonthlyReport = MonthlyExpenseReport.fromExpenses(
       month: _previousMonthLabel(month),
       expenses: widget.expenses,
@@ -76,6 +82,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
       expenses: widget.expenses,
       generatedAt: widget.currentDate ?? DateTime.now(),
     );
+    final annualPlans = widget.plannedPurchases
+        .where((plan) => _yearFromDate(plan.targetDate) == year)
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -112,6 +121,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             month: month,
             report: monthlyReport,
             previousReport: previousMonthlyReport,
+            plannedPurchases: monthlyPlans,
             polishContext: _polishReportContext,
             now: widget.currentDate ?? DateTime.now(),
             mediationReportPass: _mediationReportPass,
@@ -133,6 +143,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             years: years,
             year: year,
             report: annualReport,
+            plannedPurchases: annualPlans,
             showPremiumHint: widget.showReportExportPremiumHint,
             onYearChanged: (value) => setState(() => _selectedYear = value),
             onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
@@ -158,6 +169,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
       for (final expense in widget.expenses)
         int.tryParse(expense.expenseDate.split('-').first) ??
             (widget.currentDate ?? DateTime.now()).year,
+      for (final plan in widget.plannedPurchases)
+        _yearFromDate(plan.targetDate) ??
+            (widget.currentDate ?? DateTime.now()).year,
     }.toList()..sort((first, second) => second.compareTo(first));
     return years;
   }
@@ -171,6 +185,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       return date;
     }
     return date.substring(0, 7);
+  }
+
+  int? _yearFromDate(String date) {
+    return int.tryParse(date.split('-').first);
   }
 
   String _previousMonthLabel(String month) {
@@ -189,6 +207,7 @@ class _MonthlyReportView extends StatelessWidget {
     required this.month,
     required this.report,
     required this.previousReport,
+    required this.plannedPurchases,
     required this.polishContext,
     required this.now,
     required this.mediationReportPass,
@@ -204,6 +223,7 @@ class _MonthlyReportView extends StatelessWidget {
   final String month;
   final MonthlyExpenseReport report;
   final MonthlyExpenseReport previousReport;
+  final List<PlannedPurchase> plannedPurchases;
   final PolishReportContext polishContext;
   final DateTime now;
   final MediationReportPass? mediationReportPass;
@@ -264,6 +284,11 @@ class _MonthlyReportView extends StatelessWidget {
           _ExpenseStatusCard(report: report),
         ],
         const SizedBox(height: 12),
+        _PlannedPurchasesReportCard(
+          title: 'Planowane zakupy w miesiacu',
+          plannedPurchases: plannedPurchases,
+        ),
+        const SizedBox(height: 12),
         _ExportCard(
           title: 'Eksport',
           fileName: report.fileName,
@@ -290,6 +315,7 @@ class _AnnualReportView extends StatelessWidget {
     required this.years,
     required this.year,
     required this.report,
+    required this.plannedPurchases,
     required this.showPremiumHint,
     required this.onYearChanged,
     required this.onPremiumHintDismissed,
@@ -298,6 +324,7 @@ class _AnnualReportView extends StatelessWidget {
   final List<int> years;
   final int year;
   final AnnualExpenseReport report;
+  final List<PlannedPurchase> plannedPurchases;
   final bool showPremiumHint;
   final ValueChanged<int> onYearChanged;
   final VoidCallback onPremiumHintDismissed;
@@ -343,6 +370,11 @@ class _AnnualReportView extends StatelessWidget {
           _AnnualExpenseListCard(report: report),
         ],
         const SizedBox(height: 12),
+        _PlannedPurchasesReportCard(
+          title: 'Planowane zakupy w roku',
+          plannedPurchases: plannedPurchases,
+        ),
+        const SizedBox(height: 12),
         _ExportCard(
           title: 'Eksport roczny',
           fileName: report.fileName,
@@ -353,6 +385,56 @@ class _AnnualReportView extends StatelessWidget {
         const SizedBox(height: 12),
         _ProfessionalAccessCard(periodLabel: report.year.toString()),
       ],
+    );
+  }
+}
+
+class _PlannedPurchasesReportCard extends StatelessWidget {
+  const _PlannedPurchasesReportCard({
+    required this.title,
+    required this.plannedPurchases,
+  });
+
+  final String title;
+  final List<PlannedPurchase> plannedPurchases;
+
+  @override
+  Widget build(BuildContext context) {
+    final estimatedCents = plannedPurchases.fold<int>(
+      0,
+      (sum, plan) => sum + plan.estimatedAmountCents,
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.playlist_add_check_outlined),
+              title: Text(title),
+              subtitle: Text(
+                plannedPurchases.isEmpty
+                    ? 'Brak planow w tym okresie. Saldo pokazuje tylko poniesione koszty.'
+                    : '${plannedPurchases.length} planow, ${formatCents(estimatedCents)} poza saldem.',
+              ),
+            ),
+            for (final plan in plannedPurchases)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.shopping_bag_outlined),
+                title: Text(plan.title),
+                subtitle: Text(
+                  '${plan.status.label} - ${plan.category.label} - zakup ${plan.targetDate}',
+                ),
+                trailing: Text(formatCents(plan.estimatedAmountCents)),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

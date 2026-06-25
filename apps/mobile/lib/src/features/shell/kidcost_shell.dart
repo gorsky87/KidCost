@@ -215,6 +215,7 @@ class _KidCostShellState extends State<KidCostShell>
       selectedIcon: Icons.summarize,
       screen: ReportsScreen(
         expenses: widget.expenses,
+        plannedPurchases: widget.plannedPurchases,
         currentDate: widget.currentDate,
         showReportExportPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.reportExport,
