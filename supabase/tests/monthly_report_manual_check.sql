@@ -243,11 +243,11 @@ begin
     '2026-06-01'
   );
 
-  if position('data,dziecko,kategoria,opis,płacący,kwota,status,typ_dowodu' in csv_export) <> 1 then
+  if position('data,dziecko,kategoria,grupa_raportu,opis,płacący,kwota,status,typ_dowodu' in csv_export) <> 1 then
     raise exception 'monthly report CSV header is wrong: %', csv_export;
   end if;
 
-  if position('"2026-06-03","Child A","school","Books","Owner","120.00","accepted","invoice"' in csv_export) = 0 then
+  if position('"2026-06-03","Child A","school","","Books","Owner","120.00","accepted","invoice"' in csv_export) = 0 then
     raise exception 'monthly report CSV row is missing: %', csv_export;
   end if;
 

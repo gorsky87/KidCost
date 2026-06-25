@@ -239,6 +239,11 @@ begin
     raise exception 'family export member count is wrong: %', export_payload->'recordCounts'->>'members';
   end if;
 
+  if (export_payload->'recordCounts'->>'familyExpenseCategories')::integer <> 0
+    or jsonb_array_length(export_payload->'familyExpenseCategories') <> 0 then
+    raise exception 'family export category section should be present and empty for this fixture: %', export_payload;
+  end if;
+
   if (export_payload->'recordCounts'->>'children')::integer <> 1
     or (export_payload->'recordCounts'->>'expenses')::integer <> 1
     or (export_payload->'recordCounts'->>'expenseAttachments')::integer <> 1

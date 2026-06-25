@@ -102,6 +102,9 @@ Centralna tabela kosztow dziecka lub calej rodziny.
 | `amount` | `numeric(12,2)` | tak | Constraint `amount > 0`. |
 | `currency` | `text` | tak | Domyslnie `PLN`. |
 | `category` | `expense_category` | tak | Enum MVP. |
+| `family_expense_category_id` | `uuid` | nie | FK -> `family_expense_categories.id` dla kategorii rodzinnej. |
+| `category_name_snapshot` | `text` | tak | Historyczna nazwa kategorii zapisana na koszcie. |
+| `category_report_group_snapshot` | `text` | nie | Historyczna grupa raportowa kategorii rodzinnej. |
 | `description` | `text` | nie | Opcjonalny opis kosztu. |
 | `expense_date` | `date` | tak | Data kosztu. |
 | `status` | `expense_status` | tak | Domyslnie `pending`. |
@@ -120,7 +123,30 @@ Ograniczenia:
 - `paid_by` i `created_by` musza byc czlonkami tej samej rodziny,
 - dla `payer_kind = manual_label` pole `paid_by` jest puste, a `manual_payer_label` jest niepuste,
 - `private_author` widzi tylko autor kosztu, nawet jezeli drugi rodzic dolaczy pozniej do rodziny,
+- kategoria rodzinna musi nalezec do tej samej rodziny i nie moze byc zarchiwizowana w momencie tworzenia kosztu,
+- snapshot nazwy i grupy raportowej kosztu nie zmienia sie po pozniejszej edycji lub archiwizacji kategorii,
 - `status` steruje tym, czy rekord mozna jeszcze edytowac bez tworzenia korekty lub audit eventu.
+
+### `family_expense_categories`
+
+Rodzinne kategorie kosztow uzywane obok domyslnego enumu MVP. Archiwizacja
+ukrywa kategorie z nowych wpisow, ale nie kasuje historii ani snapshotow
+zapisanych na kosztach.
+
+| Pole | Typ | Wymagane | Uwagi |
+| --- | --- | --- | --- |
+| `id` | `uuid` | tak | PK. |
+| `family_id` | `uuid` | tak | FK -> `families.id`. |
+| `name` | `text` | tak | Nazwa widoczna w formularzu i raportach. |
+| `icon_name` | `text` | nie | Stabilny identyfikator ikony UI. |
+| `color_hex` | `text` | nie | Kolor w formacie `#RRGGBB`. |
+| `report_group` | `text` | nie | Opcjonalna grupa raportowa. |
+| `created_by` | `uuid` | tak | Aktywny czlonek rodziny. |
+| `updated_by` | `uuid` | nie | Ostatni edytujacy. |
+| `archived_at` | `timestamptz` | nie | Ustawione po archiwizacji. |
+| `archived_by` | `uuid` | nie | Aktywny czlonek rodziny archiwizujacy kategorie. |
+| `created_at` | `timestamptz` | tak | Domyslnie `now()`. |
+| `updated_at` | `timestamptz` | tak | Aktualizowane przy zmianach kategorii. |
 
 ## Tryb solo i mapowanie platnika
 
