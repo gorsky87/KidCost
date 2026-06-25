@@ -35,7 +35,10 @@ enum TelemetryEvent {
   reportPassExpiredViewed('report_pass_expired_viewed'),
   reportPassRefundRequested('report_pass_refund_requested'),
   polishReportContextUpdated('polish_report_context_updated'),
-  historicalImportPreviewed('historical_import_previewed');
+  historicalImportPreviewed('historical_import_previewed'),
+  plannedPurchaseCreated('planned_purchase_created'),
+  plannedPurchaseStatusChanged('planned_purchase_status_changed'),
+  plannedPurchaseConverted('planned_purchase_converted');
 
   const TelemetryEvent(this.name);
 
@@ -131,6 +134,7 @@ const _allowedParameterKeys = {
   'import_error_count',
   'import_duplicate_count',
   'draft_expense_count',
+  'planned_purchase_count',
 };
 
 bool _looksSensitive(String value) {

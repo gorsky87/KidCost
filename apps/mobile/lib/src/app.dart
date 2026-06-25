@@ -10,6 +10,7 @@ import 'features/expenses/attachment_storage.dart';
 import 'features/expenses/expense_models.dart';
 import 'features/onboarding/family_onboarding_screen.dart';
 import 'features/onboarding/onboarding_profile.dart';
+import 'features/planned_purchases/planned_purchase_models.dart';
 import 'features/shell/kidcost_shell.dart';
 import 'telemetry/app_telemetry.dart';
 import 'theme/kidcost_theme.dart';
@@ -41,6 +42,7 @@ class _KidCostAppState extends State<KidCostApp> {
   OnboardingProfile? _onboardingProfile;
   List<ExpenseEntry> _expenses = const [];
   List<ExpenseTemplate> _expenseTemplates = const [];
+  List<PlannedPurchase> _plannedPurchases = const [];
   List<CustodyDay> _custodyDays = const [];
   bool _isLoading = true;
   String? _startupMessage;
@@ -123,6 +125,7 @@ class _KidCostAppState extends State<KidCostApp> {
         attachmentStorage: widget.attachmentStorage,
         expenses: _expenses,
         expenseTemplates: _expenseTemplates,
+        plannedPurchases: _plannedPurchases,
         custodyDays: _custodyDays,
         onExpenseSaved: (expense) {
           unawaited(
@@ -192,6 +195,48 @@ class _KidCostAppState extends State<KidCostApp> {
           updatedTemplates[existingIndex] = template;
           setState(() => _expenseTemplates = updatedTemplates);
         },
+        onPlannedPurchaseSaved: (plan) {
+          unawaited(
+            widget.telemetry.track(
+              TelemetryEvent.plannedPurchaseCreated,
+              parameters: {
+                'category_id': plan.category.id,
+                'status': plan.status.name,
+                'surface': 'planned_purchases',
+                'release_channel': _config.releaseChannel,
+              },
+            ),
+          );
+          setState(() => _plannedPurchases = [..._plannedPurchases, plan]);
+        },
+        onPlannedPurchaseChanged: (plan) {
+          final existingIndex = _plannedPurchases.indexWhere(
+            (item) => item.id == plan.id,
+          );
+          if (existingIndex == -1) {
+            return;
+          }
+          final existingPlan = _plannedPurchases[existingIndex];
+          if (existingPlan.status != plan.status) {
+            unawaited(
+              widget.telemetry.track(
+                TelemetryEvent.plannedPurchaseStatusChanged,
+                parameters: {
+                  'from_status': existingPlan.status.name,
+                  'to_status': plan.status.name,
+                  'reason_code': plan.reason?.code,
+                  'has_status_comment': plan.note?.trim().isNotEmpty ?? false,
+                  'surface': 'planned_purchases',
+                  'release_channel': _config.releaseChannel,
+                },
+              ),
+            );
+          }
+          final updatedPlans = [..._plannedPurchases];
+          updatedPlans[existingIndex] = plan;
+          setState(() => _plannedPurchases = updatedPlans);
+        },
+        onPlannedPurchaseConverted: _convertPlannedPurchaseToExpense,
         onCustodyDaysChanged: (custodyDays) {
           setState(() => _custodyDays = custodyDays);
         },
@@ -252,6 +297,7 @@ class _KidCostAppState extends State<KidCostApp> {
         _onboardingProfile = null;
         _expenses = const [];
         _expenseTemplates = const [];
+        _plannedPurchases = const [];
         _custodyDays = const [];
         _isLoading = false;
       });
@@ -262,6 +308,51 @@ class _KidCostAppState extends State<KidCostApp> {
         _startupMessage = error.userMessage;
       });
     }
+  }
+
+  void _convertPlannedPurchaseToExpense(PlannedPurchase plan) {
+    final existingIndex = _plannedPurchases.indexWhere(
+      (item) => item.id == plan.id,
+    );
+    if (existingIndex == -1 || !plan.status.canConvert) {
+      return;
+    }
+    final now = widget.currentDate ?? DateTime.now();
+    final expense = ExpenseEntry(
+      id: 'expense-from-${plan.id}',
+      amountCents: plan.estimatedAmountCents,
+      expenseDate: plan.targetDate,
+      childName: plan.childName,
+      category: plan.category,
+      paidBy: const ExpensePayer(id: 'self', label: 'Ty', isCurrentUser: true),
+      title: plan.title,
+      createdAt: now,
+      statusComment: 'Utworzono z zaakceptowanego planu zakupu.',
+    );
+    final convertedPlan = plan.copyWith(
+      status: PlannedPurchaseStatus.converted,
+      convertedExpenseId: expense.id,
+      clearReason: true,
+      clearNote: true,
+    );
+    final updatedPlans = [..._plannedPurchases];
+    updatedPlans[existingIndex] = convertedPlan;
+    unawaited(
+      widget.telemetry.track(
+        TelemetryEvent.plannedPurchaseConverted,
+        parameters: {
+          'category_id': plan.category.id,
+          'from_status': plan.status.name,
+          'to_status': convertedPlan.status.name,
+          'surface': 'planned_purchases',
+          'release_channel': _config.releaseChannel,
+        },
+      ),
+    );
+    setState(() {
+      _plannedPurchases = updatedPlans;
+      _expenses = [..._expenses, expense];
+    });
   }
 
   Future<AuthSession> _signIn({
