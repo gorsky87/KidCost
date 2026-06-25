@@ -1705,6 +1705,66 @@ void main() {
     );
   });
 
+  testWidgets('add expense previews request as co-parent before save', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var saveCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: KidCostTheme.light(),
+        home: Scaffold(
+          body: AddExpenseScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            currentDate: DateTime.utc(2026, 6, 24),
+            attachmentStorage: InMemoryAttachmentStorage(),
+            onExpenseSaved: (_) => saveCount += 1,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).first, '240');
+    await tester.enterText(
+      find.byKey(const Key('expense-title-field')),
+      'Czesne za przedszkole',
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('co-parent-preview-button')),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('co-parent-preview-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Widok wspolrodzica'), findsOneWidget);
+    expect(find.text('Czesne za przedszkole'), findsWidgets);
+    expect(find.text('240,00 PLN'), findsOneWidget);
+    expect(find.text('120,00 PLN'), findsOneWidget);
+    expect(find.text('2026-06-24'), findsWidgets);
+    expect(find.text('Antek'), findsWidgets);
+    expect(find.text('Tak'), findsWidgets);
+    expect(
+      find.textContaining('Uzupelnij: dowod lub metadane dowodu'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Koszt pasuje do domyslnej reguly'),
+      findsWidgets,
+    );
+
+    await tester.tap(find.text('Edytuj koszt'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Widok wspolrodzica'), findsNothing);
+    expect(saveCount, 0);
+  });
+
   testWidgets('add expense saves pay-provider request details', (
     WidgetTester tester,
   ) async {

@@ -52,6 +52,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   };
   static const _defaultReimbursementDeadlineWindow = Duration(days: 30);
 
+  final _formScrollController = ScrollController();
   final _amountController = TextEditingController();
   final _dateController = TextEditingController();
   final _serviceStartController = TextEditingController();
@@ -148,6 +149,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _documentDateController.removeListener(_refreshDuplicatePreview);
     _merchantController.removeListener(_refreshDuplicatePreview);
     _documentNumberController.removeListener(_refreshDuplicatePreview);
+    _formScrollController.dispose();
     _amountController.dispose();
     _dateController.dispose();
     _serviceStartController.dispose();
@@ -181,6 +183,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      controller: _formScrollController,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -565,6 +568,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             ),
           ],
           const SizedBox(height: 16),
+          OutlinedButton.icon(
+            key: const Key('co-parent-preview-button'),
+            onPressed: _isSaving ? null : _openCoParentPreview,
+            icon: const Icon(Icons.visibility_outlined),
+            label: const Text('Podglad dla wspolrodzica'),
+          ),
+          const SizedBox(height: 8),
           FilledButton.icon(
             onPressed: _isSaving ? null : _saveExpense,
             icon: _isSaving
@@ -578,6 +588,114 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ],
       ),
     );
+  }
+
+  void _openCoParentPreview() {
+    final snapshot = _buildCoParentPreviewSnapshot();
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return _CoParentExpensePreviewSheet(
+          snapshot: snapshot,
+          onEditTopFields: () => _closePreviewAndScroll(context, 0),
+          onEditContext: () => _closePreviewAndScroll(context, 260),
+          onEditEvidence: () => _closePreviewAndScroll(
+            context,
+            _formScrollController.position.maxScrollExtent * 0.70,
+          ),
+        );
+      },
+    );
+  }
+
+  void _closePreviewAndScroll(BuildContext sheetContext, double offset) {
+    Navigator.of(sheetContext).pop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_formScrollController.hasClients) return;
+      _formScrollController.animateTo(
+        offset.clamp(0, _formScrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  _CoParentPreviewSnapshot _buildCoParentPreviewSnapshot() {
+    int? amountCents;
+    try {
+      amountCents = parseAmountToCents(_amountController.text);
+    } on FormatException {
+      amountCents = null;
+    }
+    final title = _titleController.text.trim().isEmpty
+        ? _category.label
+        : _titleController.text.trim();
+    final payer = _payer?.isManual == true
+        ? _manualPayerController.text.trim()
+        : _payer?.label;
+    final servicePeriod = _currentServicePeriod();
+    final evidence = _currentEvidenceMetadata();
+    final deadlines = _currentDeadlineSnapshot(DateTime.now().toUtc());
+    final providerPayment = _currentProviderPaymentDetails();
+    final decision = _currentAgreementDecision;
+
+    return _CoParentPreviewSnapshot(
+      title: title,
+      amountLabel: amountCents == null
+          ? null
+          : formatCents(
+              amountCents,
+              currencyCode: widget.profile.familyCurrency,
+            ),
+      coParentShareLabel: amountCents == null
+          ? null
+          : formatCents(
+              amountCents * decision.rule.coParentSharePercent ~/ 100,
+              currencyCode: widget.profile.familyCurrency,
+            ),
+      date: _dateController.text.trim(),
+      childName: widget.profile.childName,
+      categoryLabel: _category.label,
+      payerLabel: payer,
+      requestKindLabel: _requestKind.label,
+      attachmentLabel: _attachmentDraft?.fileName,
+      servicePeriodLabel: servicePeriod?.periodLabel,
+      serviceScope: servicePeriod?.scopeNote,
+      evidenceTypeLabel: evidence?.type?.label,
+      merchant: evidence?.merchant,
+      documentNumber: evidence?.documentNumber,
+      paymentDueDate: _formatOptionalDate(deadlines?.paymentDueAt),
+      providerName: providerPayment?.providerName,
+      providerAmountLabel: providerPayment?.amountDueLabel,
+      providerDueDate: providerPayment?.dueDate,
+      visibleToCoParent: !widget.profile.isSoloFamily,
+      privateNotes: [
+        if (widget.profile.isSoloFamily)
+          'Szkic solo: prosba zostaje prywatna, dopoki nie polaczysz wspolrodzica.',
+        if (_usesForeignReceiptCurrency && _originalReceiptAmountCents != null)
+          'Kwota z paragonu: ${formatCents(_originalReceiptAmountCents!, currencyCode: _receiptCurrency)}',
+      ],
+      missingContext: [
+        if (amountCents == null) 'kwota',
+        if (_dateController.text.trim().isEmpty) 'data kosztu',
+        if (_attachmentDraft == null && evidence?.hasDetails != true)
+          'dowod lub metadane dowodu',
+        if (_requestKind == ReimbursementRequestKind.payProvider &&
+            providerPayment == null)
+          'dane platnosci do dostawcy',
+      ],
+      warningText: _attachmentStatus == _AttachmentReviewStatus.ready
+          ? null
+          : _attachmentStatus.label,
+      ruleGuidance: decision.guidance,
+    );
+  }
+
+  String? _formatOptionalDate(DateTime? date) {
+    if (date == null) return null;
+    return _formatDate(date);
   }
 
   Future<void> _chooseAttachment() async {
@@ -2547,6 +2665,342 @@ class _MedicalExpensePacketFields extends StatelessWidget {
             trailing: Text(formatCents(requestedReimbursementCents)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CoParentPreviewSnapshot {
+  const _CoParentPreviewSnapshot({
+    required this.title,
+    required this.amountLabel,
+    required this.coParentShareLabel,
+    required this.date,
+    required this.childName,
+    required this.categoryLabel,
+    required this.payerLabel,
+    required this.requestKindLabel,
+    required this.attachmentLabel,
+    required this.servicePeriodLabel,
+    required this.serviceScope,
+    required this.evidenceTypeLabel,
+    required this.merchant,
+    required this.documentNumber,
+    required this.paymentDueDate,
+    required this.providerName,
+    required this.providerAmountLabel,
+    required this.providerDueDate,
+    required this.visibleToCoParent,
+    required this.privateNotes,
+    required this.missingContext,
+    required this.warningText,
+    required this.ruleGuidance,
+  });
+
+  final String title;
+  final String? amountLabel;
+  final String? coParentShareLabel;
+  final String date;
+  final String childName;
+  final String categoryLabel;
+  final String? payerLabel;
+  final String requestKindLabel;
+  final String? attachmentLabel;
+  final String? servicePeriodLabel;
+  final String? serviceScope;
+  final String? evidenceTypeLabel;
+  final String? merchant;
+  final String? documentNumber;
+  final String? paymentDueDate;
+  final String? providerName;
+  final String? providerAmountLabel;
+  final String? providerDueDate;
+  final bool visibleToCoParent;
+  final List<String> privateNotes;
+  final List<String> missingContext;
+  final String? warningText;
+  final String ruleGuidance;
+}
+
+class _CoParentExpensePreviewSheet extends StatelessWidget {
+  const _CoParentExpensePreviewSheet({
+    required this.snapshot,
+    required this.onEditTopFields,
+    required this.onEditContext,
+    required this.onEditEvidence,
+  });
+
+  final _CoParentPreviewSnapshot snapshot;
+  final VoidCallback onEditTopFields;
+  final VoidCallback onEditContext;
+  final VoidCallback onEditEvidence;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.82,
+        minChildSize: 0.45,
+        maxChildSize: 0.95,
+        builder: (context, controller) {
+          return ListView(
+            controller: controller,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Widok wspolrodzica',
+                      style: theme.textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Zamknij podglad',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                snapshot.visibleToCoParent
+                    ? 'Te pola beda widoczne w prosbie o zwrot.'
+                    : 'To jest prywatny szkic; wspolrodzic nie zobaczy go w trybie solo.',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              _PreviewSection(
+                icon: Icons.receipt_long_outlined,
+                title: snapshot.title,
+                actionLabel: 'Edytuj koszt',
+                onAction: onEditTopFields,
+                children: [
+                  _PreviewRow(label: 'Kwota', value: snapshot.amountLabel),
+                  _PreviewRow(
+                    label: 'Udzial wspolrodzica',
+                    value: snapshot.coParentShareLabel,
+                  ),
+                  _PreviewRow(label: 'Data kosztu', value: snapshot.date),
+                  _PreviewRow(label: 'Dziecko', value: snapshot.childName),
+                  _PreviewRow(
+                    label: 'Kategoria',
+                    value: snapshot.categoryLabel,
+                  ),
+                  _PreviewRow(label: 'Zaplacil(a)', value: snapshot.payerLabel),
+                  _PreviewRow(
+                    label: 'Typ prosby',
+                    value: snapshot.requestKindLabel,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _PreviewSection(
+                icon: Icons.schedule_outlined,
+                title: 'Kontekst rozliczenia',
+                actionLabel: 'Edytuj kontekst',
+                onAction: onEditContext,
+                children: [
+                  _PreviewRow(
+                    label: 'Termin platnosci',
+                    value: snapshot.paymentDueDate,
+                  ),
+                  _PreviewRow(
+                    label: 'Okres uslugi',
+                    value: snapshot.servicePeriodLabel,
+                  ),
+                  _PreviewRow(label: 'Zakres', value: snapshot.serviceScope),
+                  _PreviewRow(label: 'Dostawca', value: snapshot.providerName),
+                  _PreviewRow(
+                    label: 'Kwota dla dostawcy',
+                    value: snapshot.providerAmountLabel,
+                  ),
+                  _PreviewRow(
+                    label: 'Termin dla dostawcy',
+                    value: snapshot.providerDueDate,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _PreviewSection(
+                icon: Icons.verified_outlined,
+                title: 'Dowody i widocznosc',
+                actionLabel: 'Edytuj dowod',
+                onAction: onEditEvidence,
+                children: [
+                  _PreviewRow(
+                    label: 'Zalacznik',
+                    value: snapshot.attachmentLabel,
+                  ),
+                  _PreviewRow(
+                    label: 'Typ dowodu',
+                    value: snapshot.evidenceTypeLabel,
+                  ),
+                  _PreviewRow(label: 'Wystawca', value: snapshot.merchant),
+                  _PreviewRow(
+                    label: 'Numer dokumentu',
+                    value: snapshot.documentNumber,
+                  ),
+                  _PreviewRow(
+                    label: 'Widoczne dla wspolrodzica',
+                    value: snapshot.visibleToCoParent ? 'Tak' : 'Nie',
+                    isMissing: false,
+                  ),
+                ],
+              ),
+              if (snapshot.missingContext.isNotEmpty ||
+                  snapshot.warningText != null) ...[
+                const SizedBox(height: 12),
+                _PreviewNotice(
+                  icon: Icons.info_outline,
+                  title: 'Brakujacy kontekst',
+                  text: [
+                    if (snapshot.missingContext.isNotEmpty)
+                      'Uzupelnij: ${snapshot.missingContext.join(', ')}.',
+                    if (snapshot.warningText != null) snapshot.warningText!,
+                  ].join(' '),
+                ),
+              ],
+              const SizedBox(height: 12),
+              _PreviewNotice(
+                icon: Icons.rule_outlined,
+                title: 'Regula rodziny',
+                text: snapshot.ruleGuidance,
+              ),
+              if (snapshot.privateNotes.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _PreviewNotice(
+                  icon: Icons.lock_outline,
+                  title: 'Prywatne tylko lokalnie',
+                  text: snapshot.privateNotes.join(' '),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PreviewSection extends StatelessWidget {
+  const _PreviewSection({
+    required this.icon,
+    required this.title,
+    required this.actionLabel,
+    required this.onAction,
+    required this.children,
+  });
+
+  final IconData icon;
+  final String title;
+  final String actionLabel;
+  final VoidCallback onAction;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(icon),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(title, style: theme.textTheme.titleMedium),
+                ),
+                TextButton(onPressed: onAction, child: Text(actionLabel)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewRow extends StatelessWidget {
+  const _PreviewRow({required this.label, required this.value, this.isMissing});
+
+  final String label;
+  final String? value;
+  final bool? isMissing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final text = value == null || value!.trim().isEmpty
+        ? 'Nie ustawiono'
+        : value!.trim();
+    final missing = isMissing ?? (value == null || value!.trim().isEmpty);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: Text(label, style: theme.textTheme.bodySmall)),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: Text(
+              text,
+              textAlign: TextAlign.end,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: missing ? theme.colorScheme.error : null,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewNotice extends StatelessWidget {
+  const _PreviewNotice({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: theme.colorScheme.onSecondaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 4),
+                  Text(text),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
