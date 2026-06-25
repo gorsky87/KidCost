@@ -141,8 +141,13 @@ require_file_contains \
 
 require_file_contains \
   "scripts/build_beta_artifacts.sh" \
-  "KIDCOST_ENABLE_BETA_OBSERVABILITY" \
-  "beta observability build opt-in"
+  "KIDCOST_FIREBASE_ANDROID_CONFIG" \
+  "Android Firebase config build input"
+
+require_file_contains \
+  "scripts/build_beta_artifacts.sh" \
+  "KIDCOST_FIREBASE_CONFIGURED" \
+  "Firebase configured dart define"
 
 require_file_contains \
   "apps/mobile/android/app/build.gradle.kts" \
