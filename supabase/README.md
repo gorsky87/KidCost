@@ -28,10 +28,11 @@ Local database verification requires Docker, Supabase CLI, and `psql`:
 ```sh
 supabase --version
 psql --version
-supabase db reset
+scripts/verify_supabase_local.sh
 ```
 
 `supabase db reset` starts from the migrations in `supabase/migrations/` and then loads `supabase/seed.sql`.
+The verifier checks the local Docker/Supabase prerequisites first, including the Supabase Postgres image, so image-pull problems fail with a bounded diagnostic before migrations run.
 
 The seed creates a fake family with two parents, one child, sample expenses, a settlement, and a pending invitation. The demo users are:
 
