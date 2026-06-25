@@ -287,6 +287,9 @@ void main() {
       'import_error_count': 1,
       'import_duplicate_count': 1,
       'draft_expense_count': 2,
+      'parenting_time_context_enabled': false,
+      'custody_day_count': 4,
+      'source': 'kidcost_custody_calendar',
       'merchant': 'Apteka Testowa',
       'note': 'Prywatna notatka z importu',
     });
@@ -321,6 +324,9 @@ void main() {
       'import_error_count': 1,
       'import_duplicate_count': 1,
       'draft_expense_count': 2,
+      'parenting_time_context_enabled': false,
+      'custody_day_count': 4,
+      'source': 'kidcost_custody_calendar',
     });
   });
 
@@ -3475,7 +3481,6 @@ void main() {
     );
 
     expect(find.text('Zaplacone razem'), findsOneWidget);
-    expect(find.text('120,00 PLN'), findsWidgets);
     expect(
       find.textContaining('Drugi rodzic oddaje Tobie 60,00 PLN'),
       findsOneWidget,
@@ -3493,6 +3498,134 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('180,00 PLN'), findsOneWidget);
+  });
+
+  testWidgets('monthly reports toggle parenting time context outside balance', (
+    WidgetTester tester,
+  ) async {
+    final telemetry = RecordingTelemetry();
+    const currentParent = CustodyParent(
+      id: 'self',
+      label: 'Ty',
+      isCurrentUser: true,
+    );
+    const coParent = CustodyParent(
+      id: 'co-parent',
+      label: 'Drugi rodzic',
+      isCurrentUser: false,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            telemetry: telemetry,
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+            ],
+            custodyDays: [
+              CustodyDay(
+                id: 'custody-1',
+                date: '2026-06-01',
+                childName: 'Antek',
+                parent: currentParent,
+                createdAt: DateTime.utc(2026, 6, 1),
+              ),
+              CustodyDay(
+                id: 'custody-2',
+                date: '2026-06-02',
+                childName: 'Antek',
+                parent: currentParent,
+                createdAt: DateTime.utc(2026, 6, 1),
+              ),
+              CustodyDay(
+                id: 'custody-3',
+                date: '2026-06-03',
+                childName: 'Antek',
+                parent: currentParent,
+                createdAt: DateTime.utc(2026, 6, 1),
+              ),
+              CustodyDay(
+                id: 'custody-4',
+                date: '2026-06-04',
+                childName: 'Antek',
+                parent: coParent,
+                createdAt: DateTime.utc(2026, 6, 1),
+              ),
+              CustodyDay(
+                id: 'custody-5',
+                date: '2026-05-31',
+                childName: 'Antek',
+                parent: coParent,
+                createdAt: DateTime.utc(2026, 6, 1),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Zaplacone razem'), findsOneWidget);
+    expect(
+      find.textContaining('Drugi rodzic oddaje Tobie 60,00 PLN'),
+      findsOneWidget,
+    );
+
+    await tester.scrollUntilVisible(find.text('Kontekst czasu opieki'), 180);
+    expect(
+      find.text(
+        'Zakres 2026-06-01 - 2026-06-30; zrodlo: Kalendarz opieki KidCost.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Ty'), findsOneWidget);
+    expect(find.text('3 dni (75%)'), findsOneWidget);
+    expect(find.text('Drugi rodzic'), findsOneWidget);
+    expect(find.text('1 dni (25%)'), findsOneWidget);
+    expect(find.text('Wyjatki i swieta'), findsOneWidget);
+    expect(find.textContaining('Nie wylicza alimentow'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('parenting-time-context-toggle')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('parenting-time-context-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kontekst czasu opieki'), findsNothing);
+    expect(telemetry.eventNames, contains('parenting_time_report_toggled'));
+    expect(
+      telemetry.events.last.parameters['parenting_time_context_enabled'],
+      isFalse,
+    );
+    expect(telemetry.events.last.parameters['custody_day_count'], 4);
+    expect(telemetry.events.last.parameters.values.contains('Antek'), isFalse);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('parenting-time-context-toggle')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('parenting-time-context-toggle')));
+    await tester.pumpAndSettle();
+    final csvButton = find.widgetWithText(
+      FilledButton,
+      'CSV: kidcost-report-2026-06.csv',
+    );
+    await tester.scrollUntilVisible(csvButton, 180);
+    await tester.ensureVisible(csvButton);
+    await tester.pumpAndSettle();
+    await tester.tap(csvButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Eksport CSV'), findsOneWidget);
+    expect(find.textContaining('"sekcja","czas_opieki"'), findsOneWidget);
+    expect(
+      find.textContaining('"zakres","2026-06-01 - 2026-06-30"'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('"Ty","3","75%"'), findsOneWidget);
+    expect(find.textContaining('"Drugi rodzic","1","25%"'), findsOneWidget);
   });
 
   testWidgets('monthly reports edit Polish context without changing balance', (

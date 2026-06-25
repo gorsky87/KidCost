@@ -35,6 +35,7 @@ enum TelemetryEvent {
   reportPassExpiredViewed('report_pass_expired_viewed'),
   reportPassRefundRequested('report_pass_refund_requested'),
   polishReportContextUpdated('polish_report_context_updated'),
+  parentingTimeReportToggled('parenting_time_report_toggled'),
   historicalImportPreviewed('historical_import_previewed'),
   plannedPurchaseCreated('planned_purchase_created'),
   plannedPurchaseStatusChanged('planned_purchase_status_changed'),
@@ -135,6 +136,9 @@ const _allowedParameterKeys = {
   'import_duplicate_count',
   'draft_expense_count',
   'planned_purchase_count',
+  'parenting_time_context_enabled',
+  'custody_day_count',
+  'source',
 };
 
 bool _looksSensitive(String value) {

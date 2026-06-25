@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../../telemetry/app_telemetry.dart';
+import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../planned_purchases/planned_purchase_models.dart';
 import '../../premium/premium_discovery.dart';
@@ -15,6 +16,7 @@ class ReportsScreen extends StatefulWidget {
   const ReportsScreen({
     required this.expenses,
     this.plannedPurchases = const [],
+    this.custodyDays = const [],
     this.currentDate,
     this.initialMediationReportPass,
     this.showReportExportPremiumHint = false,
@@ -26,6 +28,7 @@ class ReportsScreen extends StatefulWidget {
 
   final List<ExpenseEntry> expenses;
   final List<PlannedPurchase> plannedPurchases;
+  final List<CustodyDay> custodyDays;
   final DateTime? currentDate;
   final MediationReportPass? initialMediationReportPass;
   final bool showReportExportPremiumHint;
@@ -43,6 +46,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   int? _selectedYear;
   MediationReportPass? _mediationReportPass;
   PolishReportContext _polishReportContext = const PolishReportContext();
+  bool _includeParentingTimeContext = true;
 
   void _updatePolishReportContext(PolishReportContext value) {
     setState(() => _polishReportContext = value);
@@ -50,6 +54,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
       widget.telemetry.track(
         TelemetryEvent.polishReportContextUpdated,
         parameters: value.analyticsProperties,
+      ),
+    );
+  }
+
+  void _updateParentingTimeContextEnabled(
+    bool value,
+    ParentingTimeReportContext context,
+  ) {
+    setState(() => _includeParentingTimeContext = value);
+    unawaited(
+      widget.telemetry.track(
+        TelemetryEvent.parentingTimeReportToggled,
+        parameters: {
+          'parenting_time_context_enabled': value,
+          'range_type': 'monthly',
+          'custody_day_count': context.scheduledDayCount,
+          'source': context.sourceCode,
+        },
       ),
     );
   }
@@ -71,6 +93,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final monthlyPlans = widget.plannedPurchases
         .where((plan) => _monthFromDate(plan.targetDate) == month)
         .toList();
+    final parentingTimeContext = ParentingTimeReportContext.fromCustodyDays(
+      month: month,
+      custodyDays: widget.custodyDays,
+    );
     final previousMonthlyReport = MonthlyExpenseReport.fromExpenses(
       month: _previousMonthLabel(month),
       expenses: widget.expenses,
@@ -122,6 +148,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             report: monthlyReport,
             previousReport: previousMonthlyReport,
             plannedPurchases: monthlyPlans,
+            parentingTimeContext: parentingTimeContext,
+            includeParentingTimeContext: _includeParentingTimeContext,
             polishContext: _polishReportContext,
             now: widget.currentDate ?? DateTime.now(),
             mediationReportPass: _mediationReportPass,
@@ -132,6 +160,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             onMonthChanged: (value) => setState(() => _selectedMonth = value),
             onPolishContextChanged: (context) {
               _updatePolishReportContext(context);
+            },
+            onParentingTimeContextEnabledChanged: (value) {
+              _updateParentingTimeContextEnabled(value, parentingTimeContext);
             },
             onOpenExpenseFilter: widget.onOpenExpenseFilter,
             onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
@@ -159,6 +190,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
       _monthLabel(widget.currentDate ?? DateTime.now()),
       for (final expense in widget.expenses)
         _monthFromDate(expense.expenseDate),
+      for (final plan in widget.plannedPurchases)
+        _monthFromDate(plan.targetDate),
+      for (final day in widget.custodyDays) _monthFromDate(day.date),
     }.toList()..sort((first, second) => second.compareTo(first));
     return months;
   }
@@ -172,6 +206,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       for (final plan in widget.plannedPurchases)
         _yearFromDate(plan.targetDate) ??
             (widget.currentDate ?? DateTime.now()).year,
+      for (final day in widget.custodyDays)
+        _yearFromDate(day.date) ?? (widget.currentDate ?? DateTime.now()).year,
     }.toList()..sort((first, second) => second.compareTo(first));
     return years;
   }
@@ -208,6 +244,8 @@ class _MonthlyReportView extends StatelessWidget {
     required this.report,
     required this.previousReport,
     required this.plannedPurchases,
+    required this.parentingTimeContext,
+    required this.includeParentingTimeContext,
     required this.polishContext,
     required this.now,
     required this.mediationReportPass,
@@ -215,6 +253,7 @@ class _MonthlyReportView extends StatelessWidget {
     required this.showPremiumHint,
     required this.onMonthChanged,
     required this.onPolishContextChanged,
+    required this.onParentingTimeContextEnabledChanged,
     required this.onOpenExpenseFilter,
     required this.onPremiumHintDismissed,
   });
@@ -224,6 +263,8 @@ class _MonthlyReportView extends StatelessWidget {
   final MonthlyExpenseReport report;
   final MonthlyExpenseReport previousReport;
   final List<PlannedPurchase> plannedPurchases;
+  final ParentingTimeReportContext parentingTimeContext;
+  final bool includeParentingTimeContext;
   final PolishReportContext polishContext;
   final DateTime now;
   final MediationReportPass? mediationReportPass;
@@ -231,6 +272,7 @@ class _MonthlyReportView extends StatelessWidget {
   final bool showPremiumHint;
   final ValueChanged<String> onMonthChanged;
   final ValueChanged<PolishReportContext> onPolishContextChanged;
+  final ValueChanged<bool> onParentingTimeContextEnabledChanged;
   final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
   final VoidCallback onPremiumHintDismissed;
 
@@ -267,6 +309,16 @@ class _MonthlyReportView extends StatelessWidget {
         const SizedBox(height: 12),
         _SettlementStatusCard(report: report),
         const SizedBox(height: 12),
+        _ParentingTimeReportToggleCard(
+          includeContext: includeParentingTimeContext,
+          contextData: parentingTimeContext,
+          onChanged: onParentingTimeContextEnabledChanged,
+        ),
+        if (includeParentingTimeContext) ...[
+          const SizedBox(height: 12),
+          _ParentingTimeReportCard(contextData: parentingTimeContext),
+        ],
+        const SizedBox(height: 12),
         _PolishReportContextCard(
           contextData: polishContext,
           onChanged: onPolishContextChanged,
@@ -292,7 +344,12 @@ class _MonthlyReportView extends StatelessWidget {
         _ExportCard(
           title: 'Eksport',
           fileName: report.fileName,
-          csv: report.toCsv(polishContext: polishContext),
+          csv: report.toCsv(
+            polishContext: polishContext,
+            parentingTimeContext: includeParentingTimeContext
+                ? parentingTimeContext
+                : null,
+          ),
           showPremiumHint: showPremiumHint,
           onPremiumHintDismissed: onPremiumHintDismissed,
         ),
@@ -432,6 +489,179 @@ class _PlannedPurchasesReportCard extends StatelessWidget {
                 ),
                 trailing: Text(formatCents(plan.estimatedAmountCents)),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ParentingTimeReportContext {
+  const ParentingTimeReportContext({
+    required this.month,
+    required this.startDate,
+    required this.endDate,
+    required this.summaries,
+    required this.scheduledDayCount,
+  });
+
+  factory ParentingTimeReportContext.fromCustodyDays({
+    required String month,
+    required List<CustodyDay> custodyDays,
+  }) {
+    final monthDays =
+        custodyDays.where((day) => day.date.startsWith(month)).toList()
+          ..sort((first, second) => first.date.compareTo(second.date));
+    final totals = <String, int>{};
+    for (final day in monthDays) {
+      totals.update(day.parent.label, (value) => value + 1, ifAbsent: () => 1);
+    }
+    final scheduledDayCount = monthDays.length;
+    final summaries =
+        totals.entries.map((entry) {
+          final percent = scheduledDayCount == 0
+              ? 0
+              : ((entry.value / scheduledDayCount) * 100).round();
+          return ParentingTimeParentSummary(
+            parentLabel: entry.key,
+            scheduledDays: entry.value,
+            scheduledPercent: percent,
+          );
+        }).toList()..sort((first, second) {
+          final byDays = second.scheduledDays.compareTo(first.scheduledDays);
+          if (byDays != 0) return byDays;
+          return first.parentLabel.compareTo(second.parentLabel);
+        });
+
+    return ParentingTimeReportContext(
+      month: month,
+      startDate: '$month-01',
+      endDate: _endDateForMonth(month),
+      summaries: List.unmodifiable(summaries),
+      scheduledDayCount: scheduledDayCount,
+    );
+  }
+
+  final String month;
+  final String startDate;
+  final String endDate;
+  final List<ParentingTimeParentSummary> summaries;
+  final int scheduledDayCount;
+
+  String get sourceLabel => 'Kalendarz opieki KidCost';
+  String get sourceCode => 'kidcost_custody_calendar';
+  String get rangeLabel => '$startDate - $endDate';
+  bool get hasScheduledDays => scheduledDayCount > 0;
+}
+
+class ParentingTimeParentSummary {
+  const ParentingTimeParentSummary({
+    required this.parentLabel,
+    required this.scheduledDays,
+    required this.scheduledPercent,
+  });
+
+  final String parentLabel;
+  final int scheduledDays;
+  final int scheduledPercent;
+}
+
+const parentingTimeReportDisclaimer =
+    'Kontekst czasu opieki jest informacyjny. Nie wylicza alimentow, 800+, ulg podatkowych ani uprawnien prawnych i nie jest dokumentem sadowym.';
+
+String _endDateForMonth(String month) {
+  final parsed = DateTime.tryParse('$month-01');
+  if (parsed == null) {
+    return month;
+  }
+  final lastDay = DateTime.utc(parsed.year, parsed.month + 1, 0);
+  return [
+    lastDay.year.toString().padLeft(4, '0'),
+    lastDay.month.toString().padLeft(2, '0'),
+    lastDay.day.toString().padLeft(2, '0'),
+  ].join('-');
+}
+
+class _ParentingTimeReportToggleCard extends StatelessWidget {
+  const _ParentingTimeReportToggleCard({
+    required this.includeContext,
+    required this.contextData,
+    required this.onChanged,
+  });
+
+  final bool includeContext;
+  final ParentingTimeReportContext contextData;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: SwitchListTile(
+        key: const Key('parenting-time-context-toggle'),
+        value: includeContext,
+        onChanged: onChanged,
+        secondary: const Icon(Icons.family_restroom_outlined),
+        title: const Text('Dolacz kontekst czasu opieki'),
+        subtitle: Text(
+          contextData.hasScheduledDays
+              ? '${contextData.scheduledDayCount} dni z ${contextData.sourceLabel}; bez zmiany salda.'
+              : 'Brak dni opieki w tym miesiacu; saldo pozostaje finansowe.',
+        ),
+      ),
+    );
+  }
+}
+
+class _ParentingTimeReportCard extends StatelessWidget {
+  const _ParentingTimeReportCard({required this.contextData});
+
+  final ParentingTimeReportContext contextData;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.calendar_view_month_outlined),
+              title: const Text('Kontekst czasu opieki'),
+              subtitle: Text(
+                'Zakres ${contextData.rangeLabel}; zrodlo: ${contextData.sourceLabel}.',
+              ),
+            ),
+            if (contextData.summaries.isEmpty)
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text('Brak zaplanowanych dni opieki'),
+                subtitle: Text(
+                  'Dodaj dni w kalendarzu opieki, aby raport pokazal neutralny snapshot.',
+                ),
+              )
+            else
+              for (final summary in contextData.summaries)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(summary.parentLabel),
+                  subtitle: LinearProgressIndicator(
+                    value: summary.scheduledPercent / 100,
+                  ),
+                  trailing: Text(
+                    '${summary.scheduledDays} dni (${summary.scheduledPercent}%)',
+                  ),
+                ),
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.info_outline),
+              title: Text('Wyjatki i swieta'),
+              subtitle: Text(
+                'Brak osobnych wyjatkow w modelu MVP; pokazujemy zaplanowane dni z kalendarza.',
+              ),
+            ),
+            const Text(parentingTimeReportDisclaimer),
           ],
         ),
       ),
@@ -855,7 +1085,10 @@ class MonthlyExpenseReport {
     return 'Zaplaciles o ${formatCents(-difference)} mniej niz Twoj udzial.';
   }
 
-  String toCsv({PolishReportContext? polishContext}) {
+  String toCsv({
+    PolishReportContext? polishContext,
+    ParentingTimeReportContext? parentingTimeContext,
+  }) {
     final rows = [
       [
         'data',
@@ -925,6 +1158,22 @@ class MonthlyExpenseReport {
               : 'nie_zaznaczono',
         ],
         ['wlasne_zalozenie', polishContext.freeTextAssumption.trim()],
+      ],
+      if (parentingTimeContext != null) ...[
+        const <String>[],
+        ['sekcja', 'czas_opieki'],
+        ['zakres', parentingTimeContext.rangeLabel],
+        ['zrodlo', parentingTimeContext.sourceLabel],
+        ['disclaimer', parentingTimeReportDisclaimer],
+        const ['rodzic', 'zaplanowane_dni', 'zaplanowany_procent'],
+        for (final summary in parentingTimeContext.summaries)
+          [
+            summary.parentLabel,
+            summary.scheduledDays.toString(),
+            '${summary.scheduledPercent}%',
+          ],
+        if (parentingTimeContext.summaries.isEmpty)
+          const ['brak_danych', '0', '0%'],
       ],
     ];
 
