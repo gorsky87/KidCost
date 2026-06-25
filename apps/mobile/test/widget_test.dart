@@ -296,6 +296,29 @@ void main() {
           ),
         ),
       ),
+      testExpense(
+        id: 'retry',
+        title: 'Paragon do ponowienia',
+        category: health,
+        attachment: const ExpenseAttachment(
+          fileName: 'retry.jpg',
+          contentType: 'image/jpeg',
+          status: AttachmentStatus.failed,
+          evidence: EvidenceMetadata(
+            type: EvidenceType.receipt,
+            merchant: 'Apteka Testowa',
+          ),
+        ),
+      ),
+      testExpense(
+        id: 'metadata',
+        title: 'Potwierdzenie z opisu',
+        category: school,
+        verification: const EvidenceMetadata(
+          type: EvidenceType.bankConfirmation,
+          merchant: 'Bank Rodzinny',
+        ),
+      ),
     ]);
 
     final filtered = filterProofRecords(
@@ -318,6 +341,22 @@ void main() {
       reportedProofIds: {'proof-school-books'},
     );
     expect(reportedOnly.map((record) => record.id), ['proof-school-books']);
+
+    final retryOnly = filterProofRecords(
+      records: records,
+      filter: const ProofLibraryFilter(
+        attachmentFilter: ProofAttachmentFilter.needsRetry,
+      ),
+    );
+    expect(retryOnly.map((record) => record.id), ['proof-retry']);
+
+    final metadataOnly = filterProofRecords(
+      records: records,
+      filter: const ProofLibraryFilter(
+        attachmentFilter: ProofAttachmentFilter.metadataOnly,
+      ),
+    );
+    expect(metadataOnly.map((record) => record.id), ['proof-metadata']);
   });
 
   testWidgets('telemetry sanitizer removes PII and precise amounts', (_) async {

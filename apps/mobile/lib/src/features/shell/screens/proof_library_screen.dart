@@ -271,6 +271,29 @@ class _ProofFilterCard extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<ProofAttachmentFilter>(
+              key: const Key('proof-library-attachment-filter'),
+              initialValue: filter.attachmentFilter,
+              decoration: const InputDecoration(
+                labelText: 'Stan pliku',
+                prefixIcon: Icon(Icons.attach_file_outlined),
+              ),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Wszystkie')),
+                for (final attachmentFilter in ProofAttachmentFilter.values)
+                  DropdownMenuItem(
+                    value: attachmentFilter,
+                    child: Text(attachmentFilter.label),
+                  ),
+              ],
+              onChanged: (value) => onChanged(
+                filter.copyWith(
+                  attachmentFilter: value,
+                  clearAttachmentFilter: value == null,
+                ),
+              ),
+            ),
             if (showReportInclusionState) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<bool>(

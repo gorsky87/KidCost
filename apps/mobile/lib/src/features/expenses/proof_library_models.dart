@@ -112,6 +112,10 @@ class ProofRecord {
     if (filter.evidenceType != null && filter.evidenceType != evidenceType) {
       return false;
     }
+    if (filter.attachmentFilter != null &&
+        !filter.attachmentFilter!.matches(this)) {
+      return false;
+    }
     final query = filter.normalizedQuery;
     if (query.isNotEmpty && !_searchText.contains(query)) return false;
     return true;
@@ -130,6 +134,25 @@ class ProofRecord {
   }
 }
 
+enum ProofAttachmentFilter {
+  uploaded('Plik gotowy'),
+  needsRetry('Plik wymaga ponowienia'),
+  metadataOnly('Tylko metadane');
+
+  const ProofAttachmentFilter(this.label);
+
+  final String label;
+
+  bool matches(ProofRecord record) {
+    return switch (this) {
+      ProofAttachmentFilter.uploaded => record.hasUploadedAttachment,
+      ProofAttachmentFilter.needsRetry =>
+        record.hasAttachment && !record.hasUploadedAttachment,
+      ProofAttachmentFilter.metadataOnly => !record.hasAttachment,
+    };
+  }
+}
+
 class ProofLibraryFilter {
   const ProofLibraryFilter({
     this.month,
@@ -137,6 +160,7 @@ class ProofLibraryFilter {
     this.categoryId,
     this.status,
     this.evidenceType,
+    this.attachmentFilter,
     this.includedInReport,
     this.query = '',
   });
@@ -146,6 +170,7 @@ class ProofLibraryFilter {
   final String? categoryId;
   final ExpenseStatus? status;
   final EvidenceType? evidenceType;
+  final ProofAttachmentFilter? attachmentFilter;
   final bool? includedInReport;
   final String query;
 
@@ -157,6 +182,7 @@ class ProofLibraryFilter {
         categoryId != null ||
         status != null ||
         evidenceType != null ||
+        attachmentFilter != null ||
         includedInReport != null ||
         normalizedQuery.isNotEmpty;
   }
@@ -167,6 +193,7 @@ class ProofLibraryFilter {
     String? categoryId,
     ExpenseStatus? status,
     EvidenceType? evidenceType,
+    ProofAttachmentFilter? attachmentFilter,
     bool? includedInReport,
     String? query,
     bool clearMonth = false,
@@ -174,6 +201,7 @@ class ProofLibraryFilter {
     bool clearCategoryId = false,
     bool clearStatus = false,
     bool clearEvidenceType = false,
+    bool clearAttachmentFilter = false,
     bool clearIncludedInReport = false,
   }) {
     return ProofLibraryFilter(
@@ -184,6 +212,9 @@ class ProofLibraryFilter {
       evidenceType: clearEvidenceType
           ? null
           : evidenceType ?? this.evidenceType,
+      attachmentFilter: clearAttachmentFilter
+          ? null
+          : attachmentFilter ?? this.attachmentFilter,
       includedInReport: clearIncludedInReport
           ? null
           : includedInReport ?? this.includedInReport,
