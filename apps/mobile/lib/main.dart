@@ -27,7 +27,7 @@ Future<_AppDependencies> _buildAppDependencies(AppConfig config) async {
     return _AppDependencies(
       authRepository: InMemoryAuthRepository(),
       attachmentStorage: InMemoryAttachmentStorage(),
-      telemetry: NoopTelemetry(),
+      telemetry: _buildTelemetry(config),
     );
   }
 
@@ -39,8 +39,16 @@ Future<_AppDependencies> _buildAppDependencies(AppConfig config) async {
   return _AppDependencies(
     authRepository: SupabaseAuthRepository(client),
     attachmentStorage: SupabaseAttachmentStorage(client),
-    telemetry: NoopTelemetry(),
+    telemetry: _buildTelemetry(config),
   );
+}
+
+AppTelemetry _buildTelemetry(AppConfig config) {
+  if (!config.canUseConfiguredObservability) {
+    return const NoopTelemetry();
+  }
+
+  return const PrivacySafeTelemetry(NoopTelemetry());
 }
 
 class _AppDependencies {

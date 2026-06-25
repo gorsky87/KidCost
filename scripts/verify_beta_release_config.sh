@@ -35,6 +35,26 @@ require_file_contains \
   "AppConfig default build number $expected_build_number"
 
 require_file_contains \
+  "apps/mobile/lib/src/config/app_config.dart" \
+  "KIDCOST_FIREBASE_CONFIGURED" \
+  "AppConfig Firebase observability gate"
+
+require_file_contains \
+  "apps/mobile/lib/src/config/app_config.dart" \
+  "canUseConfiguredObservability" \
+  "AppConfig configured observability readiness"
+
+require_file_contains \
+  "apps/mobile/lib/src/telemetry/app_telemetry.dart" \
+  "PrivacySafeTelemetry" \
+  "privacy-safe telemetry wrapper"
+
+require_file_contains \
+  "scripts/build_beta_artifacts.sh" \
+  "KIDCOST_ENABLE_BETA_OBSERVABILITY" \
+  "beta observability build opt-in"
+
+require_file_contains \
   "apps/mobile/android/app/build.gradle.kts" \
   "applicationId = \"$expected_application_id\"" \
   "Android application id $expected_application_id"
