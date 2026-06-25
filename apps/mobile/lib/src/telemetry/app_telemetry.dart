@@ -33,7 +33,8 @@ enum TelemetryEvent {
   reportPassGenerated('report_pass_generated'),
   reportPassDownloaded('report_pass_downloaded'),
   reportPassExpiredViewed('report_pass_expired_viewed'),
-  reportPassRefundRequested('report_pass_refund_requested');
+  reportPassRefundRequested('report_pass_refund_requested'),
+  polishReportContextUpdated('polish_report_context_updated');
 
   const TelemetryEvent(this.name);
 
@@ -118,6 +119,11 @@ const _allowedParameterKeys = {
   'has_disputed_items',
   'regenerations_remaining',
   'export_format',
+  'benefit_800_context',
+  'dobry_start_context',
+  'has_child_tax_relief_note',
+  'has_alternating_custody_note',
+  'has_free_text_assumption',
 };
 
 bool _looksSensitive(String value) {

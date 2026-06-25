@@ -188,6 +188,7 @@ class _KidCostShellState extends State<KidCostShell> {
           });
         },
         onPremiumHintDismissed: _dismissPremiumHint,
+        telemetry: widget.telemetry,
       ),
     ),
     _Destination(

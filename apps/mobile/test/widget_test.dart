@@ -273,6 +273,12 @@ void main() {
       'expires_in_days': 14,
       'professional_role': 'mediator',
       'report_month': '2026-06',
+      'benefit_800_context': 'split',
+      'dobry_start_context': 'yes',
+      'has_child_tax_relief_note': true,
+      'has_alternating_custody_note': true,
+      'has_free_text_assumption': true,
+      'free_text_assumption': 'Rodzice wpisali prywatne zalozenie',
     });
 
     expect(sanitized, {
@@ -294,6 +300,11 @@ void main() {
       'expires_in_days': 14,
       'professional_role': 'mediator',
       'report_month': '2026-06',
+      'benefit_800_context': 'split',
+      'dobry_start_context': 'yes',
+      'has_child_tax_relief_note': true,
+      'has_alternating_custody_note': true,
+      'has_free_text_assumption': true,
     });
   });
 
@@ -2554,6 +2565,39 @@ void main() {
     expect(csv, contains('"2026-06-25","2026-07-01","2026-07-25"'));
   });
 
+  testWidgets('report csv includes Polish benefit assumptions separately', (
+    WidgetTester tester,
+  ) async {
+    final report = MonthlyExpenseReport.fromExpenses(
+      month: '2026-06',
+      expenses: [testExpense(id: '1', title: 'Basen', amountCents: 12000)],
+    );
+    const polishContext = PolishReportContext(
+      eightHundredPlus: 'split',
+      dobryStart: 'yes',
+      childTaxReliefNote: true,
+      alternatingCustodyNote: true,
+      freeTextAssumption: 'Rodzice wpisali zalozenie testowe',
+    );
+
+    final csv = report.toCsv(polishContext: polishContext);
+
+    expect(csv, contains('"zalozenia_i_swiadczenia_pl"'));
+    expect(csv, contains('Nie udziela porad prawnych ani podatkowych'));
+    expect(csv, contains('"800+: podzial / opieka naprzemienna"'));
+    expect(csv, contains('"Dobry Start: odnotowano"'));
+    expect(csv, contains('"ulga_na_dziecko","odnotowana"'));
+    expect(csv, contains('"opieka_naprzemienna","odnotowana"'));
+    expect(csv, contains('"Rodzice wpisali zalozenie testowe"'));
+    expect(polishContext.analyticsProperties, {
+      'benefit_800_context': 'split',
+      'dobry_start_context': 'yes',
+      'has_child_tax_relief_note': true,
+      'has_alternating_custody_note': true,
+      'has_free_text_assumption': true,
+    });
+  });
+
   testWidgets(
     'reports export pay-provider requests without balance double count',
     (WidgetTester tester) async {
@@ -3088,6 +3132,102 @@ void main() {
     expect(find.textContaining('"typ_dowodu"'), findsOneWidget);
     expect(find.textContaining('"2026-06-20","Lekarz"'), findsOneWidget);
     expect(find.textContaining('"Faktura imienna"'), findsOneWidget);
+  });
+
+  testWidgets('monthly reports edit Polish context without changing balance', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final telemetry = RecordingTelemetry();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            telemetry: telemetry,
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.textContaining('Drugi rodzic oddaje Tobie 60,00 PLN'),
+      findsOneWidget,
+    );
+
+    final polishContextCard = find.byKey(
+      const Key('polish-report-context-card'),
+    );
+    await tester.scrollUntilVisible(polishContextCard, 180);
+    await tester.ensureVisible(polishContextCard);
+    await tester.tap(polishContextCard);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('polish-800-context-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('800+: podzial / opieka naprzemienna').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('polish-dobry-start-picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dobry Start: odnotowano').last);
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const Key('polish-child-tax-relief-switch')),
+    );
+    await tester.tap(find.byKey(const Key('polish-child-tax-relief-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('polish-alternating-custody-switch')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      editableTextByKey(const Key('polish-free-text-assumption-field')),
+      'Rodzice wpisali zalozenie testowe',
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Drugi rodzic oddaje Tobie 60,00 PLN'),
+      findsOneWidget,
+    );
+    expect(telemetry.eventNames, contains('polish_report_context_updated'));
+    expect(telemetry.events.last.parameters, {
+      'benefit_800_context': 'split',
+      'dobry_start_context': 'yes',
+      'has_child_tax_relief_note': true,
+      'has_alternating_custody_note': true,
+      'has_free_text_assumption': true,
+    });
+
+    final csvExportButton = find.text('CSV: kidcost-report-2026-06.csv');
+    await tester.ensureVisible(csvExportButton);
+    await tester.tap(csvExportButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Eksport CSV'), findsOneWidget);
+    expect(find.textContaining('zalozenia_i_swiadczenia_pl'), findsOneWidget);
+    expect(
+      find.textContaining('Nie udziela porad prawnych ani podatkowych'),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining('800+: podzial / opieka naprzemienna'),
+      findsWidgets,
+    );
+    expect(find.textContaining('Dobry Start: odnotowano'), findsWidgets);
+    expect(
+      find.textContaining('Rodzice wpisali zalozenie testowe'),
+      findsWidgets,
+    );
   });
 
   testWidgets(

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
+import '../../../telemetry/app_telemetry.dart';
 import '../../expenses/expense_models.dart';
 import '../../premium/premium_discovery.dart';
 import '../../reports/mediation_report_pass.dart';
@@ -15,6 +18,7 @@ class ReportsScreen extends StatefulWidget {
     this.showReportExportPremiumHint = false,
     this.onOpenExpenseFilter,
     this.onPremiumHintDismissed,
+    this.telemetry = const NoopTelemetry(),
     super.key,
   });
 
@@ -24,6 +28,7 @@ class ReportsScreen extends StatefulWidget {
   final bool showReportExportPremiumHint;
   final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
+  final AppTelemetry telemetry;
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
@@ -34,6 +39,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
   String? _selectedMonth;
   int? _selectedYear;
   MediationReportPass? _mediationReportPass;
+  PolishReportContext _polishReportContext = const PolishReportContext();
+
+  void _updatePolishReportContext(PolishReportContext value) {
+    setState(() => _polishReportContext = value);
+    unawaited(
+      widget.telemetry.track(
+        TelemetryEvent.polishReportContextUpdated,
+        parameters: value.analyticsProperties,
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -96,6 +112,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             month: month,
             report: monthlyReport,
             previousReport: previousMonthlyReport,
+            polishContext: _polishReportContext,
             now: widget.currentDate ?? DateTime.now(),
             mediationReportPass: _mediationReportPass,
             onMediationReportPassChanged: (pass) {
@@ -103,6 +120,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             },
             showPremiumHint: widget.showReportExportPremiumHint,
             onMonthChanged: (value) => setState(() => _selectedMonth = value),
+            onPolishContextChanged: (context) {
+              _updatePolishReportContext(context);
+            },
             onOpenExpenseFilter: widget.onOpenExpenseFilter,
             onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
               PremiumDiscoveryPoint.reportExport,
@@ -169,11 +189,13 @@ class _MonthlyReportView extends StatelessWidget {
     required this.month,
     required this.report,
     required this.previousReport,
+    required this.polishContext,
     required this.now,
     required this.mediationReportPass,
     required this.onMediationReportPassChanged,
     required this.showPremiumHint,
     required this.onMonthChanged,
+    required this.onPolishContextChanged,
     required this.onOpenExpenseFilter,
     required this.onPremiumHintDismissed,
   });
@@ -182,11 +204,13 @@ class _MonthlyReportView extends StatelessWidget {
   final String month;
   final MonthlyExpenseReport report;
   final MonthlyExpenseReport previousReport;
+  final PolishReportContext polishContext;
   final DateTime now;
   final MediationReportPass? mediationReportPass;
   final ValueChanged<MediationReportPass?> onMediationReportPassChanged;
   final bool showPremiumHint;
   final ValueChanged<String> onMonthChanged;
+  final ValueChanged<PolishReportContext> onPolishContextChanged;
   final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
   final VoidCallback onPremiumHintDismissed;
 
@@ -223,6 +247,11 @@ class _MonthlyReportView extends StatelessWidget {
         const SizedBox(height: 12),
         _SettlementStatusCard(report: report),
         const SizedBox(height: 12),
+        _PolishReportContextCard(
+          contextData: polishContext,
+          onChanged: onPolishContextChanged,
+        ),
+        const SizedBox(height: 12),
         if (report.expenses.isEmpty)
           const _EmptyReportCard()
         else ...[
@@ -238,7 +267,7 @@ class _MonthlyReportView extends StatelessWidget {
         _ExportCard(
           title: 'Eksport',
           fileName: report.fileName,
-          csv: report.toCsv(),
+          csv: report.toCsv(polishContext: polishContext),
           showPremiumHint: showPremiumHint,
           onPremiumHintDismissed: onPremiumHintDismissed,
         ),
@@ -408,6 +437,197 @@ class _SettlementStateRow extends StatelessWidget {
   }
 }
 
+class PolishReportContext {
+  const PolishReportContext({
+    this.eightHundredPlus = 'unknown',
+    this.dobryStart = 'unknown',
+    this.childTaxReliefNote = false,
+    this.alternatingCustodyNote = false,
+    this.freeTextAssumption = '',
+  });
+
+  final String eightHundredPlus;
+  final String dobryStart;
+  final bool childTaxReliefNote;
+  final bool alternatingCustodyNote;
+  final String freeTextAssumption;
+
+  bool get hasAnyContext =>
+      eightHundredPlus != 'unknown' ||
+      dobryStart != 'unknown' ||
+      childTaxReliefNote ||
+      alternatingCustodyNote ||
+      freeTextAssumption.trim().isNotEmpty;
+
+  Map<String, Object> get analyticsProperties => {
+    'benefit_800_context': eightHundredPlus,
+    'dobry_start_context': dobryStart,
+    'has_child_tax_relief_note': childTaxReliefNote,
+    'has_alternating_custody_note': alternatingCustodyNote,
+    'has_free_text_assumption': freeTextAssumption.trim().isNotEmpty,
+  };
+
+  PolishReportContext copyWith({
+    String? eightHundredPlus,
+    String? dobryStart,
+    bool? childTaxReliefNote,
+    bool? alternatingCustodyNote,
+    String? freeTextAssumption,
+  }) {
+    return PolishReportContext(
+      eightHundredPlus: eightHundredPlus ?? this.eightHundredPlus,
+      dobryStart: dobryStart ?? this.dobryStart,
+      childTaxReliefNote: childTaxReliefNote ?? this.childTaxReliefNote,
+      alternatingCustodyNote:
+          alternatingCustodyNote ?? this.alternatingCustodyNote,
+      freeTextAssumption: freeTextAssumption ?? this.freeTextAssumption,
+    );
+  }
+}
+
+const polishReportDisclaimer =
+    'KidCost porzadkuje dane finansowe i zalozenia wpisane przez rodzica. Nie udziela porad prawnych ani podatkowych.';
+
+const _benefit800Options = {
+  'unknown': '800+: nie zaznaczono',
+  'parent_a': '800+: rodzic A',
+  'parent_b': '800+: rodzic B',
+  'split': '800+: podzial / opieka naprzemienna',
+};
+
+const _dobryStartOptions = {
+  'unknown': 'Dobry Start: nie zaznaczono',
+  'yes': 'Dobry Start: odnotowano',
+  'no': 'Dobry Start: nie dotyczy',
+};
+
+class _PolishReportContextCard extends StatelessWidget {
+  const _PolishReportContextCard({
+    required this.contextData,
+    required this.onChanged,
+  });
+
+  final PolishReportContext contextData;
+  final ValueChanged<PolishReportContext> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ExpansionTile(
+        key: const Key('polish-report-context-card'),
+        leading: const Icon(Icons.info_outline),
+        title: const Text('Zalozenia i swiadczenia PL'),
+        subtitle: Text(
+          contextData.hasAnyContext
+              ? 'Kontekst uzytkownika, bez zmiany salda.'
+              : 'Opcjonalny kontekst 800+, Dobry Start, PIT i opieki.',
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Ta sekcja opisuje zalozenia wpisane przez uzytkownika. Nie zmienia kosztow, salda ani zwrotow.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: const Key('polish-800-context-picker'),
+                initialValue: contextData.eightHundredPlus,
+                decoration: const InputDecoration(
+                  labelText: '800+',
+                  prefixIcon: Icon(Icons.family_restroom_outlined),
+                ),
+                items: [
+                  for (final entry in _benefit800Options.entries)
+                    DropdownMenuItem(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    onChanged(contextData.copyWith(eightHundredPlus: value));
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: const Key('polish-dobry-start-picker'),
+                initialValue: contextData.dobryStart,
+                decoration: const InputDecoration(
+                  labelText: 'Dobry Start',
+                  prefixIcon: Icon(Icons.school_outlined),
+                ),
+                items: [
+                  for (final entry in _dobryStartOptions.entries)
+                    DropdownMenuItem(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    onChanged(contextData.copyWith(dobryStart: value));
+                  }
+                },
+              ),
+              SwitchListTile(
+                key: const Key('polish-child-tax-relief-switch'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Ulga na dziecko odnotowana'),
+                subtitle: const Text(
+                  'Kontekst uzytkownika, nie wyliczenie PIT.',
+                ),
+                value: contextData.childTaxReliefNote,
+                onChanged: (value) {
+                  onChanged(contextData.copyWith(childTaxReliefNote: value));
+                },
+              ),
+              SwitchListTile(
+                key: const Key('polish-alternating-custody-switch'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Opieka naprzemienna odnotowana'),
+                subtitle: const Text(
+                  'Bez interpretacji prawnej lub podatkowej.',
+                ),
+                value: contextData.alternatingCustodyNote,
+                onChanged: (value) {
+                  onChanged(
+                    contextData.copyWith(alternatingCustodyNote: value),
+                  );
+                },
+              ),
+              TextFormField(
+                key: const Key('polish-free-text-assumption-field'),
+                initialValue: contextData.freeTextAssumption,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Wlasne zalozenie',
+                  helperText: 'Nie trafia do payloadu analytics.',
+                  prefixIcon: Icon(Icons.notes_outlined),
+                ),
+                onChanged: (value) {
+                  onChanged(contextData.copyWith(freeTextAssumption: value));
+                },
+              ),
+              const SizedBox(height: 8),
+              const Text(polishReportDisclaimer),
+              const SizedBox(height: 4),
+              Text(
+                'English fallback: user-entered Polish benefit and tax context; not legal or tax advice.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class MonthlyExpenseReport {
   const MonthlyExpenseReport({
     required this.month,
@@ -553,7 +773,7 @@ class MonthlyExpenseReport {
     return 'Zaplaciles o ${formatCents(-difference)} mniej niz Twoj udzial.';
   }
 
-  String toCsv() {
+  String toCsv({PolishReportContext? polishContext}) {
     final rows = [
       [
         'data',
@@ -602,6 +822,24 @@ class MonthlyExpenseReport {
           formatCents(expense.amountCents),
           expense.originalReceiptAmountLabel ?? '',
         ],
+      if (polishContext != null) ...[
+        const <String>[],
+        ['sekcja', 'zalozenia_i_swiadczenia_pl'],
+        ['disclaimer', polishReportDisclaimer],
+        ['800_plus', _benefit800Options[polishContext.eightHundredPlus] ?? ''],
+        ['dobry_start', _dobryStartOptions[polishContext.dobryStart] ?? ''],
+        [
+          'ulga_na_dziecko',
+          polishContext.childTaxReliefNote ? 'odnotowana' : 'nie_zaznaczono',
+        ],
+        [
+          'opieka_naprzemienna',
+          polishContext.alternatingCustodyNote
+              ? 'odnotowana'
+              : 'nie_zaznaczono',
+        ],
+        ['wlasne_zalozenie', polishContext.freeTextAssumption.trim()],
+      ],
     ];
 
     return rows.map((row) => row.map(_csvCell).join(',')).join('\n');
