@@ -67,6 +67,7 @@ class ExpenseEntry {
     this.reimbursementDeadlines,
     this.reimbursementRequestKind = ReimbursementRequestKind.reimburseParent,
     this.providerPayment,
+    this.draftReview,
   });
 
   final String id;
@@ -93,6 +94,7 @@ class ExpenseEntry {
   final domain.ReimbursementDeadlineSnapshot? reimbursementDeadlines;
   final ReimbursementRequestKind reimbursementRequestKind;
   final ProviderPaymentDetails? providerPayment;
+  final ExpenseDraftReview? draftReview;
 
   String? get calendarEventId => calendarEvent?.id;
   String? get calendarEventTitle => calendarEvent?.title;
@@ -107,11 +109,15 @@ class ExpenseEntry {
       reimbursementRequestKind == ReimbursementRequestKind.payProvider &&
       providerPayment != null;
 
+  bool get isPrivateDraft => draftReview != null;
+
+  bool get isArchivedDraft => draftReview?.archivedAt != null;
+
   int get providerPaymentDueCents =>
       isPayProviderRequest ? providerPayment!.amountDueCents : 0;
 
   int get settlementBalanceAmountCents =>
-      isPayProviderRequest ? 0 : amountCents;
+      isPayProviderRequest || isPrivateDraft ? 0 : amountCents;
 
   bool get hasReimbursementDeadlines {
     final deadlines = reimbursementDeadlines;
@@ -162,6 +168,8 @@ class ExpenseEntry {
     domain.ReimbursementDeadlineSnapshot? reimbursementDeadlines,
     ReimbursementRequestKind? reimbursementRequestKind,
     ProviderPaymentDetails? providerPayment,
+    ExpenseDraftReview? draftReview,
+    bool clearDraftReview = false,
   }) {
     return ExpenseEntry(
       id: id,
@@ -196,6 +204,76 @@ class ExpenseEntry {
       reimbursementRequestKind:
           reimbursementRequestKind ?? this.reimbursementRequestKind,
       providerPayment: providerPayment ?? this.providerPayment,
+      draftReview: clearDraftReview ? null : draftReview ?? this.draftReview,
+    );
+  }
+}
+
+enum ExpenseDraftIssue {
+  child,
+  category,
+  amount,
+  receiptUploadFailed,
+  privateDraft,
+}
+
+extension ExpenseDraftIssueDetails on ExpenseDraftIssue {
+  String get label {
+    switch (this) {
+      case ExpenseDraftIssue.child:
+        return 'Needs child';
+      case ExpenseDraftIssue.category:
+        return 'Needs category';
+      case ExpenseDraftIssue.amount:
+        return 'Amount not checked';
+      case ExpenseDraftIssue.receiptUploadFailed:
+        return 'Receipt upload failed';
+      case ExpenseDraftIssue.privateDraft:
+        return 'Private draft';
+    }
+  }
+
+  String get helper {
+    switch (this) {
+      case ExpenseDraftIssue.child:
+        return 'Wybierz dziecko przed udostepnieniem kosztu.';
+      case ExpenseDraftIssue.category:
+        return 'Potwierdz kategorie przed rozliczeniem.';
+      case ExpenseDraftIssue.amount:
+        return 'Sprawdz kwote z paragonu lub notatki.';
+      case ExpenseDraftIssue.receiptUploadFailed:
+        return 'Ponow wysylke zalacznika albo usun dowod.';
+      case ExpenseDraftIssue.privateDraft:
+        return 'Szkic jest prywatny, dopoki go nie sprawdzisz.';
+    }
+  }
+}
+
+class ExpenseDraftReview {
+  const ExpenseDraftReview({
+    required this.capturedAt,
+    required this.issues,
+    this.archivedAt,
+  });
+
+  final DateTime capturedAt;
+  final List<ExpenseDraftIssue> issues;
+  final DateTime? archivedAt;
+
+  ExpenseDraftIssue get primaryIssue =>
+      issues.isEmpty ? ExpenseDraftIssue.privateDraft : issues.first;
+
+  bool get isArchived => archivedAt != null;
+
+  ExpenseDraftReview copyWith({
+    DateTime? capturedAt,
+    List<ExpenseDraftIssue>? issues,
+    DateTime? archivedAt,
+  }) {
+    return ExpenseDraftReview(
+      capturedAt: capturedAt ?? this.capturedAt,
+      issues: issues ?? this.issues,
+      archivedAt: archivedAt ?? this.archivedAt,
     );
   }
 }

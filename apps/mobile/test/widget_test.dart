@@ -2100,14 +2100,10 @@ void main() {
     await tester.tap(find.text('Koszty'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Needs review'), findsOneWidget);
     expect(find.text('Faktura'), findsOneWidget);
-    expect(find.textContaining('Zalacznik: blad uploadu'), findsOneWidget);
-
-    await tester.tap(find.text('Faktura'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Zalacznik wymaga ponowienia'), findsOneWidget);
-    expect(find.textContaining('Koszt zostal zapisany.'), findsOneWidget);
+    expect(find.textContaining('Receipt upload failed'), findsOneWidget);
+    expect(find.textContaining('Attachment blocked'), findsOneWidget);
   });
 
   testWidgets('expenses list exposes loading and error states', (
@@ -2180,6 +2176,59 @@ void main() {
       findsOneWidget,
     );
     semantics.dispose();
+  });
+
+  testWidgets('expenses list separates private drafts from submitted costs', (
+    WidgetTester tester,
+  ) async {
+    ExpenseEntry? changedExpense;
+    final draft = testExpense(
+      id: 'draft-1',
+      title: 'Paragon z apteki',
+      amountCents: 4599,
+      attachment: const ExpenseAttachment(
+        fileName: 'apteka.jpg',
+        contentType: 'image/jpeg',
+        status: AttachmentStatus.failed,
+      ),
+      draftReview: ExpenseDraftReview(
+        capturedAt: DateTime.utc(2026, 6, 24),
+        issues: const [
+          ExpenseDraftIssue.receiptUploadFailed,
+          ExpenseDraftIssue.privateDraft,
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            expenses: [
+              draft,
+              testExpense(id: 'submitted-1', title: 'Obiad'),
+            ],
+            onExpenseChanged: (expense) => changedExpense = expense,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Needs review'), findsOneWidget);
+    expect(find.text('Paragon z apteki'), findsOneWidget);
+    expect(find.textContaining('Receipt upload failed'), findsOneWidget);
+    expect(
+      find.textContaining('Prywatne szkice nie zmieniaja salda'),
+      findsOneWidget,
+    );
+    expect(find.text('Obiad'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Mark reviewed'));
+    await tester.pumpAndSettle();
+
+    expect(changedExpense, isNotNull);
+    expect(changedExpense!.id, 'draft-1');
+    expect(changedExpense!.draftReview, isNull);
   });
 
   testWidgets('expenses list filters costs and can clear filters', (
@@ -2682,6 +2731,54 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, 'Otworz'));
     expect(openedExpenses, isTrue);
+  });
+
+  testWidgets('dashboard shows draft inbox item without changing balance', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardScreen(
+            profile: testProfile(),
+            currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: const [],
+            expenses: [
+              testExpense(
+                id: 'draft',
+                title: 'Paragon z apteki',
+                amountCents: 4599,
+                draftReview: ExpenseDraftReview(
+                  capturedAt: DateTime.utc(2026, 6, 24),
+                  issues: const [
+                    ExpenseDraftIssue.receiptUploadFailed,
+                    ExpenseDraftIssue.privateDraft,
+                  ],
+                ),
+              ),
+            ],
+            onAddExpense: () {},
+            onQuickReceiptDraft: () {},
+            onOpenExpenses: () {},
+            onOpenReports: () {},
+            onOpenFamily: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Paragon z apteki'), findsOneWidget);
+    expect(find.textContaining('Receipt upload failed'), findsOneWidget);
+    await dragUntilPresent(
+      tester,
+      find.textContaining('Brak kosztow do wyrownania'),
+    );
+    expect(find.text('45,99 PLN'), findsNothing);
   });
 
   testWidgets('dashboard quick capture starts private receipt draft', (
@@ -4506,6 +4603,7 @@ ExpenseEntry testExpense({
   ReimbursementRequestKind reimbursementRequestKind =
       ReimbursementRequestKind.reimburseParent,
   ProviderPaymentDetails? providerPayment,
+  ExpenseDraftReview? draftReview,
 }) {
   return ExpenseEntry(
     id: id,
@@ -4527,6 +4625,7 @@ ExpenseEntry testExpense({
     reimbursementDeadlines: reimbursementDeadlines,
     reimbursementRequestKind: reimbursementRequestKind,
     providerPayment: providerPayment,
+    draftReview: draftReview,
   );
 }
 

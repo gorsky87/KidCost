@@ -125,7 +125,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       );
     }
 
-    if (widget.expenses.isEmpty) {
+    final activeDrafts = _activeDrafts();
+    final submittedExpenses = _submittedExpenses();
+
+    if (submittedExpenses.isEmpty && activeDrafts.isEmpty) {
       return ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -155,6 +158,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (activeDrafts.isNotEmpty) ...[
+          _DraftInboxCard(
+            drafts: activeDrafts,
+            onExpenseChanged: widget.onExpenseChanged,
+          ),
+          const SizedBox(height: 16),
+        ],
         _buildFilters(context),
         const SizedBox(height: 16),
         if (filteredExpenses.isEmpty)
@@ -199,14 +209,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   Widget _buildFilters(BuildContext context) {
+    final submittedExpenses = _submittedExpenses();
     final months = _uniqueValues(
-      widget.expenses.map((expense) => _monthFromDate(expense.expenseDate)),
+      submittedExpenses.map((expense) => _monthFromDate(expense.expenseDate)),
     );
     final children = _uniqueValues(
-      widget.expenses.map((expense) => expense.childName),
+      submittedExpenses.map((expense) => expense.childName),
     );
     final payers = _uniqueValues(
-      widget.expenses.map((expense) => expense.paidBy.label),
+      submittedExpenses.map((expense) => expense.paidBy.label),
     );
     final hasFilters =
         _monthFilter != null ||
@@ -386,7 +397,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   List<ExpenseEntry> _filteredAndSortedExpenses() {
-    final filtered = widget.expenses.where((expense) {
+    final filtered = _submittedExpenses().where((expense) {
       final month = _monthFromDate(expense.expenseDate);
       return (_monthFilter == null || month == _monthFilter) &&
           (_childFilter == null || expense.childName == _childFilter) &&
@@ -414,6 +425,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     });
 
     return filtered;
+  }
+
+  List<ExpenseEntry> _activeDrafts() {
+    return widget.expenses
+        .where((expense) => expense.isPrivateDraft && !expense.isArchivedDraft)
+        .toList()
+      ..sort((first, second) => second.createdAt.compareTo(first.createdAt));
+  }
+
+  List<ExpenseEntry> _submittedExpenses() {
+    return widget.expenses
+        .where((expense) => !expense.isPrivateDraft && !expense.isArchivedDraft)
+        .toList();
   }
 
   void _clearFilters() {
@@ -518,6 +542,146 @@ class HistoricalImportDraftRow {
   final String? duplicateWarning;
 
   bool get canBecomeDraft => validationError == null;
+}
+
+class _DraftInboxCard extends StatelessWidget {
+  const _DraftInboxCard({required this.drafts, required this.onExpenseChanged});
+
+  final List<ExpenseEntry> drafts;
+  final ValueChanged<ExpenseEntry>? onExpenseChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.inventory_2_outlined),
+              title: const Text('Needs review'),
+              subtitle: const Text(
+                'Prywatne szkice nie zmieniaja salda, raportow ani widocznosci drugiego rodzica.',
+              ),
+              trailing: Chip(label: Text('${drafts.length}')),
+            ),
+            for (final draft in drafts) ...[
+              const Divider(height: 16),
+              _DraftInboxRow(
+                draft: draft,
+                onMarkReviewed: onExpenseChanged == null
+                    ? null
+                    : () => onExpenseChanged!(
+                        draft.copyWith(clearDraftReview: true),
+                      ),
+                onArchive: onExpenseChanged == null
+                    ? null
+                    : () => _confirmArchive(context, draft),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmArchive(BuildContext context, ExpenseEntry draft) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Archiwizowac szkic?'),
+        content: const Text(
+          'Szkic zniknie z listy potrzebujacej sprawdzenia. Zalacznik nie zostanie wyslany ani udostepniony.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Anuluj'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Archiwizuj'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    final review = draft.draftReview;
+    if (review == null) {
+      return;
+    }
+    onExpenseChanged?.call(
+      draft.copyWith(
+        draftReview: review.copyWith(archivedAt: DateTime.now().toUtc()),
+      ),
+    );
+  }
+}
+
+class _DraftInboxRow extends StatelessWidget {
+  const _DraftInboxRow({
+    required this.draft,
+    required this.onMarkReviewed,
+    required this.onArchive,
+  });
+
+  final ExpenseEntry draft;
+  final VoidCallback? onMarkReviewed;
+  final VoidCallback? onArchive;
+
+  @override
+  Widget build(BuildContext context) {
+    final review = draft.draftReview!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.receipt_long_outlined),
+          title: Text(draft.title),
+          subtitle: Text(
+            [
+              review.primaryIssue.label,
+              review.primaryIssue.helper,
+              'Captured: ${_formatDraftDate(review.capturedAt)}',
+              if (draft.attachment != null)
+                draft.attachment!.status == AttachmentStatus.uploaded
+                    ? 'Attachment ready'
+                    : 'Attachment blocked',
+            ].join('\n'),
+          ),
+          trailing: Text(formatCents(draft.amountCents)),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: onMarkReviewed,
+              icon: const Icon(Icons.fact_check_outlined),
+              label: const Text('Mark reviewed'),
+            ),
+            OutlinedButton.icon(
+              onPressed: onArchive,
+              icon: const Icon(Icons.archive_outlined),
+              label: const Text('Archive'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _formatDraftDate(DateTime date) {
+    final local = date.toLocal();
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    return '${local.year}-$month-$day';
+  }
 }
 
 class _HistoricalImportActivationCard extends StatelessWidget {

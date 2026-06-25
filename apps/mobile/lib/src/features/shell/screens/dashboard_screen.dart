@@ -32,10 +32,16 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final month = _DashboardMonth.fromDate(currentDate ?? DateTime.now());
     final monthExpenses = expenses
-        .where((expense) => month.contains(expense.expenseDate))
+        .where(
+          (expense) =>
+              month.contains(expense.expenseDate) && !expense.isArchivedDraft,
+        )
         .toList();
-    final summary = _DashboardSummary.fromExpenses(monthExpenses);
-    final recentExpenses = [...monthExpenses]
+    final submittedMonthExpenses = monthExpenses
+        .where((expense) => !expense.isPrivateDraft)
+        .toList();
+    final summary = _DashboardSummary.fromExpenses(submittedMonthExpenses);
+    final recentExpenses = [...submittedMonthExpenses]
       ..sort((first, second) {
         final dateComparison = second.expenseDate.compareTo(first.expenseDate);
         if (dateComparison != 0) {
@@ -89,7 +95,7 @@ class DashboardScreen extends StatelessWidget {
           onAddExpense: onAddExpense,
           onOpenExpenses: onOpenExpenses,
         ),
-        if (monthExpenses.isEmpty) ...[
+        if (submittedMonthExpenses.isEmpty) ...[
           const SizedBox(height: 8),
           _EmptyDashboardState(onAddExpense: onAddExpense),
         ],
@@ -121,7 +127,7 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(height: 8),
         _UpcomingCustodyCard(custodyDays: upcomingCustodyDays),
         const SizedBox(height: 8),
-        if (monthExpenses.isNotEmpty)
+        if (submittedMonthExpenses.isNotEmpty)
           _RecentExpenses(expenses: recentExpenses.take(5).toList()),
       ],
     );
@@ -357,6 +363,18 @@ class _AttentionItem {
   }
 
   static _AttentionItem? _fromExpense(ExpenseEntry expense) {
+    final draftReview = expense.draftReview;
+    if (draftReview != null && !draftReview.isArchived) {
+      return _AttentionItem(
+        expense: expense,
+        priority: -1,
+        icon: Icons.inventory_2_outlined,
+        title: expense.title,
+        reason: draftReview.primaryIssue.label,
+        actionLabel: 'Przejrzyj',
+      );
+    }
+
     if (expense.status == ExpenseStatus.disputed) {
       return _AttentionItem(
         expense: expense,

@@ -714,6 +714,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
 
     final createdAt = DateTime.now().toUtc();
+    final draftReview = uploadFailed || skippedInvalidAttachment
+        ? ExpenseDraftReview(
+            capturedAt: createdAt,
+            issues: [
+              if (uploadFailed || skippedInvalidAttachment)
+                ExpenseDraftIssue.receiptUploadFailed,
+              ExpenseDraftIssue.privateDraft,
+            ],
+          )
+        : null;
     final expense = ExpenseEntry(
       id: expenseId,
       amountCents: amountCents,
@@ -744,6 +754,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       reimbursementDeadlines: _currentDeadlineSnapshot(createdAt),
       reimbursementRequestKind: _requestKind,
       providerPayment: _currentProviderPaymentDetails(),
+      draftReview: draftReview,
     );
 
     widget.onExpenseSaved(expense);
