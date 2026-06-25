@@ -42,6 +42,15 @@ Guidance for AI agents working in this repository.
 - Keep explanations brief during implementation. Put detailed reasoning in code comments or docs only when it helps future maintainers understand non-obvious behavior.
 - Treat docs-only work as secondary unless the task explicitly targets docs, compliance, release readiness, or a durable architecture decision.
 
+## Agent Operating Model
+
+- Role-specific briefs live in `agents/`.
+- Execution agents are `backend`, `frontend`, and `devops`. These agents must pick implementation-ready GitHub issues, write code/config/migrations/tests, verify the change, commit it, open a pull request, and merge it after checks pass.
+- Planning agents are `product`, `domain`, and `qa`. These agents must create or refine GitHub issues with clear acceptance criteria, labels, scope, and verification notes. They do not implement code unless the user explicitly reassigns them to an execution role.
+- If a planning agent discovers a small obvious code task, it should create or update a GitHub issue for an execution agent instead of editing files directly.
+- If an execution agent discovers unclear product, domain, or QA requirements, it should pause implementation only long enough to create or update the blocking issue, then continue with the next implementation-ready issue.
+- All agents must prefer existing GitHub issues over inventing new work. New issues are for gaps, blockers, or missing acceptance criteria.
+
 ## Worktree Workflow
 
 - Work on each task in a separate Git worktree and a dedicated branch.
