@@ -9,14 +9,6 @@
 
 begin;
 
-create or replace function auth.uid()
-returns uuid
-language sql
-stable
-as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-$$;
-
 create temp table duplicate_bill_ids (
   name text primary key,
   id uuid not null
@@ -47,7 +39,12 @@ insert into public.profiles (id, display_name, email)
 values
   ((select id from duplicate_bill_ids where name = 'owner'), 'Owner', 'duplicate-owner@example.com'),
   ((select id from duplicate_bill_ids where name = 'co_parent'), 'Co Parent', 'duplicate-co-parent@example.com'),
-  ((select id from duplicate_bill_ids where name = 'outsider'), 'Outsider', 'duplicate-outsider@example.com');
+  ((select id from duplicate_bill_ids where name = 'outsider'), 'Outsider', 'duplicate-outsider@example.com')
+on conflict (id) do update
+set
+  display_name = excluded.display_name,
+  email = excluded.email,
+  updated_at = now();
 
 insert into public.families (id, name, created_by)
 values
@@ -134,6 +131,12 @@ values
     (select id from duplicate_bill_ids where name = 'owner')
   );
 
+insert into storage.objects (bucket_id, name)
+values (
+  'expense-attachments',
+  'families/' || (select id from duplicate_bill_ids where name = 'family_id') || '/expenses/' || (select id from duplicate_bill_ids where name = 'expense_original') || '/fv-7.pdf'
+);
+
 insert into public.expense_attachments (
   id,
   expense_id,
@@ -150,7 +153,7 @@ insert into public.expense_attachments (
 values (
   (select id from duplicate_bill_ids where name = 'attachment_original'),
   (select id from duplicate_bill_ids where name = 'expense_original'),
-  'families/duplicate/expenses/original/fv-7.pdf',
+  'families/' || (select id from duplicate_bill_ids where name = 'family_id') || '/expenses/' || (select id from duplicate_bill_ids where name = 'expense_original') || '/fv-7.pdf',
   'pdf',
   'fv-7.pdf',
   (select id from duplicate_bill_ids where name = 'owner'),
