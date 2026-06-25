@@ -9,6 +9,10 @@ Checks KidCost beta release readiness and builds store artifacts only when
 required signing/upload configuration is present.
 
 Environment:
+  KIDCOST_ANALYTICS_ENABLED             Set to true only for a Firebase-backed beta.
+  KIDCOST_CRASH_REPORTING_ENABLED       Set to true only for a Firebase-backed beta.
+  KIDCOST_FIREBASE_ANDROID_CONFIG       Untracked google-services.json path.
+  KIDCOST_FIREBASE_IOS_CONFIG           Untracked GoogleService-Info.plist path.
   KIDCOST_ALLOW_DEBUG_SIGNED_RELEASE=1  Build Android AAB even with debug signing.
   KIDCOST_IOS_EXPORT_OPTIONS_PLIST      ExportOptions.plist for signed iOS IPA export.
 USAGE
@@ -18,6 +22,8 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mobile_dir="$repo_root/apps/mobile"
 report_dir="$repo_root/build/release"
 report_path="$report_dir/beta-readiness-report.md"
+analytics_enabled="${KIDCOST_ANALYTICS_ENABLED:-false}"
+crash_reporting_enabled="${KIDCOST_CRASH_REPORTING_ENABLED:-false}"
 
 mode="all"
 
@@ -56,6 +62,13 @@ append_report() {
   printf '%s\n' "$*" >> "$report_path"
 }
 
+normalize_bool() {
+  case "$1" in
+    true|1) printf 'true' ;;
+    *) printf 'false' ;;
+  esac
+}
+
 require_command flutter
 
 mkdir -p "$report_dir"
@@ -65,6 +78,19 @@ cat > "$report_path" <<'REPORT'
 REPORT
 
 "$repo_root/scripts/verify_beta_release_config.sh" | tee -a "$report_path"
+
+analytics_define="$(normalize_bool "$analytics_enabled")"
+crash_reporting_define="$(normalize_bool "$crash_reporting_enabled")"
+
+append_report ""
+append_report "## Observability flags"
+append_report ""
+append_report "- KIDCOST_ANALYTICS_ENABLED=$analytics_define"
+append_report "- KIDCOST_CRASH_REPORTING_ENABLED=$crash_reporting_define"
+if [[ "$analytics_define" == "true" || "$crash_reporting_define" == "true" ]]; then
+  append_report "- Firebase Android config supplied via KIDCOST_FIREBASE_ANDROID_CONFIG."
+  append_report "- Firebase iOS config supplied via KIDCOST_FIREBASE_IOS_CONFIG."
+fi
 
 android_blocked=0
 ios_blocked=0
@@ -106,8 +132,8 @@ if [[ "$mode" == "all" || "$mode" == "android" ]]; then
       --dart-define=KIDCOST_RELEASE_CHANNEL=beta \
       --dart-define=KIDCOST_BUILD_NAME=1.0.0 \
       --dart-define=KIDCOST_BUILD_NUMBER=2 \
-      --dart-define=KIDCOST_ANALYTICS_ENABLED=false \
-      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED=false
+      --dart-define=KIDCOST_ANALYTICS_ENABLED="$analytics_define" \
+      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED="$crash_reporting_define"
     append_report ""
     append_report "## Android artifact"
     append_report ""
@@ -127,8 +153,8 @@ if [[ "$mode" == "all" || "$mode" == "ios" ]]; then
       --dart-define=KIDCOST_RELEASE_CHANNEL=beta \
       --dart-define=KIDCOST_BUILD_NAME=1.0.0 \
       --dart-define=KIDCOST_BUILD_NUMBER=2 \
-      --dart-define=KIDCOST_ANALYTICS_ENABLED=false \
-      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED=false
+      --dart-define=KIDCOST_ANALYTICS_ENABLED="$analytics_define" \
+      --dart-define=KIDCOST_CRASH_REPORTING_ENABLED="$crash_reporting_define"
     append_report ""
     append_report "## iOS artifact"
     append_report ""
