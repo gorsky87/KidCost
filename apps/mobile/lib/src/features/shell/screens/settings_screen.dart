@@ -32,6 +32,10 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  domain.NotificationDeliveryMode _deliveryMode =
+      domain.NotificationDeliveryMode.immediate;
+  bool _quietHoursEnabled = true;
+  bool _importantBypassQuietHours = true;
   bool _newExpensePush = true;
   bool _statusPush = true;
   bool _balanceReminderPush = false;
@@ -49,6 +53,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           subtitle: Text(
             'Neutralne alerty bez kwot, opisow kosztow i danych dziecka na ekranie blokady.',
           ),
+        ),
+        _NotificationDeliveryModePicker(
+          selectedMode: _deliveryMode,
+          onChanged: _setDeliveryMode,
+        ),
+        SwitchListTile(
+          secondary: const Icon(Icons.nights_stay_outlined),
+          title: const Text('Cisza nocna 21:00-07:00'),
+          subtitle: const Text(
+            'Zwykle aktualizacje poczekaja do dziennego podsumowania.',
+          ),
+          value: _quietHoursEnabled,
+          onChanged: _setQuietHoursEnabled,
+        ),
+        SwitchListTile(
+          secondary: const Icon(Icons.priority_high_outlined),
+          title: const Text('Pilne terminy moga ominac cisze'),
+          subtitle: const Text(
+            'Dotyczy zblizajacego sie terminu platnosci albo zaleglosci.',
+          ),
+          value: _importantBypassQuietHours,
+          onChanged: _quietHoursEnabled ? _setImportantBypassQuietHours : null,
+        ),
+        ListTile(
+          leading: const Icon(Icons.schedule_send_outlined),
+          title: const Text('Status zwyklej aktualizacji'),
+          subtitle: Text(_routineNotificationStatus),
         ),
         SwitchListTile(
           secondary: const Icon(Icons.receipt_long_outlined),
@@ -176,6 +207,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  domain.NotificationPreferences get _notificationPreferences {
+    return domain.NotificationPreferences(
+      deliveryMode: _deliveryMode,
+      quietHoursEnabled: _quietHoursEnabled,
+      importantCanBypassQuietHours: _importantBypassQuietHours,
+    );
+  }
+
+  String get _routineNotificationStatus {
+    final decision = _notificationPreferences.deliveryDecision(
+      updateKind: domain.NotificationUpdateKind.expenseUpdate,
+      now: DateTime.now(),
+    );
+    switch (decision.channel) {
+      case domain.NotificationDeliveryChannel.immediate:
+        return 'Powiadomienie wyslane teraz, jesli systemowa zgoda push jest wlaczona.';
+      case domain.NotificationDeliveryChannel.dailyDigest:
+        return 'Wspolrodzic zobaczy zwykla aktualizacje w dzisiejszym podsumowaniu.';
+      case domain.NotificationDeliveryChannel.suppressed:
+        return 'Zwykle aktualizacje sa wyciszone; pilne terminy nadal maja osobna regule.';
+    }
+  }
+
+  void _setDeliveryMode(domain.NotificationDeliveryMode value) {
+    setState(() => _deliveryMode = value);
+  }
+
+  void _setQuietHoursEnabled(bool value) {
+    setState(() => _quietHoursEnabled = value);
+  }
+
+  void _setImportantBypassQuietHours(bool value) {
+    setState(() => _importantBypassQuietHours = value);
   }
 
   void _setNewExpensePush(bool value) {
@@ -596,6 +662,46 @@ class _PlanComparisonCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _NotificationDeliveryModePicker extends StatelessWidget {
+  const _NotificationDeliveryModePicker({
+    required this.selectedMode,
+    required this.onChanged,
+  });
+
+  final domain.NotificationDeliveryMode selectedMode;
+  final ValueChanged<domain.NotificationDeliveryMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SegmentedButton<domain.NotificationDeliveryMode>(
+        segments: domain.NotificationDeliveryMode.values.map((mode) {
+          return ButtonSegment<domain.NotificationDeliveryMode>(
+            value: mode,
+            icon: Icon(_iconFor(mode)),
+            label: Text(domain.notificationDeliveryModeLabels[mode]!),
+          );
+        }).toList(),
+        selected: {selectedMode},
+        onSelectionChanged: (selection) => onChanged(selection.single),
+        showSelectedIcon: false,
+      ),
+    );
+  }
+
+  IconData _iconFor(domain.NotificationDeliveryMode mode) {
+    switch (mode) {
+      case domain.NotificationDeliveryMode.immediate:
+        return Icons.flash_on_outlined;
+      case domain.NotificationDeliveryMode.dailyDigest:
+        return Icons.today_outlined;
+      case domain.NotificationDeliveryMode.importantOnly:
+        return Icons.notification_important_outlined;
+    }
   }
 }
 

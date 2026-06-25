@@ -2,6 +2,7 @@ export 'src/balance.dart';
 export 'src/entitlements.dart';
 export 'src/fee_waiver_policy.dart';
 export 'src/expense_status.dart';
+export 'src/notification_preferences.dart';
 export 'src/paywall_policy.dart';
 export 'src/premium_cancellation_policy.dart';
 export 'src/professional_access.dart';
