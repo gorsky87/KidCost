@@ -1860,6 +1860,101 @@ void main() {
     );
   });
 
+  testWidgets(
+    'expense details expose editable neutral reimbursement composer',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ExpensesScreen(
+              expenses: [
+                testExpense(
+                  id: '1',
+                  title: 'Basen',
+                  amountCents: 12000,
+                  attachment: const ExpenseAttachment(
+                    fileName: 'paragon.pdf',
+                    contentType: 'application/pdf',
+                    status: AttachmentStatus.uploaded,
+                    storagePath: 'expenses/paragon.pdf',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Basen'));
+      await tester.pumpAndSettle();
+      await dragUntilPresent(tester, find.text('Neutralna prosba o zwrot'));
+
+      expect(find.text('Pierwsza prosba'), findsOneWidget);
+      expect(find.text('Delikatne przypomnienie'), findsOneWidget);
+      expect(find.text('Brak dowodu'), findsOneWidget);
+      expect(find.text('Termin platnosci'), findsOneWidget);
+      expect(find.textContaining('Prosze sprawdz'), findsOneWidget);
+      expect(find.text('Ton wyglada neutralnie'), findsOneWidget);
+      expect(
+        find.byKey(const Key('copy-reimbursement-message')),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(find.text('Brak dowodu'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Brak dowodu'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Zalacznik jest juz dodany'), findsOneWidget);
+      expect(
+        find.textContaining('KidCost nie zapisuje tresci wiadomosci'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('reimbursement composer warns about risky local tone', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpensesScreen(
+            expenses: [
+              testExpense(id: '1', title: 'Kolonie', amountCents: 60000),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Kolonie'));
+    await tester.pumpAndSettle();
+    await dragUntilPresent(
+      tester,
+      find.byKey(const Key('reimbursement-message-preview')),
+    );
+
+    await tester.enterText(
+      editableTextByKey(const Key('reimbursement-message-preview')),
+      'MUSISZ ODDAC TERAZ!!!',
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Zamien nakaz na spokojna prosbe o sprawdzenie kosztu.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Usun nadmiar wykrzyknikow lub pytajnikow.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Unikaj pisania calej wiadomosci wielkimi literami.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('expense details show status actions and history placeholder', (
     WidgetTester tester,
   ) async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:kidcost_domain/domain.dart' as domain;
 
 import '../../child_info/child_info_models.dart';
@@ -562,6 +563,8 @@ class _ExpenseCard extends StatelessWidget {
                     onExpenseChanged: onExpenseChanged,
                   ),
                   const SizedBox(height: 16),
+                  _ReimbursementComposerSection(expense: expense),
+                  const SizedBox(height: 16),
                   _StatusHistoryPlaceholder(expense: expense),
                   if (showExpenseHistoryPremiumHint) ...[
                     const SizedBox(height: 12),
@@ -1063,6 +1066,237 @@ class _StatusActionsSection extends StatelessWidget {
       },
     );
   }
+}
+
+class _ReimbursementComposerSection extends StatefulWidget {
+  const _ReimbursementComposerSection({required this.expense});
+
+  final ExpenseEntry expense;
+
+  @override
+  State<_ReimbursementComposerSection> createState() =>
+      _ReimbursementComposerSectionState();
+}
+
+class _ReimbursementComposerSectionState
+    extends State<_ReimbursementComposerSection> {
+  late _ReimbursementMessageTemplate _selectedTemplate;
+  late final TextEditingController _messageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTemplate = _reimbursementTemplates.first;
+    _messageController = TextEditingController(
+      text: _selectedTemplate.messageFor(widget.expense),
+    );
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final warnings = toneWarningsFor(_messageController.text);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.edit_note_outlined),
+              title: const Text('Neutralna prosba o zwrot'),
+              subtitle: const Text(
+                'Wybierz spokojny szablon, edytuj tresc i skopiuj dopiero po sprawdzeniu. KidCost nie wysyla tej wiadomosci automatycznie.',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final template in _reimbursementTemplates)
+                  ChoiceChip(
+                    label: Text(template.label),
+                    selected: template == _selectedTemplate,
+                    onSelected: (_) => _selectTemplate(template),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('reimbursement-message-preview'),
+              controller: _messageController,
+              minLines: 5,
+              maxLines: 8,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Podglad wiadomosci',
+                helperText: 'Mozesz zmienic kazde zdanie przed kopiowaniem.',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 8),
+            if (warnings.isEmpty)
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.check_circle_outline),
+                title: Text('Ton wyglada neutralnie'),
+                subtitle: Text(
+                  'Sprawdzilismy tylko lokalne reguly interpunkcji i slow ryzyka.',
+                ),
+              )
+            else
+              for (final warning in warnings)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.warning_amber_outlined,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  title: const Text('Sprawdz ton'),
+                  subtitle: Text(warning),
+                ),
+            const SizedBox(height: 8),
+            Text(
+              'To nie jest porada prawna ani gwarancja odpowiedzi. KidCost nie zapisuje tresci wiadomosci w analityce.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              key: const Key('copy-reimbursement-message'),
+              onPressed: () => _copyMessage(context),
+              icon: const Icon(Icons.copy_outlined),
+              label: const Text('Kopiuj wiadomosc'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _selectTemplate(_ReimbursementMessageTemplate template) {
+    setState(() {
+      _selectedTemplate = template;
+      _messageController.text = template.messageFor(widget.expense);
+    });
+  }
+
+  Future<void> _copyMessage(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: _messageController.text));
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Wiadomosc skopiowana do schowka.')),
+    );
+  }
+}
+
+@visibleForTesting
+List<String> toneWarningsFor(String message) {
+  final normalized = message.trim();
+  if (normalized.isEmpty) {
+    return const ['Wiadomosc jest pusta. Dodaj neutralna prosbe lub pytanie.'];
+  }
+
+  final lower = normalized.toLowerCase();
+  final warnings = <String>[];
+  if (normalized.contains('!!!') || normalized.contains('???')) {
+    warnings.add('Usun nadmiar wykrzyknikow lub pytajnikow.');
+  }
+  if (RegExp(r'\b(musisz|natychmiast|oddaj|zaplac teraz)\b').hasMatch(lower)) {
+    warnings.add('Zamien nakaz na spokojna prosbe o sprawdzenie kosztu.');
+  }
+  final lettersOnly = normalized.replaceAll(RegExp(r'[^A-Za-z]'), '');
+  if (lettersOnly.length >= 12 && lettersOnly == lettersOnly.toUpperCase()) {
+    warnings.add('Unikaj pisania calej wiadomosci wielkimi literami.');
+  }
+  return warnings;
+}
+
+const _reimbursementTemplates = [
+  _ReimbursementMessageTemplate(
+    label: 'Pierwsza prosba',
+    buildMessage: _buildFirstRequestMessage,
+  ),
+  _ReimbursementMessageTemplate(
+    label: 'Delikatne przypomnienie',
+    buildMessage: _buildGentleReminderMessage,
+  ),
+  _ReimbursementMessageTemplate(
+    label: 'Brak dowodu',
+    buildMessage: _buildMissingReceiptMessage,
+  ),
+  _ReimbursementMessageTemplate(
+    label: 'Termin platnosci',
+    buildMessage: _buildDueDateReminderMessage,
+  ),
+];
+
+class _ReimbursementMessageTemplate {
+  const _ReimbursementMessageTemplate({
+    required this.label,
+    required this.buildMessage,
+  });
+
+  final String label;
+  final String Function(ExpenseEntry expense) buildMessage;
+
+  String messageFor(ExpenseEntry expense) => buildMessage(expense);
+}
+
+String _buildFirstRequestMessage(ExpenseEntry expense) {
+  return [
+    'Czesc, dodalem koszt "${expense.title}" za ${formatCents(expense.amountCents)}.',
+    'Dotyczy: ${expense.childName}, ${expense.category.label}, data ${expense.expenseDate}.',
+    'Prosze sprawdz, czy szczegoly i zalacznik wygladaja poprawnie.',
+    'Jesli wszystko sie zgadza, daj prosze znac lub rozlicz swoj udzial.',
+  ].join('\n');
+}
+
+String _buildGentleReminderMessage(ExpenseEntry expense) {
+  return [
+    'Czesc, przypominam spokojnie o koszcie "${expense.title}".',
+    'W KidCost nadal ma status: ${expense.status.label}.',
+    'Prosze zerknij, kiedy bedziesz miec chwile.',
+  ].join('\n');
+}
+
+String _buildMissingReceiptMessage(ExpenseEntry expense) {
+  final hasAttachment = expense.attachment?.status == AttachmentStatus.uploaded;
+  return [
+    'Czesc, chce uporzadkowac koszt "${expense.title}".',
+    hasAttachment
+        ? 'Zalacznik jest juz dodany, ale prosze sprawdz czy wystarcza do rozliczenia.'
+        : 'Brakuje jeszcze dowodu kosztu, wiec prosze napisz, jaki dokument bedzie najlepszy do dolaczenia.',
+    'Zalezy mi, zeby zapis byl jasny dla nas obojga.',
+  ].join('\n');
+}
+
+String _buildDueDateReminderMessage(ExpenseEntry expense) {
+  final dueDate = _formatDeadlineDate(
+    expense.reimbursementDeadlines?.paymentDueAt,
+  );
+  return [
+    'Czesc, wracam do kosztu "${expense.title}" za ${formatCents(expense.amountCents)}.',
+    dueDate == 'Nie ustawiono'
+        ? 'Nie mam tu ustawionego terminu platnosci, wiec prosze sprawdzmy wspolnie najblizszy wygodny termin.'
+        : 'W KidCost termin platnosci jest zapisany jako $dueDate.',
+    'Daj prosze znac, jesli cos wymaga korekty przed rozliczeniem.',
+  ].join('\n');
 }
 
 extension _ExpenseStatusDomainMapping on ExpenseStatus {
