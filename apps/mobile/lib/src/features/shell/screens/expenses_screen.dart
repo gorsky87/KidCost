@@ -980,6 +980,12 @@ class _ExpenseCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     _ExpenseLineItemsDetails(expense: expense),
                   ],
+                  if (expense.hasMedicalPacket) ...[
+                    const SizedBox(height: 8),
+                    _MedicalExpensePacketDetails(
+                      packet: expense.medicalPacket!,
+                    ),
+                  ],
                   if (expense.originalReceiptAmountLabel != null)
                     _DetailRow(
                       label: 'Kwota na paragonie',
@@ -1265,6 +1271,70 @@ class _ProviderPaymentPanel extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _MedicalExpensePacketDetails extends StatelessWidget {
+  const _MedicalExpensePacketDetails({required this.packet});
+
+  final MedicalExpensePacket packet;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Pakiet medyczny / EOB',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Kontekst medyczny porzadkuje rachunek, EOB i kwote pacjenta; KidCost nie ocenia ubezpieczenia ani uprawnien prawnych.',
+            ),
+            const SizedBox(height: 8),
+            if (_hasValue(packet.serviceDate))
+              _DetailRow(label: 'Data uslugi', value: packet.serviceDate!),
+            if (_hasValue(packet.providerName))
+              _DetailRow(label: 'Dostawca', value: packet.providerName!),
+            if (_hasValue(packet.patientName))
+              _DetailRow(label: 'Pacjent', value: packet.patientName!),
+            if (packet.grossBilledLabel != null)
+              _DetailRow(
+                label: 'Kwota brutto',
+                value: packet.grossBilledLabel!,
+              ),
+            if (packet.coveredAmountLabel != null)
+              _DetailRow(label: 'Pokryte', value: packet.coveredAmountLabel!),
+            if (packet.patientResponsibilityLabel != null)
+              _DetailRow(
+                label: 'Odpowiedzialnosc pacjenta',
+                value: packet.patientResponsibilityLabel!,
+              ),
+            _DetailRow(
+              label: 'Proszone do zwrotu',
+              value: packet.requestedReimbursementLabel,
+            ),
+            if (!packet.isResponsibilityConsistent)
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.info_outline),
+                title: Text('Kwoty wymagaja sprawdzenia'),
+                subtitle: Text(
+                  'Kwota brutto minus pokrycie nie zgadza sie z odpowiedzialnoscia pacjenta.',
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _hasValue(String? value) {
+    return value != null && value.trim().isNotEmpty;
   }
 }
 
