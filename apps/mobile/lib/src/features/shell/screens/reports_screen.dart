@@ -411,6 +411,11 @@ class _MonthlyReportView extends StatelessWidget {
           ),
           _BreakdownCard(title: 'Koszty dzieci', values: report.byChild),
           _BreakdownCard(title: 'Kategorie kosztow', values: report.byCategory),
+          if (report.byReportGroup.isNotEmpty)
+            _BreakdownCard(
+              title: 'Grupy raportowe kategorii',
+              values: report.byReportGroup,
+            ),
           _ExpenseStatusCard(report: report),
         ],
         const SizedBox(height: 12),
@@ -1681,6 +1686,8 @@ class MonthlyExpenseReport {
     required this.byPayer,
     required this.byChild,
     required this.byCategory,
+    required this.byReportGroup,
+    required this.categoryIdByLabel,
     required this.byStatus,
     required this.disputedCents,
     required this.pendingCents,
@@ -1705,6 +1712,8 @@ class MonthlyExpenseReport {
     final byPayer = <String, int>{};
     final byChild = <String, int>{};
     final byCategory = <String, int>{};
+    final byReportGroup = <String, int>{};
+    final categoryIdByLabel = <String, String>{};
     final byStatus = <String, int>{};
     var totalCents = 0;
     var disputedCents = 0;
@@ -1736,6 +1745,18 @@ class MonthlyExpenseReport {
           (value) => value + balanceAmountCents,
           ifAbsent: () => balanceAmountCents,
         );
+        categoryIdByLabel.putIfAbsent(
+          expense.category.label,
+          () => expense.category.id,
+        );
+        final reportGroup = expense.category.reportGroup?.trim();
+        if (reportGroup != null && reportGroup.isNotEmpty) {
+          byReportGroup.update(
+            reportGroup,
+            (value) => value + balanceAmountCents,
+            ifAbsent: () => balanceAmountCents,
+          );
+        }
         byStatus.update(
           expense.status.label,
           (value) => value + balanceAmountCents,
@@ -1761,6 +1782,8 @@ class MonthlyExpenseReport {
       byPayer: _sortedTotals(byPayer),
       byChild: _sortedTotals(byChild),
       byCategory: _sortedTotals(byCategory),
+      byReportGroup: _sortedTotals(byReportGroup),
+      categoryIdByLabel: Map.unmodifiable(categoryIdByLabel),
       byStatus: _sortedTotals(byStatus),
       disputedCents: disputedCents,
       pendingCents: pendingCents,
@@ -1777,6 +1800,8 @@ class MonthlyExpenseReport {
   final Map<String, int> byPayer;
   final Map<String, int> byChild;
   final Map<String, int> byCategory;
+  final Map<String, int> byReportGroup;
+  final Map<String, String> categoryIdByLabel;
   final Map<String, int> byStatus;
   final int disputedCents;
   final int pendingCents;
@@ -1843,6 +1868,7 @@ class MonthlyExpenseReport {
         'tytul',
         'dziecko',
         'kategoria',
+        'grupa_raportowa',
         'placacy',
         'status',
         'dispute_reason',
@@ -1883,6 +1909,7 @@ class MonthlyExpenseReport {
           expense.title,
           expense.childName,
           expense.category.label,
+          expense.category.reportGroup ?? '',
           expense.paidBy.label,
           expense.status.label,
           expense.disputeDetails?.reason.label ?? '',
@@ -2436,6 +2463,10 @@ class _MonthlyInsightsCard extends StatelessWidget {
   }
 
   String? _categoryIdForLabel(String label) {
+    final reportCategoryId = report.categoryIdByLabel[label];
+    if (reportCategoryId != null) {
+      return reportCategoryId;
+    }
     for (final category in expenseCategories) {
       if (category.label == label) {
         return category.id;

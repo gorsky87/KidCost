@@ -5526,6 +5526,67 @@ void main() {
     expect(openedFilters.single.status, isNull);
   });
 
+  testWidgets(
+    'monthly reports keep family category report groups and filter links',
+    (WidgetTester tester) async {
+      final openedFilters = <ExpenseListFilterRequest>[];
+      const orthodontics = ExpenseCategory(
+        id: 'family-category-orthodontics',
+        label: 'Ortodoncja',
+        reportGroup: 'Zdrowie',
+        isArchived: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ReportsScreen(
+              currentDate: DateTime.utc(2026, 6, 24),
+              onOpenExpenseFilter: openedFilters.add,
+              expenses: [
+                testExpense(
+                  id: 'ortho-1',
+                  title: 'Aparat retencyjny',
+                  amountCents: 32000,
+                  category: orthodontics,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Miesieczne insighty'), findsOneWidget);
+      expect(find.text('Ortodoncja'), findsWidgets);
+      await tester.tap(find.text('Ortodoncja').first);
+      await tester.pumpAndSettle();
+
+      expect(openedFilters, hasLength(1));
+      expect(openedFilters.single.month, '2026-06');
+      expect(openedFilters.single.categoryId, 'family-category-orthodontics');
+
+      await tester.scrollUntilVisible(
+        find.text('Grupy raportowe kategorii'),
+        180,
+      );
+      expect(find.text('Zdrowie'), findsWidgets);
+
+      final csv = MonthlyExpenseReport.fromExpenses(
+        month: '2026-06',
+        expenses: [
+          testExpense(
+            id: 'ortho-1',
+            title: 'Aparat retencyjny',
+            amountCents: 32000,
+            category: orthodontics,
+          ),
+        ],
+      ).toCsv();
+      expect(csv, contains('"grupa_raportowa"'));
+      expect(csv, contains('"Ortodoncja","Zdrowie"'));
+    },
+  );
+
   testWidgets('expenses screen applies report filter requests', (
     WidgetTester tester,
   ) async {
