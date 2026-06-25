@@ -3568,6 +3568,91 @@ void main() {
     expect(dismissedPoint, isEmpty);
   });
 
+  testWidgets('custody ICS includes linked costs only after explicit opt-in', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    CalendarExportPremiumIntent? recordedIntent;
+    const parent = CustodyParent(
+      id: 'self',
+      label: 'parent@example.com',
+      isCurrentUser: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CustodyCalendarScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: [
+              CustodyDay(
+                id: 'custody-2026-06-24',
+                date: '2026-06-24',
+                childName: 'Antek',
+                parent: parent,
+                createdAt: DateTime.utc(2026, 6, 24),
+              ),
+            ],
+            expenses: [
+              testExpense(
+                id: 'pool',
+                title: 'Basen',
+                category: expenseCategories[4],
+                calendarEvent: const ExpenseCalendarEventLink(
+                  id: 'custody-2026-06-24',
+                  title: 'Opieka',
+                  eventDate: '2026-06-24',
+                ),
+              ),
+            ],
+            onCalendarExportPremiumIntent: (intent) => recordedIntent = intent,
+            onCustodyDaysChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    await dragUntilPresent(tester, find.text('Kalendarz poza KidCost'));
+    final exportButton = find.widgetWithText(
+      OutlinedButton,
+      'Podglad eksportu ICS',
+    );
+    await tester.ensureVisible(exportButton);
+    await tester.pumpAndSettle();
+    await tester.tap(exportButton);
+    await tester.pumpAndSettle();
+
+    var preview = tester
+        .widget<SelectableText>(find.byKey(const Key('calendar-ics-preview')))
+        .data!;
+    expect(preview, contains('SUMMARY:KidCost plan opieki'));
+    expect(preview, isNot(contains('Basen')));
+    expect(preview, isNot(contains('Antek')));
+
+    await tester.tap(
+      find.byKey(const Key('calendar-ics-include-costs-checkbox')),
+    );
+    await tester.pumpAndSettle();
+
+    preview = tester
+        .widget<SelectableText>(find.byKey(const Key('calendar-ics-preview')))
+        .data!;
+    expect(preview, contains('SUMMARY:Opieka: parent@example.com'));
+    expect(preview, contains('Powiazane koszty: Basen'));
+    expect(preview, contains('Antek'));
+
+    await tester.tap(find.text('Zapisz intencje'));
+    await tester.pumpAndSettle();
+
+    expect(recordedIntent?.includeDetailedExpenseContext, isTrue);
+  });
+
   test('custody ICS export defaults to privacy-safe all-day events', () {
     const parent = CustodyParent(
       id: 'self',
@@ -3618,10 +3703,23 @@ void main() {
       ],
       privacyMode: CustodyIcsPrivacyMode.detailed,
       generatedAt: DateTime.utc(2026, 6, 24),
+      linkedExpenses: [
+        testExpense(
+          id: 'pool',
+          title: 'Basen, karnet',
+          calendarEvent: const ExpenseCalendarEventLink(
+            id: 'custody-2026-06-24',
+            title: 'Opieka',
+            eventDate: '2026-06-24',
+          ),
+        ),
+      ],
+      includeLinkedExpenseContext: true,
     );
 
     expect(export.content, contains(r'SUMMARY:Opieka: Drugi rodzic\, dom'));
     expect(export.content, contains('Ola'));
+    expect(export.content, contains(r'Powiazane koszty: Basen\, karnet'));
     expect(export.content, contains('X-KIDCOST-PRIVACY:detailed'));
   });
 

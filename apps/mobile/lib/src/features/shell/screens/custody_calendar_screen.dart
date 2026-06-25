@@ -294,24 +294,22 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
   }
 
   Future<void> _showCalendarExportPremiumIntent() async {
-    final export = buildCustodyIcsExport(
-      custodyDays: widget.custodyDays,
-      privacyMode: CustodyIcsPrivacyMode.neutral,
-      generatedAt: widget.currentDate ?? DateTime.now().toUtc(),
-    );
-    final confirmed = await showDialog<bool>(
+    final generatedAt = widget.currentDate ?? DateTime.now().toUtc();
+    final intent = await showDialog<CalendarExportPremiumIntent>(
       context: context,
       builder: (context) {
-        return _CalendarExportPreviewDialog(export: export);
+        return _CalendarExportPreviewDialog(
+          custodyDays: widget.custodyDays,
+          linkedExpenses: widget.expenses,
+          generatedAt: generatedAt,
+        );
       },
     );
-    if (!mounted || confirmed != true) {
+    if (!mounted || intent == null) {
       return;
     }
 
-    widget.onCalendarExportPremiumIntent?.call(
-      CalendarExportPremiumIntent(custodyDaysCount: widget.custodyDays.length),
-    );
+    widget.onCalendarExportPremiumIntent?.call(intent);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
@@ -476,14 +474,38 @@ class _CalendarExportPremiumSection extends StatelessWidget {
   }
 }
 
-class _CalendarExportPreviewDialog extends StatelessWidget {
-  const _CalendarExportPreviewDialog({required this.export});
+class _CalendarExportPreviewDialog extends StatefulWidget {
+  const _CalendarExportPreviewDialog({
+    required this.custodyDays,
+    required this.linkedExpenses,
+    required this.generatedAt,
+  });
 
-  final CustodyIcsExport export;
+  final List<CustodyDay> custodyDays;
+  final List<ExpenseEntry> linkedExpenses;
+  final DateTime generatedAt;
+
+  @override
+  State<_CalendarExportPreviewDialog> createState() =>
+      _CalendarExportPreviewDialogState();
+}
+
+class _CalendarExportPreviewDialogState
+    extends State<_CalendarExportPreviewDialog> {
+  bool _includeDetailedExpenseContext = false;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final export = buildCustodyIcsExport(
+      custodyDays: widget.custodyDays,
+      linkedExpenses: widget.linkedExpenses,
+      includeLinkedExpenseContext: _includeDetailedExpenseContext,
+      privacyMode: _includeDetailedExpenseContext
+          ? CustodyIcsPrivacyMode.detailed
+          : CustodyIcsPrivacyMode.neutral,
+      generatedAt: widget.generatedAt,
+    );
     return AlertDialog(
       key: const Key('calendar-export-preview-dialog'),
       icon: Icon(Icons.calendar_month_outlined, color: colors.primary),
@@ -510,12 +532,19 @@ class _CalendarExportPreviewDialog extends StatelessWidget {
                   'Linki do kosztow nie trafia do kalendarza bez osobnej zgody.',
             ),
             CheckboxListTile(
+              key: const Key('calendar-ics-include-costs-checkbox'),
               contentPadding: EdgeInsets.zero,
-              value: false,
-              onChanged: null,
+              value: _includeDetailedExpenseContext,
+              onChanged: (value) {
+                setState(() {
+                  _includeDetailedExpenseContext = value ?? false;
+                });
+              },
               title: const Text('Dolacz szczegoly kosztow'),
-              subtitle: const Text(
-                'Opcja pozostaje wylaczona do czasu pelnego Premium i osobnej zgody.',
+              subtitle: Text(
+                _includeDetailedExpenseContext
+                    ? 'Podglad zawiera powiazane koszty i szczegoly opieki.'
+                    : 'Domyslnie wylaczone; wymaga osobnej zgody przed eksportem.',
               ),
             ),
             const SizedBox(height: 8),
@@ -544,7 +573,12 @@ class _CalendarExportPreviewDialog extends StatelessWidget {
           label: const Text('Kopiuj ICS'),
         ),
         FilledButton.icon(
-          onPressed: () => Navigator.of(context).pop(true),
+          onPressed: () => Navigator.of(context).pop(
+            CalendarExportPremiumIntent(
+              custodyDaysCount: widget.custodyDays.length,
+              includeDetailedExpenseContext: _includeDetailedExpenseContext,
+            ),
+          ),
           icon: const Icon(Icons.workspace_premium_outlined),
           label: const Text('Zapisz intencje'),
         ),
