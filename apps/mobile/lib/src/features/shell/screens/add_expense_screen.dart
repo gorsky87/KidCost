@@ -90,6 +90,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String? _payerError;
   String? _deadlineError;
   String? _providerPaymentError;
+  String? _lineItemsError;
+  List<ExpenseLineItem> _lineItems = const [];
   bool _duplicateCueDismissed = false;
   bool _ocrDraftNeedsReview = false;
   bool _ocrDraftManuallyConfirmed = false;
@@ -383,12 +385,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ],
           const SizedBox(height: 12),
           TextField(
+            key: const Key('expense-title-field'),
             controller: _titleController,
             textCapitalization: TextCapitalization.sentences,
             decoration: const InputDecoration(
               labelText: 'Opis lub nazwa kosztu',
               prefixIcon: Icon(Icons.notes_outlined),
             ),
+          ),
+          const SizedBox(height: 12),
+          _ExpenseLineItemsCard(
+            lineItems: _lineItems,
+            parentAmountCents: _parsedAmountOrZero,
+            errorText: _lineItemsError,
+            onAddLineItem: _showAddLineItemSheet,
+            onRemoveLineItem: (item) {
+              setState(() {
+                _lineItems = _lineItems
+                    .where((lineItem) => lineItem.id != item.id)
+                    .toList();
+                _lineItemsError = null;
+              });
+            },
           ),
           if (_attachmentDraft == null) ...[
             const SizedBox(height: 12),
@@ -612,6 +630,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final date = _dateController.text.trim();
     final deadlineError = _deadlineValidationError();
     final providerPaymentError = _providerPaymentValidationError();
+    final lineItemsError = _lineItemsValidationError(amountCents);
     setState(() {
       _amountError = amountCents > 0 ? null : 'Podaj kwote wieksza od 0.';
       _dateError = date.isEmpty ? 'Podaj date kosztu.' : null;
@@ -622,6 +641,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           : null;
       _deadlineError = deadlineError;
       _providerPaymentError = providerPaymentError;
+      _lineItemsError = lineItemsError;
     });
 
     if (amountCents <= 0 ||
@@ -629,7 +649,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         payer == null ||
         _payerError != null ||
         deadlineError != null ||
-        providerPaymentError != null) {
+        providerPaymentError != null ||
+        lineItemsError != null) {
       return;
     }
 
@@ -755,6 +776,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       reimbursementRequestKind: _requestKind,
       providerPayment: _currentProviderPaymentDetails(),
       draftReview: draftReview,
+      lineItems: _lineItems,
     );
 
     widget.onExpenseSaved(expense);
@@ -786,6 +808,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _providerAmountDueController.clear();
       _providerDueDateController.clear();
       _providerPaymentError = null;
+      _lineItems = const [];
+      _lineItemsError = null;
       _calendarEventId = null;
       _childInfoCardId = null;
       _relatedExpenseId = null;
@@ -808,6 +832,45 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       ),
     );
+  }
+
+  int get _parsedAmountOrZero {
+    try {
+      return parseAmountToCents(_amountController.text);
+    } on FormatException {
+      return 0;
+    }
+  }
+
+  String? _lineItemsValidationError(int amountCents) {
+    if (_lineItems.isEmpty) {
+      return null;
+    }
+    final lineItemsTotal = _lineItems.fold<int>(
+      0,
+      (sum, item) => sum + item.amountCents,
+    );
+    if (lineItemsTotal != amountCents) {
+      return 'Suma pozycji ${formatCents(lineItemsTotal)} musi zgadzac sie z kwota kosztu ${formatCents(amountCents)}.';
+    }
+    return null;
+  }
+
+  Future<void> _showAddLineItemSheet() async {
+    final item = await showModalBottomSheet<ExpenseLineItem>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => _ExpenseLineItemSheet(
+        childName: widget.profile.childName,
+        defaultCategory: _category,
+      ),
+    );
+    if (item == null) return;
+    setState(() {
+      _lineItems = [..._lineItems, item];
+      _lineItemsError = null;
+    });
   }
 
   ProviderPaymentDetails? _currentProviderPaymentDetails() {
@@ -1893,6 +1956,302 @@ class _ProviderPaymentFields extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ExpenseLineItemsCard extends StatelessWidget {
+  const _ExpenseLineItemsCard({
+    required this.lineItems,
+    required this.parentAmountCents,
+    required this.onAddLineItem,
+    required this.onRemoveLineItem,
+    this.errorText,
+  });
+
+  final List<ExpenseLineItem> lineItems;
+  final int parentAmountCents;
+  final String? errorText;
+  final VoidCallback onAddLineItem;
+  final ValueChanged<ExpenseLineItem> onRemoveLineItem;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCents = lineItems.fold<int>(
+      0,
+      (sum, item) => sum + item.amountCents,
+    );
+    final reimbursableCents = lineItems.fold<int>(
+      0,
+      (sum, item) => sum + (item.isReimbursable ? item.amountCents : 0),
+    );
+    final differenceCents = parentAmountCents - totalCents;
+    final isBalanced = lineItems.isEmpty || differenceCents == 0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.splitscreen_outlined),
+              title: const Text('Pozycje rachunku'),
+              subtitle: Text(
+                lineItems.isEmpty
+                    ? 'Opcjonalnie rozbij jeden paragon na kilka pozycji bez duplikowania zalacznika.'
+                    : '${lineItems.length} pozycji, suma ${formatCents(totalCents)}.',
+              ),
+            ),
+            if (lineItems.isNotEmpty) ...[
+              _LineItemSummaryRow(
+                label: 'Suma pozycji',
+                value: formatCents(totalCents),
+              ),
+              _LineItemSummaryRow(
+                label: 'Reimbursable',
+                value: formatCents(reimbursableCents),
+              ),
+              _LineItemSummaryRow(
+                label: isBalanced
+                    ? 'Zgodne z kosztem'
+                    : 'Roznica do wyjasnienia',
+                value: formatCents(differenceCents.abs()),
+              ),
+              const SizedBox(height: 8),
+              for (final item in lineItems)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    item.isReimbursable
+                        ? Icons.check_circle_outline
+                        : Icons.remove_circle_outline,
+                  ),
+                  title: Text(item.description),
+                  subtitle: Text(
+                    '${item.childName} - ${item.category.label} - ${item.splitLabel}',
+                  ),
+                  trailing: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 4,
+                    children: [
+                      Text(item.amountLabel),
+                      IconButton(
+                        tooltip: 'Usun pozycje',
+                        icon: const Icon(Icons.close),
+                        onPressed: () => onRemoveLineItem(item),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            if (errorText != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                errorText!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const Key('add-expense-line-item-button'),
+                onPressed: onAddLineItem,
+                icon: const Icon(Icons.add_outlined),
+                label: const Text('Dodaj pozycje rachunku'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LineItemSummaryRow extends StatelessWidget {
+  const _LineItemSummaryRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(child: Text(label)),
+          Text(value, style: Theme.of(context).textTheme.titleSmall),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpenseLineItemSheet extends StatefulWidget {
+  const _ExpenseLineItemSheet({
+    required this.childName,
+    required this.defaultCategory,
+  });
+
+  final String childName;
+  final ExpenseCategory defaultCategory;
+
+  @override
+  State<_ExpenseLineItemSheet> createState() => _ExpenseLineItemSheetState();
+}
+
+class _ExpenseLineItemSheetState extends State<_ExpenseLineItemSheet> {
+  final _descriptionController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _splitController = TextEditingController();
+  late ExpenseCategory _category = widget.defaultCategory;
+  bool _isReimbursable = true;
+  String? _descriptionError;
+  String? _amountError;
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    _amountController.dispose();
+    _splitController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          0,
+          16,
+          MediaQuery.viewInsetsOf(context).bottom + 16,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.splitscreen_outlined),
+              title: Text('Pozycja rachunku'),
+              subtitle: Text(
+                'Manualny MVP: jeden zalacznik, kilka pozycji, bez OCR i bez autosubmission.',
+              ),
+            ),
+            TextField(
+              key: const Key('line-item-description-field'),
+              controller: _descriptionController,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: 'Opis pozycji',
+                prefixIcon: const Icon(Icons.notes_outlined),
+                errorText: _descriptionError,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('line-item-amount-field'),
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Kwota pozycji',
+                prefixIcon: const Icon(Icons.payments_outlined),
+                errorText: _amountError,
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<ExpenseCategory>(
+              key: const Key('line-item-category-picker'),
+              initialValue: _category,
+              decoration: const InputDecoration(
+                labelText: 'Kategoria pozycji',
+                prefixIcon: Icon(Icons.label_outline),
+              ),
+              items: [
+                for (final category in expenseCategories)
+                  DropdownMenuItem(
+                    value: category,
+                    child: Text(category.label),
+                  ),
+              ],
+              onChanged: (category) {
+                if (category != null) setState(() => _category = category);
+              },
+            ),
+            const SizedBox(height: 12),
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Dziecko',
+                prefixIcon: Icon(Icons.child_care_outlined),
+              ),
+              child: Text(widget.childName),
+            ),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              key: const Key('line-item-reimbursable-switch'),
+              contentPadding: EdgeInsets.zero,
+              value: _isReimbursable,
+              onChanged: (value) => setState(() => _isReimbursable = value),
+              title: const Text('Podlega zwrotowi'),
+              subtitle: const Text(
+                'Nie zmienia salda automatycznie; raport pokazuje reimbursable total.',
+              ),
+            ),
+            TextField(
+              key: const Key('line-item-split-field'),
+              controller: _splitController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Override podzialu procentowego',
+                helperText: 'Opcjonalnie, np. 50. Puste = reguly rodzinne.',
+                prefixIcon: Icon(Icons.percent_outlined),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              key: const Key('save-line-item-button'),
+              onPressed: _save,
+              icon: const Icon(Icons.check_outlined),
+              label: const Text('Dodaj pozycje'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _save() {
+    final description = _descriptionController.text.trim();
+    int amountCents;
+    try {
+      amountCents = parseAmountToCents(_amountController.text);
+    } on FormatException {
+      amountCents = 0;
+    }
+    setState(() {
+      _descriptionError = description.isEmpty ? 'Dodaj opis pozycji.' : null;
+      _amountError = amountCents > 0 ? null : 'Podaj kwote pozycji.';
+    });
+    if (_descriptionError != null || _amountError != null) {
+      return;
+    }
+    final splitPercent = int.tryParse(_splitController.text.trim());
+    Navigator.of(context).pop(
+      ExpenseLineItem(
+        id: 'line-${DateTime.now().microsecondsSinceEpoch}',
+        description: description,
+        amountCents: amountCents,
+        category: _category,
+        childName: widget.childName,
+        isReimbursable: _isReimbursable,
+        splitPercent: splitPercent,
       ),
     );
   }

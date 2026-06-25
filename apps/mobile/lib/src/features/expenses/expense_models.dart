@@ -68,6 +68,7 @@ class ExpenseEntry {
     this.reimbursementRequestKind = ReimbursementRequestKind.reimburseParent,
     this.providerPayment,
     this.draftReview,
+    this.lineItems = const [],
   });
 
   final String id;
@@ -95,6 +96,7 @@ class ExpenseEntry {
   final ReimbursementRequestKind reimbursementRequestKind;
   final ProviderPaymentDetails? providerPayment;
   final ExpenseDraftReview? draftReview;
+  final List<ExpenseLineItem> lineItems;
 
   String? get calendarEventId => calendarEvent?.id;
   String? get calendarEventTitle => calendarEvent?.title;
@@ -112,6 +114,18 @@ class ExpenseEntry {
   bool get isPrivateDraft => draftReview != null;
 
   bool get isArchivedDraft => draftReview?.archivedAt != null;
+
+  bool get hasLineItems => lineItems.isNotEmpty;
+
+  int get lineItemsTotalCents =>
+      lineItems.fold(0, (sum, item) => sum + item.amountCents);
+
+  int get lineItemsReimbursableCents => lineItems.fold(
+    0,
+    (sum, item) => sum + (item.isReimbursable ? item.amountCents : 0),
+  );
+
+  int get lineItemsDifferenceCents => amountCents - lineItemsTotalCents;
 
   int get providerPaymentDueCents =>
       isPayProviderRequest ? providerPayment!.amountDueCents : 0;
@@ -170,6 +184,7 @@ class ExpenseEntry {
     ProviderPaymentDetails? providerPayment,
     ExpenseDraftReview? draftReview,
     bool clearDraftReview = false,
+    List<ExpenseLineItem>? lineItems,
   }) {
     return ExpenseEntry(
       id: id,
@@ -205,8 +220,34 @@ class ExpenseEntry {
           reimbursementRequestKind ?? this.reimbursementRequestKind,
       providerPayment: providerPayment ?? this.providerPayment,
       draftReview: clearDraftReview ? null : draftReview ?? this.draftReview,
+      lineItems: lineItems ?? this.lineItems,
     );
   }
+}
+
+class ExpenseLineItem {
+  const ExpenseLineItem({
+    required this.id,
+    required this.description,
+    required this.amountCents,
+    required this.category,
+    required this.childName,
+    required this.isReimbursable,
+    this.splitPercent,
+  });
+
+  final String id;
+  final String description;
+  final int amountCents;
+  final ExpenseCategory category;
+  final String childName;
+  final bool isReimbursable;
+  final int? splitPercent;
+
+  String get amountLabel => formatCents(amountCents);
+
+  String get splitLabel =>
+      splitPercent == null ? 'Domyslny podzial' : 'Podzial $splitPercent%';
 }
 
 enum ExpenseDraftIssue {

@@ -974,6 +974,10 @@ class _ExpenseCard extends StatelessWidget {
                         ? '${formatCents(expense.amountCents)} (kontekst kosztu)'
                         : formatCents(expense.amountCents),
                   ),
+                  if (expense.hasLineItems) ...[
+                    const SizedBox(height: 8),
+                    _ExpenseLineItemsDetails(expense: expense),
+                  ],
                   if (expense.originalReceiptAmountLabel != null)
                     _DetailRow(
                       label: 'Kwota na paragonie',
@@ -1072,6 +1076,57 @@ String reimbursementDeadlineTimingLabelFor(
     case domain.ReimbursementDeadlineTimingState.noDates:
     case null:
       return 'Bez terminu';
+  }
+}
+
+class _ExpenseLineItemsDetails extends StatelessWidget {
+  const _ExpenseLineItemsDetails({required this.expense});
+
+  final ExpenseEntry expense;
+
+  @override
+  Widget build(BuildContext context) {
+    final differenceCents = expense.lineItemsDifferenceCents;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.splitscreen_outlined),
+              title: const Text('Pozycje rachunku'),
+              subtitle: Text(
+                'Suma ${formatCents(expense.lineItemsTotalCents)}, reimbursable ${formatCents(expense.lineItemsReimbursableCents)}.',
+              ),
+            ),
+            if (differenceCents != 0)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.warning_amber_outlined),
+                title: const Text('Roznica do wyjasnienia'),
+                subtitle: Text(formatCents(differenceCents.abs())),
+              ),
+            for (final item in expense.lineItems)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  item.isReimbursable
+                      ? Icons.check_circle_outline
+                      : Icons.remove_circle_outline,
+                ),
+                title: Text(item.description),
+                subtitle: Text(
+                  '${item.childName} - ${item.category.label} - ${item.splitLabel}',
+                ),
+                trailing: Text(item.amountLabel),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

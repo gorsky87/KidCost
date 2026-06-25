@@ -138,6 +138,8 @@ class _KidCostAppState extends State<KidCostApp> {
                 'category_id': expense.category.id,
                 'status': expense.status.name,
                 'has_attachment': expense.attachment != null,
+                'has_line_items': expense.hasLineItems,
+                'line_item_count': expense.lineItems.length,
                 'release_channel': _config.releaseChannel,
               },
             ),
