@@ -11,6 +11,7 @@ export 'src/reimbursement_deadlines.dart';
 export 'src/reimbursement_request_package.dart';
 export 'src/safe_referral_policy.dart';
 export 'src/shared_expense_agreement.dart';
+export 'src/sponsored_premium_access.dart';
 export 'src/settlement_allocation.dart';
 export 'src/subscription_lifecycle.dart';
 export 'src/usage_credits.dart';
