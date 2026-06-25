@@ -37,6 +37,7 @@ enum TelemetryEvent {
   polishReportContextUpdated('polish_report_context_updated'),
   parentingTimeReportToggled('parenting_time_report_toggled'),
   betaFeedbackDraftPrepared('beta_feedback_draft_prepared'),
+  contextLogEntryCreated('context_log_entry_created'),
   historicalImportPreviewed('historical_import_previewed'),
   plannedPurchaseCreated('planned_purchase_created'),
   plannedPurchaseStatusChanged('planned_purchase_status_changed'),
@@ -145,6 +146,10 @@ const _allowedParameterKeys = {
   'has_reimbursement_impact',
   'has_attachment_context',
   'known_limitations_count',
+  'context_category',
+  'context_visibility',
+  'linked_record_type',
+  'include_context_in_report',
 };
 
 bool _looksSensitive(String value) {

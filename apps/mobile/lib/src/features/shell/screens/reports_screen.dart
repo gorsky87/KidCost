@@ -8,6 +8,7 @@ import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../planned_purchases/planned_purchase_models.dart';
 import '../../premium/premium_discovery.dart';
+import '../../reports/context_log_models.dart';
 import '../../reports/mediation_report_pass.dart';
 
 enum _ReportMode { monthly, annual }
@@ -17,9 +18,11 @@ class ReportsScreen extends StatefulWidget {
     required this.expenses,
     this.plannedPurchases = const [],
     this.custodyDays = const [],
+    this.contextLogEntries = const [],
     this.currentDate,
     this.initialMediationReportPass,
     this.showReportExportPremiumHint = false,
+    this.onContextLogEntrySaved,
     this.onOpenExpenseFilter,
     this.onPremiumHintDismissed,
     this.telemetry = const NoopTelemetry(),
@@ -29,9 +32,11 @@ class ReportsScreen extends StatefulWidget {
   final List<ExpenseEntry> expenses;
   final List<PlannedPurchase> plannedPurchases;
   final List<CustodyDay> custodyDays;
+  final List<ContextLogEntry> contextLogEntries;
   final DateTime? currentDate;
   final MediationReportPass? initialMediationReportPass;
   final bool showReportExportPremiumHint;
+  final ValueChanged<ContextLogEntry>? onContextLogEntrySaved;
   final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
   final AppTelemetry telemetry;
@@ -97,6 +102,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       month: month,
       custodyDays: widget.custodyDays,
     );
+    final monthlyContextEntries = contextLogEntriesForMonth(
+      month: month,
+      entries: widget.contextLogEntries,
+    );
     final previousMonthlyReport = MonthlyExpenseReport.fromExpenses(
       month: _previousMonthLabel(month),
       expenses: widget.expenses,
@@ -149,6 +158,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             previousReport: previousMonthlyReport,
             plannedPurchases: monthlyPlans,
             parentingTimeContext: parentingTimeContext,
+            contextEntries: monthlyContextEntries,
             includeParentingTimeContext: _includeParentingTimeContext,
             polishContext: _polishReportContext,
             now: widget.currentDate ?? DateTime.now(),
@@ -164,6 +174,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             onParentingTimeContextEnabledChanged: (value) {
               _updateParentingTimeContextEnabled(value, parentingTimeContext);
             },
+            onContextLogEntrySaved: widget.onContextLogEntrySaved,
             onOpenExpenseFilter: widget.onOpenExpenseFilter,
             onPremiumHintDismissed: () => widget.onPremiumHintDismissed?.call(
               PremiumDiscoveryPoint.reportExport,
@@ -245,6 +256,7 @@ class _MonthlyReportView extends StatelessWidget {
     required this.previousReport,
     required this.plannedPurchases,
     required this.parentingTimeContext,
+    required this.contextEntries,
     required this.includeParentingTimeContext,
     required this.polishContext,
     required this.now,
@@ -254,6 +266,7 @@ class _MonthlyReportView extends StatelessWidget {
     required this.onMonthChanged,
     required this.onPolishContextChanged,
     required this.onParentingTimeContextEnabledChanged,
+    required this.onContextLogEntrySaved,
     required this.onOpenExpenseFilter,
     required this.onPremiumHintDismissed,
   });
@@ -264,6 +277,7 @@ class _MonthlyReportView extends StatelessWidget {
   final MonthlyExpenseReport previousReport;
   final List<PlannedPurchase> plannedPurchases;
   final ParentingTimeReportContext parentingTimeContext;
+  final List<ContextLogEntry> contextEntries;
   final bool includeParentingTimeContext;
   final PolishReportContext polishContext;
   final DateTime now;
@@ -273,6 +287,7 @@ class _MonthlyReportView extends StatelessWidget {
   final ValueChanged<String> onMonthChanged;
   final ValueChanged<PolishReportContext> onPolishContextChanged;
   final ValueChanged<bool> onParentingTimeContextEnabledChanged;
+  final ValueChanged<ContextLogEntry>? onContextLogEntrySaved;
   final ValueChanged<ExpenseListFilterRequest>? onOpenExpenseFilter;
   final VoidCallback onPremiumHintDismissed;
 
@@ -324,6 +339,13 @@ class _MonthlyReportView extends StatelessWidget {
           onChanged: onPolishContextChanged,
         ),
         const SizedBox(height: 12),
+        _ContextLogReportCard(
+          month: month,
+          expenses: report.expenses,
+          contextEntries: contextEntries,
+          onContextLogEntrySaved: onContextLogEntrySaved,
+        ),
+        const SizedBox(height: 12),
         if (report.expenses.isEmpty)
           const _EmptyReportCard()
         else ...[
@@ -351,6 +373,7 @@ class _MonthlyReportView extends StatelessWidget {
             parentingTimeContext: includeParentingTimeContext
                 ? parentingTimeContext
                 : null,
+            contextEntries: contextEntries,
           ),
           showPremiumHint: showPremiumHint,
           onPremiumHintDismissed: onPremiumHintDismissed,
@@ -444,6 +467,309 @@ class _AnnualReportView extends StatelessWidget {
         const SizedBox(height: 12),
         _ProfessionalAccessCard(periodLabel: report.year.toString()),
       ],
+    );
+  }
+}
+
+const contextLogReportDisclaimer =
+    'Dziennik kontekstu oddziela fakty i notatki uzytkownika od wyliczen finansowych. Nie jest porada prawna ani certyfikowanym rejestrem.';
+
+class _ContextLogReportCard extends StatefulWidget {
+  const _ContextLogReportCard({
+    required this.month,
+    required this.expenses,
+    required this.contextEntries,
+    required this.onContextLogEntrySaved,
+  });
+
+  final String month;
+  final List<ExpenseEntry> expenses;
+  final List<ContextLogEntry> contextEntries;
+  final ValueChanged<ContextLogEntry>? onContextLogEntrySaved;
+
+  @override
+  State<_ContextLogReportCard> createState() => _ContextLogReportCardState();
+}
+
+class _ContextLogReportCardState extends State<_ContextLogReportCard> {
+  late String _childName;
+  late String _entryDate;
+  ContextLogCategory _category = ContextLogCategory.school;
+  ContextLogVisibility _visibility = ContextLogVisibility.private;
+  bool _includeInReport = false;
+  String? _linkedExpenseId;
+  final _noteController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _childName = _childOptions().first;
+    _entryDate = '${widget.month}-01';
+  }
+
+  @override
+  void didUpdateWidget(covariant _ContextLogReportCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.month != widget.month) {
+      _entryDate = '${widget.month}-01';
+      _linkedExpenseId = null;
+    }
+    final childOptions = _childOptions();
+    if (!childOptions.contains(_childName)) {
+      _childName = childOptions.first;
+    }
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reportEntries = widget.contextEntries
+        .where((entry) => entry.canAppearInSharedReport)
+        .toList();
+    final privateOrDraftCount =
+        widget.contextEntries.length - reportEntries.length;
+    final childOptions = _childOptions();
+
+    return Card(
+      child: ExpansionTile(
+        key: const Key('context-log-report-card'),
+        leading: const Icon(Icons.fact_check_outlined),
+        title: const Text('Dziennik kontekstu dziecka'),
+        subtitle: Text(
+          widget.contextEntries.isEmpty
+              ? 'Dodaj fakty i krotkie notatki do raportu Premium.'
+              : '${widget.contextEntries.length} wpisy, ${reportEntries.length} w shared/pro report.',
+        ),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          Text(
+            contextLogReportDisclaimer,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          if (widget.contextEntries.isEmpty)
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.notes_outlined),
+              title: Text('Brak wpisow dla tego miesiaca'),
+              subtitle: Text(
+                'Zacznij od prywatnego wpisu; udostepnienie do raportu wymaga widocznosci wspoldzielonej.',
+              ),
+            )
+          else ...[
+            for (final entry in widget.contextEntries)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  entry.canAppearInSharedReport
+                      ? Icons.check_circle_outline
+                      : Icons.lock_outline,
+                ),
+                title: Text('${entry.entryDate} - ${entry.category.label}'),
+                subtitle: Text(
+                  [
+                    entry.childName,
+                    entry.visibility.label,
+                    if (entry.linkedExpenseTitle != null)
+                      'koszt: ${entry.linkedExpenseTitle}',
+                    if (!entry.canAppearInSharedReport)
+                      'poza shared/pro export',
+                  ].join(' - '),
+                ),
+              ),
+            if (privateOrDraftCount > 0)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: const Text('Prywatne wpisy chronione'),
+                subtitle: Text(
+                  '$privateOrDraftCount wpisow nie trafi do eksportu shared/professional.',
+                ),
+              ),
+          ],
+          const Divider(height: 24),
+          DropdownButtonFormField<String>(
+            key: const Key('context-log-child-picker'),
+            initialValue: _childName,
+            decoration: const InputDecoration(
+              labelText: 'Dziecko',
+              prefixIcon: Icon(Icons.child_care_outlined),
+            ),
+            items: [
+              for (final child in childOptions)
+                DropdownMenuItem(value: child, child: Text(child)),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => _childName = value);
+            },
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            key: const Key('context-log-date-field'),
+            initialValue: _entryDate,
+            decoration: const InputDecoration(
+              labelText: 'Data',
+              helperText: 'Format RRRR-MM-DD.',
+              prefixIcon: Icon(Icons.event_outlined),
+            ),
+            onChanged: (value) => _entryDate = value,
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<ContextLogCategory>(
+            key: const Key('context-log-category-picker'),
+            initialValue: _category,
+            decoration: const InputDecoration(
+              labelText: 'Kategoria',
+              prefixIcon: Icon(Icons.label_outline),
+            ),
+            items: [
+              for (final category in ContextLogCategory.values)
+                DropdownMenuItem(value: category, child: Text(category.label)),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => _category = value);
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            key: const Key('context-log-expense-picker'),
+            initialValue: _linkedExpenseId,
+            decoration: const InputDecoration(
+              labelText: 'Powiazany koszt',
+              prefixIcon: Icon(Icons.receipt_long_outlined),
+            ),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Bez kosztu')),
+              for (final expense in widget.expenses)
+                DropdownMenuItem(
+                  value: expense.id,
+                  child: Text('${expense.expenseDate} - ${expense.title}'),
+                ),
+            ],
+            onChanged: (value) => setState(() => _linkedExpenseId = value),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<ContextLogVisibility>(
+            key: const Key('context-log-visibility-picker'),
+            segments: [
+              for (final visibility in ContextLogVisibility.values)
+                ButtonSegment(
+                  value: visibility,
+                  icon: Icon(
+                    visibility == ContextLogVisibility.private
+                        ? Icons.lock_outline
+                        : Icons.group_outlined,
+                  ),
+                  label: Text(visibility.label),
+                ),
+            ],
+            selected: {_visibility},
+            onSelectionChanged: (selection) {
+              setState(() {
+                _visibility = selection.first;
+                if (_visibility == ContextLogVisibility.private) {
+                  _includeInReport = false;
+                }
+              });
+            },
+          ),
+          SwitchListTile(
+            key: const Key('context-log-report-switch'),
+            contentPadding: EdgeInsets.zero,
+            value: _includeInReport,
+            onChanged: _visibility == ContextLogVisibility.shared
+                ? (value) => setState(() => _includeInReport = value)
+                : null,
+            title: const Text('Dolacz do shared/pro report'),
+            subtitle: const Text(
+              'Prywatne wpisy zostaja lokalne i nie trafiaja do pakietu profesjonalisty.',
+            ),
+          ),
+          TextFormField(
+            key: const Key('context-log-note-field'),
+            controller: _noteController,
+            minLines: 2,
+            maxLines: 4,
+            maxLength: 280,
+            decoration: const InputDecoration(
+              labelText: 'Krotka notatka',
+              helperText: 'Fakty i kontekst, bez interpretacji prawnej.',
+              prefixIcon: Icon(Icons.edit_note_outlined),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              key: const Key('context-log-save-button'),
+              onPressed: widget.onContextLogEntrySaved == null
+                  ? null
+                  : _saveContextLogEntry,
+              icon: const Icon(Icons.add_task_outlined),
+              label: const Text('Dodaj wpis kontekstu'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<String> _childOptions() {
+    final children = {
+      for (final expense in widget.expenses)
+        if (expense.childName.trim().isNotEmpty) expense.childName.trim(),
+    }.toList()..sort();
+    if (children.isEmpty) {
+      return const ['Dziecko'];
+    }
+    return children;
+  }
+
+  ExpenseEntry? _linkedExpense() {
+    final id = _linkedExpenseId;
+    if (id == null) return null;
+    for (final expense in widget.expenses) {
+      if (expense.id == id) return expense;
+    }
+    return null;
+  }
+
+  void _saveContextLogEntry() {
+    final note = _noteController.text.trim();
+    if (note.isEmpty || _entryDate.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Uzupelnij date i notatke kontekstu.')),
+      );
+      return;
+    }
+    final entry = ContextLogEntry.draft(
+      childName: _childName,
+      entryDate: _entryDate,
+      category: _category,
+      visibility: _visibility,
+      note: note,
+      includeInReport: _includeInReport,
+      linkedExpense: _linkedExpense(),
+    );
+    widget.onContextLogEntrySaved?.call(entry);
+    _noteController.clear();
+    setState(() {
+      _visibility = ContextLogVisibility.private;
+      _includeInReport = false;
+      _linkedExpenseId = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          entry.canAppearInSharedReport
+              ? 'Wpis kontekstu trafi do shared/pro report.'
+              : 'Wpis kontekstu zapisany jako prywatny lub roboczy.',
+        ),
+      ),
     );
   }
 }
@@ -1090,7 +1416,11 @@ class MonthlyExpenseReport {
   String toCsv({
     PolishReportContext? polishContext,
     ParentingTimeReportContext? parentingTimeContext,
+    List<ContextLogEntry> contextEntries = const [],
   }) {
+    final reportContextEntries = contextEntries
+        .where((entry) => entry.canAppearInSharedReport)
+        .toList();
     final rows = [
       [
         'data',
@@ -1176,6 +1506,34 @@ class MonthlyExpenseReport {
           ],
         if (parentingTimeContext.summaries.isEmpty)
           const ['brak_danych', '0', '0%'],
+      ],
+      if (contextEntries.isNotEmpty) ...[
+        const <String>[],
+        ['sekcja', 'dziennik_kontekstu_dziecka'],
+        ['disclaimer', contextLogReportDisclaimer],
+        const [
+          'data',
+          'dziecko',
+          'kategoria',
+          'widocznosc',
+          'powiazany_koszt',
+          'notatka',
+        ],
+        for (final entry in reportContextEntries)
+          [
+            entry.entryDate,
+            entry.childName,
+            entry.category.label,
+            entry.visibility.label,
+            entry.linkedExpenseTitle ?? '',
+            entry.note,
+          ],
+        if (reportContextEntries.length != contextEntries.length)
+          [
+            'pominieto_prywatne_lub_niezaznaczone',
+            (contextEntries.length - reportContextEntries.length).toString(),
+            'Nie sa widoczne w shared/professional export.',
+          ],
       ],
     ];
 
