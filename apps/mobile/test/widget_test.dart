@@ -11,6 +11,7 @@ import 'package:kidcost_mobile/src/features/custody/custody_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/attachment_storage.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_models.dart';
 import 'package:kidcost_mobile/src/features/expenses/expense_visuals.dart';
+import 'package:kidcost_mobile/src/features/expenses/proof_library_models.dart';
 import 'package:kidcost_mobile/src/features/onboarding/onboarding_profile.dart';
 import 'package:kidcost_mobile/src/features/planned_purchases/planned_purchase_models.dart';
 import 'package:kidcost_mobile/src/features/premium/premium_discovery.dart';
@@ -25,6 +26,7 @@ import 'package:kidcost_mobile/src/features/shell/screens/expenses_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/family_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/monthly_cost_plan_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/planned_purchases_screen.dart';
+import 'package:kidcost_mobile/src/features/shell/screens/proof_library_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/settings_screen.dart';
 import 'package:kidcost_mobile/src/telemetry/app_telemetry.dart';
@@ -255,6 +257,107 @@ void main() {
       expect(falsePositiveMisses, isEmpty);
     },
   );
+
+  test('proof library filters records by metadata and query', () {
+    final school = expenseCategories.firstWhere(
+      (category) => category.id == 'school',
+    );
+    final health = expenseCategories.firstWhere(
+      (category) => category.id == 'health',
+    );
+    final records = proofRecordsFromExpenses([
+      testExpense(
+        id: 'school-books',
+        title: 'Ksiazki',
+        category: school,
+        attachment: const ExpenseAttachment(
+          fileName: 'books.pdf',
+          contentType: 'application/pdf',
+          status: AttachmentStatus.uploaded,
+          evidence: EvidenceMetadata(
+            type: EvidenceType.invoice,
+            merchant: 'Ksiegarnia Szkolna',
+            documentNumber: 'FV-1',
+          ),
+        ),
+      ),
+      testExpense(
+        id: 'ortho',
+        title: 'Ortodonta',
+        category: health,
+        status: ExpenseStatus.accepted,
+        attachment: const ExpenseAttachment(
+          fileName: 'ortodonta.jpg',
+          contentType: 'image/jpeg',
+          status: AttachmentStatus.uploaded,
+          evidence: EvidenceMetadata(
+            type: EvidenceType.receipt,
+            merchant: 'Orto Dent',
+          ),
+        ),
+      ),
+      testExpense(
+        id: 'retry',
+        title: 'Paragon do ponowienia',
+        category: health,
+        attachment: const ExpenseAttachment(
+          fileName: 'retry.jpg',
+          contentType: 'image/jpeg',
+          status: AttachmentStatus.failed,
+          evidence: EvidenceMetadata(
+            type: EvidenceType.receipt,
+            merchant: 'Apteka Testowa',
+          ),
+        ),
+      ),
+      testExpense(
+        id: 'metadata',
+        title: 'Potwierdzenie z opisu',
+        category: school,
+        verification: const EvidenceMetadata(
+          type: EvidenceType.bankConfirmation,
+          merchant: 'Bank Rodzinny',
+        ),
+      ),
+    ]);
+
+    final filtered = filterProofRecords(
+      records: records,
+      filter: const ProofLibraryFilter(
+        categoryId: 'health',
+        status: ExpenseStatus.accepted,
+        evidenceType: EvidenceType.receipt,
+        query: 'orto',
+      ),
+    );
+
+    expect(filtered, hasLength(1));
+    expect(filtered.single.expenseTitle, 'Ortodonta');
+    expect(filtered.single.proofTypeLabel, 'Paragon');
+
+    final reportedOnly = filterProofRecords(
+      records: records,
+      filter: const ProofLibraryFilter(includedInReport: true),
+      reportedProofIds: {'proof-school-books'},
+    );
+    expect(reportedOnly.map((record) => record.id), ['proof-school-books']);
+
+    final retryOnly = filterProofRecords(
+      records: records,
+      filter: const ProofLibraryFilter(
+        attachmentFilter: ProofAttachmentFilter.needsRetry,
+      ),
+    );
+    expect(retryOnly.map((record) => record.id), ['proof-retry']);
+
+    final metadataOnly = filterProofRecords(
+      records: records,
+      filter: const ProofLibraryFilter(
+        attachmentFilter: ProofAttachmentFilter.metadataOnly,
+      ),
+    );
+    expect(metadataOnly.map((record) => record.id), ['proof-metadata']);
+  });
 
   testWidgets('telemetry sanitizer removes PII and precise amounts', (_) async {
     final sanitized = sanitizeTelemetryParameters({
@@ -713,6 +816,11 @@ void main() {
     await tester.tap(find.text('Rodzina'));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('coparent@example.com'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('coparent@example.com'), findsOneWidget);
     expect(
       find.textContaining('nie ujawnia danych rodzinnych'),
@@ -1138,6 +1246,121 @@ void main() {
     expect(find.textContaining('Wspoldzielona'), findsOneWidget);
   });
 
+  testWidgets(
+    'family expense categories appear in expense form and history filters',
+    (WidgetTester tester) async {
+      var categories = <ExpenseCategory>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                return FamilyScreen(
+                  profile: testProfile(),
+                  customExpenseCategories: categories,
+                  onCustomExpenseCategoriesChanged: (updatedCategories) {
+                    setState(() => categories = updatedCategories);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Dodaj kategorie kosztu'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('family-expense-category-name-field')),
+        'Ortodoncja',
+      );
+      await tester.enterText(
+        find.byKey(const Key('family-expense-category-report-group-field')),
+        'Zdrowie',
+      );
+      await tester.tap(find.text('Zapisz kategorie'));
+      await tester.pumpAndSettle();
+
+      expect(categories, hasLength(1));
+      expect(categories.single.label, 'Ortodoncja');
+      expect(categories.single.reportGroup, 'Zdrowie');
+      expect(find.text('Ortodoncja'), findsOneWidget);
+
+      ExpenseEntry? savedExpense;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AddExpenseScreen(
+              profile: testProfile(),
+              userEmail: 'parent@example.com',
+              attachmentStorage: InMemoryAttachmentStorage(),
+              availableCategories: activeExpenseCategories(categories),
+              onExpenseSaved: (expense) => savedExpense = expense,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Ortodoncja'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Ortodoncja'));
+      await tester.enterText(find.byType(TextField).at(0), '320');
+      await tester.enterText(
+        find.byKey(const Key('expense-title-field')),
+        'Aparat retencyjny',
+      );
+      await tester.scrollUntilVisible(
+        find.widgetWithText(FilledButton, 'Zapisz koszt'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Zapisz koszt'));
+      await tester.pumpAndSettle();
+
+      expect(savedExpense, isNotNull);
+      expect(savedExpense!.category.label, 'Ortodoncja');
+      expect(savedExpense!.category.reportGroup, 'Zdrowie');
+
+      categories = [categories.single.archive()];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ExpensesScreen(
+              expenses: [savedExpense!],
+              availableCategories: activeExpenseCategories(categories),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Aparat retencyjny'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Aparat retencyjny'), findsOneWidget);
+      await tester.tap(find.text('Pokaz filtry i sortowanie'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('expense-category-filter')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ortodoncja').last);
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Aparat retencyjny'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Aparat retencyjny'), findsOneWidget);
+    },
+  );
+
   testWidgets('premium discovery stays calm and dismissible', (
     WidgetTester tester,
   ) async {
@@ -1195,8 +1418,10 @@ void main() {
     expect(find.text('Kandydaci Premium'), findsOneWidget);
     expect(find.text('Downgrade'), findsOneWidget);
     expect(find.text('Platnik rodzinny'), findsOneWidget);
+    expect(find.text('Wiele circles'), findsOneWidget);
     expect(find.textContaining('zalaczniki do limitu'), findsOneWidget);
     expect(find.textContaining('platnosc nie daje wylacznej'), findsOneWidget);
+    expect(find.textContaining('bez laczenia raportow'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Fee-waiver i dostep po lapse'),
       120,
@@ -2559,6 +2784,106 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('proof library searches and filters existing proofs', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProofLibraryScreen(
+            expenses: [
+              testExpense(
+                id: 'books',
+                title: 'Ksiazki',
+                attachment: const ExpenseAttachment(
+                  fileName: 'books.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    merchant: 'Ksiegarnia Szkolna',
+                  ),
+                ),
+              ),
+              testExpense(
+                id: 'pool',
+                title: 'Basen',
+                attachment: const ExpenseAttachment(
+                  fileName: 'pool.jpg',
+                  contentType: 'image/jpeg',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.receipt,
+                    merchant: 'Aqua Klub',
+                  ),
+                ),
+              ),
+              testExpense(
+                id: 'retry',
+                title: 'Paragon do ponowienia',
+                attachment: const ExpenseAttachment(
+                  fileName: 'retry.jpg',
+                  contentType: 'image/jpeg',
+                  status: AttachmentStatus.failed,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.receipt,
+                    merchant: 'Apteka Testowa',
+                  ),
+                ),
+              ),
+              testExpense(id: 'lunch', title: 'Obiad bez paragonu'),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Biblioteka dowodow'), findsOneWidget);
+    expect(find.text('Brakujace dowody'), findsOneWidget);
+    expect(
+      find.textContaining('1 koszt jest widoczny w historii'),
+      findsOneWidget,
+    );
+    expect(find.text('Ksiazki'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Basen'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Basen'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('proof-library-search-field')),
+      'aqua',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Basen'), findsOneWidget);
+    expect(find.text('Ksiazki'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('proof-library-search-field')),
+      '',
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('proof-library-attachment-filter')),
+    );
+    await tester.tap(find.byKey(const Key('proof-library-attachment-filter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Plik wymaga ponowienia').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Paragon do ponowienia'), findsOneWidget);
+    expect(find.text('Basen'), findsNothing);
+    expect(find.text('Ksiazki'), findsNothing);
+  });
+
   testWidgets('expenses list separates private drafts from submitted costs', (
     WidgetTester tester,
   ) async {
@@ -3345,6 +3670,12 @@ void main() {
                 title: 'Basen',
                 amountCents: 5000,
                 category: expenseCategories[4],
+                reimbursementDeadlines: domain
+                    .buildReimbursementDeadlineSnapshot(
+                      requestCreatedAt: DateTime.utc(2026, 6, 20),
+                      submittedAt: DateTime.utc(2026, 6, 20),
+                      paymentDueAt: DateTime.utc(2026, 6, 24),
+                    ),
                 calendarEvent: const ExpenseCalendarEventLink(
                   id: 'custody-2026-06-24',
                   title: 'Opieka: Drugi rodzic',
@@ -3359,14 +3690,33 @@ void main() {
     );
 
     await dragUntilPresent(tester, find.widgetWithText(OutlinedButton, '24'));
+    await dragUntilPresent(tester, find.text('K koszt'));
+    expect(find.text('K koszt'), findsOneWidget);
+    expect(find.text('T termin'), findsOneWidget);
+    expect(find.text('W wydarzenie z kosztem'), findsOneWidget);
     await tester.ensureVisible(find.widgetWithText(OutlinedButton, '24'));
     await tester.pumpAndSettle();
+    expect(
+      find.bySemanticsLabel(
+        'Dzien 2026-06-24, Drugi rodzic, 1 kosztow, 1 terminow, 1 wydarzen z kosztem',
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.widgetWithText(OutlinedButton, '24'));
     await tester.pumpAndSettle();
 
     expect(find.text('Powiazane koszty (1)'), findsOneWidget);
     expect(find.text('Basen'), findsOneWidget);
-    expect(find.textContaining('Zajecia dodatkowe'), findsOneWidget);
+    expect(
+      find.text(
+        'Znaczniki finansowe (1 kosztow, 1 terminow, 1 wydarzen z kosztem)',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Koszt: Basen'), findsOneWidget);
+    expect(find.text('Termin platnosci: Basen'), findsOneWidget);
+    expect(find.text('Wydarzenie z kosztem: Basen'), findsOneWidget);
+    expect(find.textContaining('Zajecia dodatkowe'), findsWidgets);
     expect(
       find.textContaining('udzial drugiego rodzica: 25,00 PLN'),
       findsOneWidget,
@@ -3447,6 +3797,91 @@ void main() {
     expect(dismissedPoint, isEmpty);
   });
 
+  testWidgets('custody ICS includes linked costs only after explicit opt-in', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    CalendarExportPremiumIntent? recordedIntent;
+    const parent = CustodyParent(
+      id: 'self',
+      label: 'parent@example.com',
+      isCurrentUser: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CustodyCalendarScreen(
+            profile: testProfile(),
+            userEmail: 'parent@example.com',
+            currentDate: DateTime.utc(2026, 6, 24),
+            custodyDays: [
+              CustodyDay(
+                id: 'custody-2026-06-24',
+                date: '2026-06-24',
+                childName: 'Antek',
+                parent: parent,
+                createdAt: DateTime.utc(2026, 6, 24),
+              ),
+            ],
+            expenses: [
+              testExpense(
+                id: 'pool',
+                title: 'Basen',
+                category: expenseCategories[4],
+                calendarEvent: const ExpenseCalendarEventLink(
+                  id: 'custody-2026-06-24',
+                  title: 'Opieka',
+                  eventDate: '2026-06-24',
+                ),
+              ),
+            ],
+            onCalendarExportPremiumIntent: (intent) => recordedIntent = intent,
+            onCustodyDaysChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    await dragUntilPresent(tester, find.text('Kalendarz poza KidCost'));
+    final exportButton = find.widgetWithText(
+      OutlinedButton,
+      'Podglad eksportu ICS',
+    );
+    await tester.ensureVisible(exportButton);
+    await tester.pumpAndSettle();
+    await tester.tap(exportButton);
+    await tester.pumpAndSettle();
+
+    var preview = tester
+        .widget<SelectableText>(find.byKey(const Key('calendar-ics-preview')))
+        .data!;
+    expect(preview, contains('SUMMARY:KidCost plan opieki'));
+    expect(preview, isNot(contains('Basen')));
+    expect(preview, isNot(contains('Antek')));
+
+    await tester.tap(
+      find.byKey(const Key('calendar-ics-include-costs-checkbox')),
+    );
+    await tester.pumpAndSettle();
+
+    preview = tester
+        .widget<SelectableText>(find.byKey(const Key('calendar-ics-preview')))
+        .data!;
+    expect(preview, contains('SUMMARY:Opieka: parent@example.com'));
+    expect(preview, contains('Powiazane koszty: Basen'));
+    expect(preview, contains('Antek'));
+
+    await tester.tap(find.text('Zapisz intencje'));
+    await tester.pumpAndSettle();
+
+    expect(recordedIntent?.includeDetailedExpenseContext, isTrue);
+  });
+
   test('custody ICS export defaults to privacy-safe all-day events', () {
     const parent = CustodyParent(
       id: 'self',
@@ -3497,10 +3932,23 @@ void main() {
       ],
       privacyMode: CustodyIcsPrivacyMode.detailed,
       generatedAt: DateTime.utc(2026, 6, 24),
+      linkedExpenses: [
+        testExpense(
+          id: 'pool',
+          title: 'Basen, karnet',
+          calendarEvent: const ExpenseCalendarEventLink(
+            id: 'custody-2026-06-24',
+            title: 'Opieka',
+            eventDate: '2026-06-24',
+          ),
+        ),
+      ],
+      includeLinkedExpenseContext: true,
     );
 
     expect(export.content, contains(r'SUMMARY:Opieka: Drugi rodzic\, dom'));
     expect(export.content, contains('Ola'));
+    expect(export.content, contains(r'Powiazane koszty: Basen\, karnet'));
     expect(export.content, contains('X-KIDCOST-PRIVACY:detailed'));
   });
 
@@ -4326,6 +4774,176 @@ void main() {
     expect(find.textContaining('"Faktura imienna"'), findsOneWidget);
   });
 
+  testWidgets('monthly reports review proofs before CSV export', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 6000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+              testExpense(
+                id: '2',
+                title: 'Faktura za ortodonte',
+                amountCents: 48000,
+                category: expenseCategories[3],
+                attachment: const ExpenseAttachment(
+                  fileName: 'ortodonta.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    merchant: 'Orto Dent',
+                  ),
+                ),
+              ),
+              testExpense(
+                id: '3',
+                title: 'Okulary korekcyjne',
+                amountCents: 32000,
+                category: expenseCategories[3],
+                attachment: const ExpenseAttachment(
+                  fileName: 'okulary.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    merchant: 'Optyk Junior',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Przeglad dowodow raportu'), 180);
+    expect(find.text('Przeglad dowodow raportu'), findsOneWidget);
+    expect(find.textContaining('2 z 2 dowodow dolaczonych'), findsOneWidget);
+    expect(
+      find.textContaining('1 koszty w tym miesiacu nie maja dowodu'),
+      findsOneWidget,
+    );
+
+    final excludeAllButton = find.byKey(
+      const Key('report-proof-exclude-all-button'),
+    );
+    await tester.scrollUntilVisible(excludeAllButton, 180);
+    await tester.ensureVisible(excludeAllButton);
+    await tester.tap(excludeAllButton);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('0 z 2 dowodow dolaczonych'), findsOneWidget);
+    expect(find.textContaining('pominiety w raporcie'), findsNWidgets(2));
+
+    final includeAllButton = find.byKey(
+      const Key('report-proof-include-all-button'),
+    );
+    await tester.ensureVisible(includeAllButton);
+    await tester.tap(includeAllButton);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('2 z 2 dowodow dolaczonych'), findsOneWidget);
+
+    final proofToggle = find.byKey(const Key('report-proof-proof-2'));
+    await tester.scrollUntilVisible(proofToggle, 180);
+    await tester.ensureVisible(proofToggle);
+    await tester.tap(proofToggle);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('1 z 2 dowodow dolaczonych'), findsOneWidget);
+    expect(find.textContaining('pominiety w raporcie'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('CSV: kidcost-report-2026-06.csv'),
+      180,
+    );
+    await tester.tap(find.text('CSV: kidcost-report-2026-06.csv'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Eksport CSV'), findsOneWidget);
+    expect(find.textContaining('dowody_raportu'), findsOneWidget);
+    expect(find.textContaining('pominieto_w_przegladzie'), findsOneWidget);
+  });
+
+  testWidgets('monthly reports mark proofs after CSV export', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 6000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(
+                id: 'ortho',
+                title: 'Faktura za ortodonte',
+                amountCents: 48000,
+                category: expenseCategories[3],
+                attachment: const ExpenseAttachment(
+                  fileName: 'ortodonta.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    merchant: 'Orto Dent',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('CSV: kidcost-report-2026-06.csv'),
+      180,
+    );
+    await tester.tap(find.text('CSV: kidcost-report-2026-06.csv'));
+    await tester.pumpAndSettle();
+    expect(find.text('Eksport CSV'), findsOneWidget);
+
+    Navigator.of(tester.element(find.text('Eksport CSV'))).pop();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.textContaining('uwzgledniony w wygenerowanym raporcie'),
+      180,
+    );
+    expect(
+      find.textContaining('uwzgledniony w wygenerowanym raporcie'),
+      findsOneWidget,
+    );
+
+    final libraryButton = find.byKey(const Key('report-proof-library-button'));
+    await tester.scrollUntilVisible(libraryButton, 180);
+    await tester.tap(libraryButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Biblioteka dowodow'), findsOneWidget);
+    expect(find.textContaining('Uwzglednione w raporcie'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const Key('proof-library-report-inclusion-filter')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Uwzglednione w raporcie').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Faktura za ortodonte'), findsOneWidget);
+  });
+
   testWidgets('monthly reports show evidence readiness before export', (
     WidgetTester tester,
   ) async {
@@ -4907,6 +5525,67 @@ void main() {
     expect(openedFilters.single.childName, isNull);
     expect(openedFilters.single.status, isNull);
   });
+
+  testWidgets(
+    'monthly reports keep family category report groups and filter links',
+    (WidgetTester tester) async {
+      final openedFilters = <ExpenseListFilterRequest>[];
+      const orthodontics = ExpenseCategory(
+        id: 'family-category-orthodontics',
+        label: 'Ortodoncja',
+        reportGroup: 'Zdrowie',
+        isArchived: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ReportsScreen(
+              currentDate: DateTime.utc(2026, 6, 24),
+              onOpenExpenseFilter: openedFilters.add,
+              expenses: [
+                testExpense(
+                  id: 'ortho-1',
+                  title: 'Aparat retencyjny',
+                  amountCents: 32000,
+                  category: orthodontics,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Miesieczne insighty'), findsOneWidget);
+      expect(find.text('Ortodoncja'), findsWidgets);
+      await tester.tap(find.text('Ortodoncja').first);
+      await tester.pumpAndSettle();
+
+      expect(openedFilters, hasLength(1));
+      expect(openedFilters.single.month, '2026-06');
+      expect(openedFilters.single.categoryId, 'family-category-orthodontics');
+
+      await tester.scrollUntilVisible(
+        find.text('Grupy raportowe kategorii'),
+        180,
+      );
+      expect(find.text('Zdrowie'), findsWidgets);
+
+      final csv = MonthlyExpenseReport.fromExpenses(
+        month: '2026-06',
+        expenses: [
+          testExpense(
+            id: 'ortho-1',
+            title: 'Aparat retencyjny',
+            amountCents: 32000,
+            category: orthodontics,
+          ),
+        ],
+      ).toCsv();
+      expect(csv, contains('"grupa_raportowa"'));
+      expect(csv, contains('"Ortodoncja","Zdrowie"'));
+    },
+  );
 
   testWidgets('expenses screen applies report filter requests', (
     WidgetTester tester,

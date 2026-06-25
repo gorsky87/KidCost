@@ -13,10 +13,15 @@ Environment:
                                    Default: public.ecr.aws/supabase/postgres:17.6.1.136
   KIDCOST_SUPABASE_PULL_TIMEOUT    Seconds to wait for the Postgres image pull.
                                    Default: 180
+  KIDCOST_SUPABASE_START_TIMEOUT   Seconds to wait for `supabase start`.
+                                   Default: 300
+  KIDCOST_SUPABASE_RESET_TIMEOUT   Seconds to wait for `supabase db reset`.
+                                   Default: 300
 
 The script fails before `supabase start` when the required Postgres image cannot
-be pulled in time. That keeps demo audits from hanging on local Docker/OrbStack
-image transfer issues before migrations can run.
+be pulled in time. It also bounds `supabase start` and `supabase db reset`, so
+demo audits fail with a clear diagnostic instead of hanging on local
+Docker/OrbStack image transfer or container startup issues before migrations run.
 USAGE
 }
 
@@ -42,6 +47,8 @@ done
 
 postgres_image="${KIDCOST_SUPABASE_POSTGRES_IMAGE:-public.ecr.aws/supabase/postgres:17.6.1.136}"
 pull_timeout="${KIDCOST_SUPABASE_PULL_TIMEOUT:-180}"
+start_timeout="${KIDCOST_SUPABASE_START_TIMEOUT:-300}"
+reset_timeout="${KIDCOST_SUPABASE_RESET_TIMEOUT:-300}"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -72,9 +79,23 @@ run_with_timeout() {
   wait "$child_pid"
 }
 
+require_positive_integer() {
+  local name="$1"
+  local value="$2"
+
+  if [[ ! "$value" =~ ^[1-9][0-9]*$ ]]; then
+    echo "${name} must be a positive integer number of seconds, got: ${value}" >&2
+    exit 64
+  fi
+}
+
 require_command docker
 require_command psql
 require_command supabase
+
+require_positive_integer KIDCOST_SUPABASE_PULL_TIMEOUT "$pull_timeout"
+require_positive_integer KIDCOST_SUPABASE_START_TIMEOUT "$start_timeout"
+require_positive_integer KIDCOST_SUPABASE_RESET_TIMEOUT "$reset_timeout"
 
 if ! docker info >/dev/null 2>&1; then
   echo "Docker is not running or is not reachable." >&2
@@ -97,7 +118,10 @@ fi
 
 docker image inspect "$postgres_image" >/dev/null
 
-supabase start
-supabase db reset
+echo "Starting local Supabase stack (timeout: ${start_timeout}s)."
+run_with_timeout "$start_timeout" supabase start
+
+echo "Resetting local Supabase database (timeout: ${reset_timeout}s)."
+run_with_timeout "$reset_timeout" supabase db reset
 
 echo "Local Supabase reset completed."

@@ -85,6 +85,7 @@ class _KidCostShellState extends State<KidCostShell>
   ExpenseTemplate? _pendingTemplate;
   ExpenseListFilterRequest? _expenseFilterRequest;
   List<ChildInfoCard> _childInfoCards = const [];
+  List<ExpenseCategory> _customExpenseCategories = const [];
   final Set<PremiumDiscoveryPoint> _dismissedPremiumHints = {};
   bool _hideSensitivePreview = false;
   SettlementSplitRule _settlementSplitRule = SettlementSplitRule.equal;
@@ -150,6 +151,7 @@ class _KidCostShellState extends State<KidCostShell>
       selectedIcon: Icons.receipt_long,
       screen: ExpensesScreen(
         expenses: widget.expenses,
+        availableCategories: _activeExpenseCategories,
         initialFilterRequest: _expenseFilterRequest,
         currentDate: widget.currentDate,
         onExpenseChanged: widget.onExpenseChanged,
@@ -177,6 +179,7 @@ class _KidCostShellState extends State<KidCostShell>
         calendarEvents: calendarEventsFromCustodyDays(widget.custodyDays),
         childInfoCards: _childInfoCards,
         existingExpenses: widget.expenses,
+        availableCategories: _activeExpenseCategories,
         showReceiptOcrPremiumHint: !_isPremiumHintDismissed(
           PremiumDiscoveryPoint.receiptOcr,
         ),
@@ -255,8 +258,14 @@ class _KidCostShellState extends State<KidCostShell>
       screen: FamilyScreen(
         profile: widget.onboardingProfile,
         childInfoCards: _childInfoCards,
+        customExpenseCategories: _customExpenseCategories,
         onChildInfoCardsChanged: (cards) {
           setState(() => _childInfoCards = List.unmodifiable(cards));
+        },
+        onCustomExpenseCategoriesChanged: (categories) {
+          setState(
+            () => _customExpenseCategories = List.unmodifiable(categories),
+          );
         },
       ),
     ),
@@ -341,6 +350,9 @@ class _KidCostShellState extends State<KidCostShell>
       ],
     );
   }
+
+  List<ExpenseCategory> get _activeExpenseCategories =>
+      activeExpenseCategories(_customExpenseCategories);
 
   void _trackDestination(int index) {
     final item = _destinations[index];

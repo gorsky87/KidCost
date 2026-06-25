@@ -1061,6 +1061,10 @@ class _PlanComparisonCard extends StatelessWidget {
               title: 'Platnik rodzinny',
               body: domain.familyBillingPolicy.summary,
             ),
+            _PlanRow(
+              title: 'Wiele circles',
+              body: domain.multiCirclePricingPolicy.summary,
+            ),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(

@@ -6,11 +6,13 @@ import 'package:kidcost_domain/domain.dart' as domain;
 import '../../../telemetry/app_telemetry.dart';
 import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
+import '../../expenses/proof_library_models.dart';
 import '../../planned_purchases/planned_purchase_models.dart';
 import '../../premium/premium_discovery.dart';
 import '../../reports/context_log_models.dart';
 import '../../reports/mediation_report_pass.dart';
 import '../../reports/support_context_models.dart';
+import 'proof_library_screen.dart';
 
 enum _ReportMode { monthly, annual }
 
@@ -57,6 +59,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   MediationReportPass? _mediationReportPass;
   PolishReportContext _polishReportContext = const PolishReportContext();
   bool _includeParentingTimeContext = true;
+  final Set<String> _excludedProofIds = {};
+  final Set<String> _reportedProofIds = {};
 
   void _updatePolishReportContext(PolishReportContext value) {
     setState(() => _polishReportContext = value);
@@ -173,8 +177,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
             polishContext: _polishReportContext,
             now: widget.currentDate ?? DateTime.now(),
             mediationReportPass: _mediationReportPass,
+            excludedProofIds: _excludedProofIds,
+            reportedProofIds: _reportedProofIds,
             onMediationReportPassChanged: (pass) {
               setState(() => _mediationReportPass = pass);
+            },
+            onProofIncludedChanged: (proofId, included) {
+              setState(() {
+                if (included) {
+                  _excludedProofIds.remove(proofId);
+                } else {
+                  _excludedProofIds.add(proofId);
+                }
+              });
+            },
+            onReportGenerated: (proofIds) {
+              setState(() => _reportedProofIds.addAll(proofIds));
             },
             showPremiumHint: widget.showReportExportPremiumHint,
             onMonthChanged: (value) => setState(() => _selectedMonth = value),
@@ -275,7 +293,11 @@ class _MonthlyReportView extends StatelessWidget {
     required this.polishContext,
     required this.now,
     required this.mediationReportPass,
+    required this.excludedProofIds,
+    required this.reportedProofIds,
     required this.onMediationReportPassChanged,
+    required this.onProofIncludedChanged,
+    required this.onReportGenerated,
     required this.showPremiumHint,
     required this.onMonthChanged,
     required this.onPolishContextChanged,
@@ -298,7 +320,11 @@ class _MonthlyReportView extends StatelessWidget {
   final PolishReportContext polishContext;
   final DateTime now;
   final MediationReportPass? mediationReportPass;
+  final Set<String> excludedProofIds;
+  final Set<String> reportedProofIds;
   final ValueChanged<MediationReportPass?> onMediationReportPassChanged;
+  final void Function(String proofId, bool included) onProofIncludedChanged;
+  final ValueChanged<Set<String>> onReportGenerated;
   final bool showPremiumHint;
   final ValueChanged<String> onMonthChanged;
   final ValueChanged<PolishReportContext> onPolishContextChanged;
@@ -310,6 +336,12 @@ class _MonthlyReportView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final proofRecords = proofRecordsFromExpenses(report.expenses);
+    final includedProofIds = {
+      for (final proof in proofRecords)
+        if (!excludedProofIds.contains(proof.id)) proof.id,
+    };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -379,6 +411,11 @@ class _MonthlyReportView extends StatelessWidget {
           ),
           _BreakdownCard(title: 'Koszty dzieci', values: report.byChild),
           _BreakdownCard(title: 'Kategorie kosztow', values: report.byCategory),
+          if (report.byReportGroup.isNotEmpty)
+            _BreakdownCard(
+              title: 'Grupy raportowe kategorii',
+              values: report.byReportGroup,
+            ),
           _ExpenseStatusCard(report: report),
         ],
         const SizedBox(height: 12),
@@ -388,6 +425,16 @@ class _MonthlyReportView extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _EvidenceReadinessCard(report: report),
+        const SizedBox(height: 12),
+        _ReportProofReviewCard(
+          month: month,
+          expenses: report.expenses,
+          proofs: proofRecords,
+          includedProofIds: includedProofIds,
+          reportedProofIds: reportedProofIds,
+          expenseCount: report.expenses.length,
+          onProofIncludedChanged: onProofIncludedChanged,
+        ),
         const SizedBox(height: 12),
         _ExportCard(
           title: 'Eksport',
@@ -399,9 +446,11 @@ class _MonthlyReportView extends StatelessWidget {
                 : null,
             contextEntries: contextEntries,
             supportContextEntries: supportContextEntries,
+            includedProofIds: includedProofIds,
           ),
           showPremiumHint: showPremiumHint,
           onPremiumHintDismissed: onPremiumHintDismissed,
+          onExported: () => onReportGenerated(includedProofIds),
         ),
         const SizedBox(height: 12),
         _MediationReportPassCard(
@@ -1637,6 +1686,8 @@ class MonthlyExpenseReport {
     required this.byPayer,
     required this.byChild,
     required this.byCategory,
+    required this.byReportGroup,
+    required this.categoryIdByLabel,
     required this.byStatus,
     required this.disputedCents,
     required this.pendingCents,
@@ -1661,6 +1712,8 @@ class MonthlyExpenseReport {
     final byPayer = <String, int>{};
     final byChild = <String, int>{};
     final byCategory = <String, int>{};
+    final byReportGroup = <String, int>{};
+    final categoryIdByLabel = <String, String>{};
     final byStatus = <String, int>{};
     var totalCents = 0;
     var disputedCents = 0;
@@ -1692,6 +1745,18 @@ class MonthlyExpenseReport {
           (value) => value + balanceAmountCents,
           ifAbsent: () => balanceAmountCents,
         );
+        categoryIdByLabel.putIfAbsent(
+          expense.category.label,
+          () => expense.category.id,
+        );
+        final reportGroup = expense.category.reportGroup?.trim();
+        if (reportGroup != null && reportGroup.isNotEmpty) {
+          byReportGroup.update(
+            reportGroup,
+            (value) => value + balanceAmountCents,
+            ifAbsent: () => balanceAmountCents,
+          );
+        }
         byStatus.update(
           expense.status.label,
           (value) => value + balanceAmountCents,
@@ -1717,6 +1782,8 @@ class MonthlyExpenseReport {
       byPayer: _sortedTotals(byPayer),
       byChild: _sortedTotals(byChild),
       byCategory: _sortedTotals(byCategory),
+      byReportGroup: _sortedTotals(byReportGroup),
+      categoryIdByLabel: Map.unmodifiable(categoryIdByLabel),
       byStatus: _sortedTotals(byStatus),
       disputedCents: disputedCents,
       pendingCents: pendingCents,
@@ -1733,6 +1800,8 @@ class MonthlyExpenseReport {
   final Map<String, int> byPayer;
   final Map<String, int> byChild;
   final Map<String, int> byCategory;
+  final Map<String, int> byReportGroup;
+  final Map<String, String> categoryIdByLabel;
   final Map<String, int> byStatus;
   final int disputedCents;
   final int pendingCents;
@@ -1779,6 +1848,7 @@ class MonthlyExpenseReport {
     ParentingTimeReportContext? parentingTimeContext,
     List<ContextLogEntry> contextEntries = const [],
     List<SupportPaymentContextEntry> supportContextEntries = const [],
+    Set<String>? includedProofIds,
   }) {
     final reportContextEntries = contextEntries
         .where((entry) => entry.canAppearInSharedReport)
@@ -1786,12 +1856,19 @@ class MonthlyExpenseReport {
     final reportSupportContextEntries = supportContextEntries
         .where((entry) => entry.canAppearInSharedReport)
         .toList();
+    final proofRecords = proofRecordsFromExpenses(expenses);
+    final reportProofRecords = includedProofIds == null
+        ? proofRecords
+        : proofRecords
+              .where((record) => includedProofIds.contains(record.id))
+              .toList();
     final rows = [
       [
         'data',
         'tytul',
         'dziecko',
         'kategoria',
+        'grupa_raportowa',
         'placacy',
         'status',
         'dispute_reason',
@@ -1832,6 +1909,7 @@ class MonthlyExpenseReport {
           expense.title,
           expense.childName,
           expense.category.label,
+          expense.category.reportGroup ?? '',
           expense.paidBy.label,
           expense.status.label,
           expense.disputeDetails?.reason.label ?? '',
@@ -1931,6 +2009,45 @@ class MonthlyExpenseReport {
               item.isReimbursable ? 'tak' : 'nie',
               item.splitPercent?.toString() ?? '',
             ],
+      ],
+      if (proofRecords.isNotEmpty) ...[
+        const <String>[],
+        ['sekcja', 'dowody_raportu'],
+        const [
+          'proof_id',
+          'expense_id',
+          'expense_title',
+          'date',
+          'child',
+          'category',
+          'status',
+          'proof_type',
+          'source',
+          'file_name',
+          'attachment_state',
+          'included_in_report',
+        ],
+        for (final proof in reportProofRecords)
+          [
+            proof.id,
+            proof.expenseId,
+            proof.expenseTitle,
+            proof.expenseDate,
+            proof.childName,
+            proof.category.label,
+            proof.status.label,
+            proof.proofTypeLabel,
+            proof.sourceLabel,
+            proof.fileName ?? '',
+            proof.attachmentStateLabel,
+            'tak',
+          ],
+        if (reportProofRecords.length != proofRecords.length)
+          [
+            'pominieto_w_przegladzie',
+            (proofRecords.length - reportProofRecords.length).toString(),
+            'Dowody odznaczone w kroku przegladu nie sa dolaczone do sekcji dowodow.',
+          ],
       ],
       if (polishContext != null) ...[
         const <String>[],
@@ -2346,6 +2463,10 @@ class _MonthlyInsightsCard extends StatelessWidget {
   }
 
   String? _categoryIdForLabel(String label) {
+    final reportCategoryId = report.categoryIdByLabel[label];
+    if (reportCategoryId != null) {
+      return reportCategoryId;
+    }
     for (final category in expenseCategories) {
       if (category.label == label) {
         return category.id;
@@ -2870,6 +2991,170 @@ bool _hasReadinessText(String? value) {
   return value != null && value.trim().isNotEmpty;
 }
 
+class _ReportProofReviewCard extends StatelessWidget {
+  const _ReportProofReviewCard({
+    required this.month,
+    required this.expenses,
+    required this.proofs,
+    required this.includedProofIds,
+    required this.reportedProofIds,
+    required this.expenseCount,
+    required this.onProofIncludedChanged,
+  });
+
+  final String month;
+  final List<ExpenseEntry> expenses;
+  final List<ProofRecord> proofs;
+  final Set<String> includedProofIds;
+  final Set<String> reportedProofIds;
+  final int expenseCount;
+  final void Function(String proofId, bool included) onProofIncludedChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final missingProofCount = expenseCount - proofs.length;
+    final includedCount = proofs
+        .where((proof) => includedProofIds.contains(proof.id))
+        .length;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.library_books_outlined),
+              title: const Text('Przeglad dowodow raportu'),
+              subtitle: Text(
+                '$includedCount z ${proofs.length} dowodow dolaczonych do sekcji dowodow za $month.',
+              ),
+              trailing: IconButton(
+                key: const Key('report-proof-library-button'),
+                tooltip: 'Otworz biblioteke dowodow raportu',
+                onPressed: proofs.isEmpty
+                    ? null
+                    : () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (context) => ProofLibraryScreen(
+                              expenses: expenses,
+                              initialFilter: ProofLibraryFilter(month: month),
+                              reportedProofIds: reportedProofIds,
+                              showReportInclusionState: true,
+                            ),
+                          ),
+                        );
+                      },
+                icon: const Icon(Icons.folder_copy_outlined),
+              ),
+            ),
+            if (proofs.isEmpty)
+              _ReportProofEmptyState(
+                expenseCount: expenseCount,
+                missingProofCount: missingProofCount,
+              )
+            else ...[
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    key: const Key('report-proof-include-all-button'),
+                    onPressed: includedCount == proofs.length
+                        ? null
+                        : () {
+                            for (final proof in proofs) {
+                              onProofIncludedChanged(proof.id, true);
+                            }
+                          },
+                    icon: const Icon(Icons.select_all_outlined),
+                    label: const Text('Dolacz wszystkie'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('report-proof-exclude-all-button'),
+                    onPressed: includedCount == 0
+                        ? null
+                        : () {
+                            for (final proof in proofs) {
+                              onProofIncludedChanged(proof.id, false);
+                            }
+                          },
+                    icon: const Icon(Icons.deselect_outlined),
+                    label: const Text('Pomin wszystkie'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              for (final proof in proofs)
+                CheckboxListTile(
+                  key: Key('report-proof-${proof.id}'),
+                  contentPadding: EdgeInsets.zero,
+                  value: includedProofIds.contains(proof.id),
+                  onChanged: (value) {
+                    onProofIncludedChanged(proof.id, value ?? false);
+                  },
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(proof.expenseTitle),
+                  subtitle: Text(
+                    [
+                      proof.proofTypeLabel,
+                      proof.sourceLabel,
+                      proof.childName,
+                      proof.attachmentStateLabel,
+                      includedProofIds.contains(proof.id)
+                          ? 'dolaczony do raportu'
+                          : 'pominiety w raporcie',
+                      if (reportedProofIds.contains(proof.id))
+                        'uwzgledniony w wygenerowanym raporcie',
+                    ].join(' • '),
+                  ),
+                ),
+              if (missingProofCount > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '$missingProofCount koszty w tym miesiacu nie maja dowodu ani metadanych dowodu.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ],
+            const SizedBox(height: 8),
+            Text(
+              'Zmiana wyboru nie usuwa plikow, nie zmienia statusu kosztu i nie wysyla powiadomienia.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportProofEmptyState extends StatelessWidget {
+  const _ReportProofEmptyState({
+    required this.expenseCount,
+    required this.missingProofCount,
+  });
+
+  final int expenseCount;
+  final int missingProofCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = expenseCount == 0
+        ? 'Brak kosztow w miesiacu raportu.'
+        : '$missingProofCount koszty nie maja zalacznikow ani metadanych dowodu.';
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.folder_off_outlined),
+      title: const Text('Brak dowodow do przegladu'),
+      subtitle: Text(subtitle),
+    );
+  }
+}
+
 class _ExportCard extends StatelessWidget {
   const _ExportCard({
     required this.title,
@@ -2877,6 +3162,7 @@ class _ExportCard extends StatelessWidget {
     required this.csv,
     required this.showPremiumHint,
     required this.onPremiumHintDismissed,
+    this.onExported,
   });
 
   final String title;
@@ -2884,6 +3170,7 @@ class _ExportCard extends StatelessWidget {
   final String csv;
   final bool showPremiumHint;
   final VoidCallback onPremiumHintDismissed;
+  final VoidCallback? onExported;
 
   @override
   Widget build(BuildContext context) {
@@ -2896,7 +3183,10 @@ class _ExportCard extends StatelessWidget {
             Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             FilledButton.icon(
-              onPressed: () => _showCsvPreview(context),
+              onPressed: () {
+                onExported?.call();
+                _showCsvPreview(context);
+              },
               icon: const Icon(Icons.table_view_outlined),
               label: Text('CSV: $fileName'),
             ),

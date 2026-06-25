@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../../child_info/child_info_models.dart';
+import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
 
 class FamilyScreen extends StatelessWidget {
   const FamilyScreen({
     required this.profile,
     this.childInfoCards = const [],
+    this.customExpenseCategories = const [],
     this.onChildInfoCardsChanged,
+    this.onCustomExpenseCategoriesChanged,
     super.key,
   });
 
   final OnboardingProfile profile;
   final List<ChildInfoCard> childInfoCards;
+  final List<ExpenseCategory> customExpenseCategories;
   final ValueChanged<List<ChildInfoCard>>? onChildInfoCardsChanged;
+  final ValueChanged<List<ExpenseCategory>>? onCustomExpenseCategoriesChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +39,11 @@ class FamilyScreen extends StatelessWidget {
         _ChildInfoCardsSection(
           cards: childInfoCards,
           onCardsChanged: onChildInfoCardsChanged,
+        ),
+        const Divider(),
+        _FamilyExpenseCategoriesSection(
+          categories: customExpenseCategories,
+          onCategoriesChanged: onCustomExpenseCategoriesChanged,
         ),
         const Divider(),
         if (profile.isSoloFamily) ...[
@@ -74,6 +84,219 @@ class FamilyScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _FamilyExpenseCategoriesSection extends StatelessWidget {
+  const _FamilyExpenseCategoriesSection({
+    required this.categories,
+    required this.onCategoriesChanged,
+  });
+
+  final List<ExpenseCategory> categories;
+  final ValueChanged<List<ExpenseCategory>>? onCategoriesChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeCount = categories
+        .where((category) => category.canBeUsedForNewExpense)
+        .length;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.category_outlined),
+              title: const Text('Rodzinne kategorie kosztow'),
+              subtitle: Text(
+                activeCount == 0
+                    ? 'Dodaj lokalne nazwy kategorii do formularza i filtrow.'
+                    : 'Aktywne kategorie rodzinne: $activeCount.',
+              ),
+              trailing: IconButton(
+                key: const Key('add-family-expense-category-button'),
+                tooltip: 'Dodaj kategorie',
+                onPressed: onCategoriesChanged == null
+                    ? null
+                    : () => _openEditor(context),
+                icon: const Icon(Icons.add),
+              ),
+            ),
+            if (categories.isEmpty)
+              const Text(
+                'Kategorie rodzinne pomagaja nazwac koszty po Waszemu; nie rozstrzygaja obowiazku zwrotu.',
+              )
+            else
+              for (final category in categories)
+                ListTile(
+                  key: Key('family-expense-category-${category.id}'),
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    category.isArchived
+                        ? Icons.inventory_2_outlined
+                        : Icons.label_outline,
+                  ),
+                  title: Text(category.label),
+                  subtitle: Text(_subtitleFor(category)),
+                  onTap: onCategoriesChanged == null
+                      ? null
+                      : () => _openEditor(context, category: category),
+                  trailing: onCategoriesChanged == null || category.isArchived
+                      ? null
+                      : IconButton(
+                          key: Key('archive-family-category-${category.id}'),
+                          tooltip: 'Archiwizuj kategorie',
+                          onPressed: () => _archive(category),
+                          icon: const Icon(Icons.inventory_2_outlined),
+                        ),
+                ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: onCategoriesChanged == null
+                  ? null
+                  : () => _openEditor(context),
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Dodaj kategorie kosztu'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _subtitleFor(ExpenseCategory category) {
+    final parts = <String>[
+      if (category.reportGroup?.trim().isNotEmpty == true)
+        'Grupa raportowa: ${category.reportGroup}',
+      category.isArchived ? 'Archiwalna' : 'Widoczna w nowych kosztach',
+    ];
+    return parts.join(' - ');
+  }
+
+  Future<void> _openEditor(
+    BuildContext context, {
+    ExpenseCategory? category,
+  }) async {
+    final result = await showDialog<ExpenseCategory>(
+      context: context,
+      builder: (context) => _FamilyExpenseCategoryDialog(category: category),
+    );
+    if (result == null) return;
+
+    final updated = [
+      for (final existing in categories)
+        if (existing.id == result.id) result else existing,
+      if (category == null) result,
+    ];
+    onCategoriesChanged?.call(updated);
+  }
+
+  void _archive(ExpenseCategory category) {
+    final updated = [
+      for (final existing in categories)
+        if (existing.id == category.id) existing.archive() else existing,
+    ];
+    onCategoriesChanged?.call(updated);
+  }
+}
+
+class _FamilyExpenseCategoryDialog extends StatefulWidget {
+  const _FamilyExpenseCategoryDialog({this.category});
+
+  final ExpenseCategory? category;
+
+  @override
+  State<_FamilyExpenseCategoryDialog> createState() =>
+      _FamilyExpenseCategoryDialogState();
+}
+
+class _FamilyExpenseCategoryDialogState
+    extends State<_FamilyExpenseCategoryDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _reportGroupController;
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    final category = widget.category;
+    _nameController = TextEditingController(text: category?.label ?? '');
+    _reportGroupController = TextEditingController(
+      text: category?.reportGroup ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _reportGroupController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        widget.category == null ? 'Nowa kategoria' : 'Edytuj kategorie',
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              key: const Key('family-expense-category-name-field'),
+              controller: _nameController,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: 'Nazwa kategorii',
+                errorText: _errorText,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('family-expense-category-report-group-field'),
+              controller: _reportGroupController,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Grupa raportowa opcjonalnie',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Anuluj'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Zapisz kategorie')),
+      ],
+    );
+  }
+
+  void _save() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _errorText = 'Podaj nazwe kategorii.');
+      return;
+    }
+
+    final reportGroup = _reportGroupController.text.trim();
+    final now = DateTime.now();
+    Navigator.of(context).pop(
+      ExpenseCategory(
+        id:
+            widget.category?.id ??
+            'family-category-${now.microsecondsSinceEpoch}',
+        label: name,
+        reportGroup: reportGroup.isEmpty ? null : reportGroup,
+        isArchived: widget.category?.isArchived ?? false,
+      ),
     );
   }
 }

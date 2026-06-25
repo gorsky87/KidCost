@@ -22,6 +22,7 @@ class AddExpenseScreen extends StatefulWidget {
     this.calendarEvents = const [],
     this.childInfoCards = const [],
     this.existingExpenses = const [],
+    this.availableCategories = expenseCategories,
     this.showReceiptOcrPremiumHint = false,
     this.onPremiumHintDismissed,
     super.key,
@@ -36,6 +37,7 @@ class AddExpenseScreen extends StatefulWidget {
   final List<ExpenseCalendarEventLink> calendarEvents;
   final List<ChildInfoCard> childInfoCards;
   final List<ExpenseEntry> existingExpenses;
+  final List<ExpenseCategory> availableCategories;
   final bool showReceiptOcrPremiumHint;
   final ValueChanged<PremiumDiscoveryPoint>? onPremiumHintDismissed;
 
@@ -104,6 +106,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   bool _duplicateCueDismissed = false;
   bool _ocrDraftNeedsReview = false;
   bool _ocrDraftManuallyConfirmed = false;
+
+  List<ExpenseCategory> get _availableCategories =>
+      widget.availableCategories.isEmpty
+      ? expenseCategories
+      : widget.availableCategories;
 
   @override
   void initState() {
@@ -261,6 +268,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           const SizedBox(height: 12),
           _CategoryPicker(
             selectedCategory: _category,
+            categories: _availableCategories,
             isEnabled: !_isSaving,
             onCategorySelected: (category) {
               setState(() {
@@ -831,7 +839,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _serviceQuantityController.clear();
       _serviceScopeController.clear();
       _titleController.clear();
-      _category = expenseCategories.first;
+      _category = _availableCategories.first;
       _payer = _payers.first;
       _manualPayerController.text = widget.profile.coParentLabel;
       _receiptCurrency = widget.profile.familyCurrency;
@@ -3179,11 +3187,13 @@ class _SoloModeBanner extends StatelessWidget {
 class _CategoryPicker extends StatelessWidget {
   const _CategoryPicker({
     required this.selectedCategory,
+    required this.categories,
     required this.isEnabled,
     required this.onCategorySelected,
   });
 
   final ExpenseCategory selectedCategory;
+  final List<ExpenseCategory> categories;
   final bool isEnabled;
   final ValueChanged<ExpenseCategory> onCategorySelected;
 
@@ -3204,7 +3214,7 @@ class _CategoryPicker extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final category in expenseCategories)
+              for (final category in categories)
                 ChoiceChip(
                   avatar: Icon(
                     category.icon,
