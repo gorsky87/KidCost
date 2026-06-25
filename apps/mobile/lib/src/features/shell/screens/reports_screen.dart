@@ -341,6 +341,8 @@ class _MonthlyReportView extends StatelessWidget {
           plannedPurchases: plannedPurchases,
         ),
         const SizedBox(height: 12),
+        _EvidenceReadinessCard(report: report),
+        const SizedBox(height: 12),
         _ExportCard(
           title: 'Eksport',
           fileName: report.fileName,
@@ -1865,6 +1867,153 @@ class _EmptyAnnualReportCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _EvidenceReadinessCard extends StatelessWidget {
+  const _EvidenceReadinessCard({required this.report});
+
+  final MonthlyExpenseReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = [
+      for (final expense in report.expenses) _ExpenseReadinessRow(expense),
+    ];
+    final needsReview = rows.where((row) => row.items.isNotEmpty).length;
+    final summary = rows.isEmpty
+        ? 'Brak kosztow do sprawdzenia w tym miesiacu.'
+        : needsReview == 0
+        ? 'Wszystkie koszty maja podstawowy kontekst do eksportu.'
+        : '$needsReview z ${rows.length} kosztow moze wymagac uzupelnienia.';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.fact_check_outlined),
+              title: const Text('Kompletnosc przed eksportem'),
+              subtitle: Text(
+                '$summary Eksport nadal jest dostepny z ostrzezeniami.',
+              ),
+            ),
+            if (rows.isEmpty)
+              const Text(
+                'Dodaj koszt, aby zobaczyc brakujacy kontekst przed raportem.',
+              )
+            else
+              for (final row in rows) _ReadinessExpenseTile(row: row),
+            const SizedBox(height: 8),
+            Text(
+              'Checklist pomaga wychwycic brakujacy kontekst. Nie jest ocena prawna ani gwarancja wystarczalnosci dowodow.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReadinessExpenseTile extends StatelessWidget {
+  const _ReadinessExpenseTile({required this.row});
+
+  final _ExpenseReadinessRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasWarnings = row.items.isNotEmpty;
+    final hasBlockingItems = row.items.any((item) => item.isBlocking);
+    final color = hasWarnings
+        ? Theme.of(context).colorScheme.secondary
+        : Theme.of(context).colorScheme.primary;
+    final label = hasBlockingItems
+        ? 'Wymaga uzupelnienia'
+        : hasWarnings
+        ? 'Moze wymagac przegladu'
+        : 'Gotowe';
+    final details = hasWarnings
+        ? 'Brakuje: ${row.items.map((item) => item.label).join(', ')}'
+        : 'Podstawowe pola, zalacznik i kontekst platnosci sa zapisane.';
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        hasWarnings ? Icons.warning_amber_outlined : Icons.check_circle_outline,
+        color: color,
+      ),
+      title: Text(row.expense.title),
+      subtitle: Text(details),
+      trailing: Semantics(
+        label: 'Stan kompletnosci kosztu: $label',
+        child: Chip(
+          avatar: Icon(
+            hasWarnings ? Icons.priority_high_outlined : Icons.done_outlined,
+            color: color,
+            size: 18,
+          ),
+          label: Text(label),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpenseReadinessRow {
+  _ExpenseReadinessRow(this.expense) : items = _readinessItemsFor(expense);
+
+  final ExpenseEntry expense;
+  final List<_ReadinessItem> items;
+}
+
+class _ReadinessItem {
+  const _ReadinessItem({required this.label, required this.isBlocking});
+
+  final String label;
+  final bool isBlocking;
+}
+
+List<_ReadinessItem> _readinessItemsFor(ExpenseEntry expense) {
+  final evidence = expense.searchableEvidence;
+  final items = <_ReadinessItem>[];
+
+  void addBlocking(String label) {
+    items.add(_ReadinessItem(label: label, isBlocking: true));
+  }
+
+  void addInfo(String label) {
+    items.add(_ReadinessItem(label: label, isBlocking: false));
+  }
+
+  if (expense.title.trim().isEmpty) addBlocking('opis kosztu');
+  if (expense.childName.trim().isEmpty) addBlocking('dziecko');
+  if (expense.amountCents <= 0) addBlocking('kwota');
+  if (DateTime.tryParse(expense.expenseDate) == null) {
+    addBlocking('data kosztu');
+  }
+  if (expense.paidBy.label.trim().isEmpty) addBlocking('placacy');
+  if (expense.category.label.trim().isEmpty) addBlocking('kategoria');
+  if (expense.attachment?.status != AttachmentStatus.uploaded) {
+    addInfo('zalacznik');
+  }
+  if (evidence?.type == null) addInfo('typ dowodu');
+  if (!_hasReadinessText(evidence?.serviceDate)) {
+    addInfo('okres lub data uslugi');
+  }
+  final hasPaymentContext =
+      _hasReadinessText(evidence?.paymentMethod) ||
+      _hasReadinessText(expense.providerPayment?.paymentReference) ||
+      expense.reimbursementDeadlines?.paidAt != null;
+  if (!hasPaymentContext) addInfo('potwierdzenie platnosci');
+
+  return items;
+}
+
+bool _hasReadinessText(String? value) {
+  return value != null && value.trim().isNotEmpty;
 }
 
 class _ExportCard extends StatelessWidget {

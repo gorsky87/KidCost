@@ -3566,6 +3566,72 @@ void main() {
     expect(find.textContaining('"Faktura imienna"'), findsOneWidget);
   });
 
+  testWidgets('monthly reports show evidence readiness before export', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ReportsScreen(
+            currentDate: DateTime.utc(2026, 6, 24),
+            expenses: [
+              testExpense(id: '1', title: 'Obiad', amountCents: 12000),
+              testExpense(
+                id: '2',
+                title: 'Faktura za ortodonte',
+                amountCents: 48000,
+                category: expenseCategories[3],
+                status: ExpenseStatus.settled,
+                attachment: const ExpenseAttachment(
+                  fileName: 'faktura.pdf',
+                  contentType: 'application/pdf',
+                  status: AttachmentStatus.uploaded,
+                  evidence: EvidenceMetadata(
+                    type: EvidenceType.invoice,
+                    serviceDate: '2026-06-20',
+                    paymentMethod: 'przelew',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Kompletnosc przed eksportem'),
+      180,
+    );
+    expect(find.text('Kompletnosc przed eksportem'), findsOneWidget);
+    expect(
+      find.textContaining('1 z 2 kosztow moze wymagac uzupelnienia'),
+      findsOneWidget,
+    );
+    expect(find.text('Moze wymagac przegladu'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Brakuje: zalacznik, typ dowodu, okres lub data uslugi, potwierdzenie platnosci',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Gotowe'), findsOneWidget);
+    expect(find.textContaining('Nie jest ocena prawna'), findsOneWidget);
+
+    final csvButton = find.widgetWithText(
+      FilledButton,
+      'CSV: kidcost-report-2026-06.csv',
+    );
+    await tester.scrollUntilVisible(csvButton, 180);
+    await tester.ensureVisible(csvButton);
+    await tester.pumpAndSettle();
+    await tester.tap(csvButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Eksport CSV'), findsOneWidget);
+    expect(find.text('kidcost-report-2026-06.csv'), findsOneWidget);
+  });
+
   testWidgets('monthly reports list planned purchases outside totals', (
     WidgetTester tester,
   ) async {
