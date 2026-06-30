@@ -9,6 +9,7 @@ class ProofLibraryScreen extends StatefulWidget {
     this.initialFilter = const ProofLibraryFilter(),
     this.reportedProofIds = const {},
     this.showReportInclusionState = false,
+    this.showAppBar = true,
     super.key,
   });
 
@@ -16,6 +17,7 @@ class ProofLibraryScreen extends StatefulWidget {
   final ProofLibraryFilter initialFilter;
   final Set<String> reportedProofIds;
   final bool showReportInclusionState;
+  final bool showAppBar;
 
   @override
   State<ProofLibraryScreen> createState() => _ProofLibraryScreenState();
@@ -43,24 +45,26 @@ class _ProofLibraryScreenState extends State<ProofLibraryScreen> {
     );
     final missingProofCount = widget.expenses.length - records.length;
 
-    return ListView(
+    final content = ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Biblioteka dowodow',
-                style: Theme.of(context).textTheme.headlineSmall,
+        if (!widget.showAppBar) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Biblioteka dowodow',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
               ),
-            ),
-            Badge.count(
-              count: filteredRecords.length,
-              child: const Icon(Icons.folder_copy_outlined),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
+              Badge.count(
+                count: filteredRecords.length,
+                child: const Icon(Icons.folder_copy_outlined),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
         Text(
           'Szukaj paragonow, faktur, potwierdzen platnosci i PDF bez zmiany statusu kosztu.',
           style: Theme.of(context).textTheme.bodyMedium,
@@ -110,6 +114,26 @@ class _ProofLibraryScreenState extends State<ProofLibraryScreen> {
               showReportInclusionState: widget.showReportInclusionState,
             ),
       ],
+    );
+
+    if (!widget.showAppBar) {
+      return content;
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Biblioteka dowodow'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Badge.count(
+              count: filteredRecords.length,
+              child: const Icon(Icons.folder_copy_outlined),
+            ),
+          ),
+        ],
+      ),
+      body: content,
     );
   }
 }

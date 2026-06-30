@@ -7,6 +7,7 @@ import '../../custody/custody_models.dart';
 import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
 import '../../premium/premium_discovery.dart';
+import '../widgets/date_picker_field.dart';
 
 class CustodyCalendarScreen extends StatefulWidget {
   const CustodyCalendarScreen({
@@ -172,6 +173,7 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
         const SizedBox(height: 16),
         _CustodyPresetCard(
           startDateController: _presetStartDateController,
+          currentDate: widget.currentDate,
           presetDefinitions: custodyPresetDefinitions,
           selectedPresetType: _selectedPresetType,
           parents: _parents,
@@ -201,6 +203,7 @@ class _CustodyCalendarScreenState extends State<CustodyCalendarScreen> {
         _AddCustodyRangeCard(
           startDateController: _startDateController,
           endDateController: _endDateController,
+          currentDate: widget.currentDate,
           parents: _parents,
           selectedParent: _selectedParent,
           dateError: _dateError,
@@ -1057,6 +1060,7 @@ class _CalendarMarkerDot extends StatelessWidget {
 class _CustodyPresetCard extends StatelessWidget {
   const _CustodyPresetCard({
     required this.startDateController,
+    this.currentDate,
     required this.presetDefinitions,
     required this.selectedPresetType,
     required this.parents,
@@ -1070,6 +1074,7 @@ class _CustodyPresetCard extends StatelessWidget {
   });
 
   final TextEditingController startDateController;
+  final DateTime? currentDate;
   final List<CustodyPresetDefinition> presetDefinitions;
   final CustodyPresetType selectedPresetType;
   final List<CustodyParent> parents;
@@ -1117,16 +1122,13 @@ class _CustodyPresetCard extends StatelessWidget {
               onChanged: onPresetChanged,
             ),
             const SizedBox(height: 12),
-            TextField(
-              key: const Key('custody-preset-start-date'),
+            KidCostDateField(
+              fieldKey: const Key('custody-preset-start-date'),
               controller: startDateController,
-              keyboardType: TextInputType.datetime,
-              decoration: InputDecoration(
-                labelText: 'Start presetu',
-                hintText: 'RRRR-MM-DD',
-                prefixIcon: const Icon(Icons.event_repeat_outlined),
-                errorText: presetError,
-              ),
+              labelText: 'Start presetu',
+              prefixIcon: const Icon(Icons.event_repeat_outlined),
+              errorText: presetError,
+              currentDate: currentDate,
               onChanged: (_) => onPreview(),
             ),
             const SizedBox(height: 12),
@@ -1218,6 +1220,7 @@ class _AddCustodyRangeCard extends StatelessWidget {
   const _AddCustodyRangeCard({
     required this.startDateController,
     required this.endDateController,
+    this.currentDate,
     required this.parents,
     required this.selectedParent,
     required this.onParentChanged,
@@ -1227,6 +1230,7 @@ class _AddCustodyRangeCard extends StatelessWidget {
 
   final TextEditingController startDateController;
   final TextEditingController endDateController;
+  final DateTime? currentDate;
   final List<CustodyParent> parents;
   final CustodyParent selectedParent;
   final ValueChanged<CustodyParent?> onParentChanged;
@@ -1246,27 +1250,22 @@ class _AddCustodyRangeCard extends StatelessWidget {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
-            TextField(
-              key: const Key('custody-start-date'),
+            KidCostDateField(
+              fieldKey: const Key('custody-start-date'),
               controller: startDateController,
-              keyboardType: TextInputType.datetime,
-              decoration: InputDecoration(
-                labelText: 'Data od',
-                hintText: 'RRRR-MM-DD',
-                prefixIcon: const Icon(Icons.event_outlined),
-                errorText: dateError,
-              ),
+              labelText: 'Data od',
+              prefixIcon: const Icon(Icons.event_outlined),
+              errorText: dateError,
+              currentDate: currentDate,
             ),
             const SizedBox(height: 12),
-            TextField(
-              key: const Key('custody-end-date'),
+            KidCostDateField(
+              fieldKey: const Key('custody-end-date'),
               controller: endDateController,
-              keyboardType: TextInputType.datetime,
-              decoration: const InputDecoration(
-                labelText: 'Data do',
-                hintText: 'Puste = jeden dzien',
-                prefixIcon: Icon(Icons.date_range_outlined),
-              ),
+              labelText: 'Data do',
+              hintText: 'Puste = jeden dzien',
+              prefixIcon: const Icon(Icons.date_range_outlined),
+              currentDate: currentDate,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<CustodyParent>(

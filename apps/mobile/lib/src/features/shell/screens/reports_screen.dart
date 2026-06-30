@@ -12,6 +12,7 @@ import '../../premium/premium_discovery.dart';
 import '../../reports/context_log_models.dart';
 import '../../reports/mediation_report_pass.dart';
 import '../../reports/support_context_models.dart';
+import '../widgets/date_picker_field.dart';
 import 'proof_library_screen.dart';
 
 enum _ReportMode { monthly, annual }
@@ -568,6 +569,7 @@ class _ContextLogReportCard extends StatefulWidget {
 class _ContextLogReportCardState extends State<_ContextLogReportCard> {
   late String _childName;
   late String _entryDate;
+  late final TextEditingController _entryDateController;
   ContextLogCategory _category = ContextLogCategory.school;
   ContextLogVisibility _visibility = ContextLogVisibility.private;
   bool _includeInReport = false;
@@ -579,6 +581,7 @@ class _ContextLogReportCardState extends State<_ContextLogReportCard> {
     super.initState();
     _childName = _childOptions().first;
     _entryDate = '${widget.month}-01';
+    _entryDateController = TextEditingController(text: _entryDate);
   }
 
   @override
@@ -586,6 +589,7 @@ class _ContextLogReportCardState extends State<_ContextLogReportCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.month != widget.month) {
       _entryDate = '${widget.month}-01';
+      _entryDateController.text = _entryDate;
       _linkedExpenseId = null;
     }
     final childOptions = _childOptions();
@@ -596,6 +600,7 @@ class _ContextLogReportCardState extends State<_ContextLogReportCard> {
 
   @override
   void dispose() {
+    _entryDateController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -683,14 +688,13 @@ class _ContextLogReportCardState extends State<_ContextLogReportCard> {
             },
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('context-log-date-field'),
-            initialValue: _entryDate,
-            decoration: const InputDecoration(
-              labelText: 'Data',
-              helperText: 'Format RRRR-MM-DD.',
-              prefixIcon: Icon(Icons.event_outlined),
-            ),
+          KidCostDateField(
+            fieldKey: const Key('context-log-date-field'),
+            controller: _entryDateController,
+            labelText: 'Data',
+            helperText: 'Format RRRR-MM-DD.',
+            prefixIcon: const Icon(Icons.event_outlined),
+            currentDate: DateTime.tryParse('${widget.month}-01'),
             onChanged: (value) => _entryDate = value,
           ),
           const SizedBox(height: 12),
@@ -814,7 +818,8 @@ class _ContextLogReportCardState extends State<_ContextLogReportCard> {
 
   void _saveContextLogEntry() {
     final note = _noteController.text.trim();
-    if (note.isEmpty || _entryDate.trim().isEmpty) {
+    final entryDate = _entryDateController.text.trim();
+    if (note.isEmpty || entryDate.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Uzupelnij date i notatke kontekstu.')),
       );
@@ -822,7 +827,7 @@ class _ContextLogReportCardState extends State<_ContextLogReportCard> {
     }
     final entry = ContextLogEntry.draft(
       childName: _childName,
-      entryDate: _entryDate,
+      entryDate: entryDate,
       category: _category,
       visibility: _visibility,
       note: note,
@@ -877,6 +882,7 @@ class _SupportContextReportCardState extends State<_SupportContextReportCard> {
   final _noteController = TextEditingController();
   late String _familyContext;
   late String _paymentDate;
+  late final TextEditingController _paymentDateController;
   SupportContextVisibility _visibility = SupportContextVisibility.private;
   bool _includeInReport = false;
   bool _hasProofAttachment = false;
@@ -885,6 +891,7 @@ class _SupportContextReportCardState extends State<_SupportContextReportCard> {
   void initState() {
     super.initState();
     _paymentDate = '${widget.month}-01';
+    _paymentDateController = TextEditingController(text: _paymentDate);
     _periodController.text = widget.month;
     _familyContext = _familyOptions().first;
   }
@@ -894,6 +901,7 @@ class _SupportContextReportCardState extends State<_SupportContextReportCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.month != widget.month) {
       _paymentDate = '${widget.month}-01';
+      _paymentDateController.text = _paymentDate;
       _periodController.text = widget.month;
     }
     final familyOptions = _familyOptions();
@@ -907,6 +915,7 @@ class _SupportContextReportCardState extends State<_SupportContextReportCard> {
     _payerController.dispose();
     _recipientController.dispose();
     _amountController.dispose();
+    _paymentDateController.dispose();
     _periodController.dispose();
     _noteController.dispose();
     super.dispose();
@@ -1021,14 +1030,13 @@ class _SupportContextReportCardState extends State<_SupportContextReportCard> {
             ),
           ),
           const SizedBox(height: 12),
-          TextFormField(
-            key: const Key('support-context-date-field'),
-            initialValue: _paymentDate,
-            decoration: const InputDecoration(
-              labelText: 'Data platnosci',
-              helperText: 'Format RRRR-MM-DD.',
-              prefixIcon: Icon(Icons.event_outlined),
-            ),
+          KidCostDateField(
+            fieldKey: const Key('support-context-date-field'),
+            controller: _paymentDateController,
+            labelText: 'Data platnosci',
+            helperText: 'Format RRRR-MM-DD.',
+            prefixIcon: const Icon(Icons.event_outlined),
+            currentDate: DateTime.tryParse('${widget.month}-01'),
             onChanged: (value) => _paymentDate = value,
           ),
           const SizedBox(height: 12),
@@ -1138,11 +1146,12 @@ class _SupportContextReportCardState extends State<_SupportContextReportCard> {
     }
     final payer = _payerController.text.trim();
     final recipient = _recipientController.text.trim();
+    final paymentDate = _paymentDateController.text.trim();
     final period = _periodController.text.trim();
     if (amountCents <= 0 ||
         payer.isEmpty ||
         recipient.isEmpty ||
-        _paymentDate.trim().isEmpty ||
+        paymentDate.isEmpty ||
         period.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1157,7 +1166,7 @@ class _SupportContextReportCardState extends State<_SupportContextReportCard> {
       familyContext: _familyContext,
       amountCents: amountCents,
       currencyCode: 'PLN',
-      paymentDate: _paymentDate,
+      paymentDate: paymentDate,
       periodCovered: period,
       visibility: _visibility,
       includeInReport: _includeInReport,

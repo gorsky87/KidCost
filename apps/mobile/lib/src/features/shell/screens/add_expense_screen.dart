@@ -10,6 +10,7 @@ import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
 import '../../onboarding/onboarding_profile.dart';
 import '../../premium/premium_discovery.dart';
+import '../widgets/date_picker_field.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({
@@ -216,16 +217,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
+          KidCostDateField(
+            fieldKey: const Key('expense-date-field'),
             controller: _dateController,
-            keyboardType: TextInputType.datetime,
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              labelText: 'Data kosztu',
-              hintText: 'RRRR-MM-DD',
-              prefixIcon: const Icon(Icons.event_outlined),
-              errorText: _dateError,
-            ),
+            labelText: 'Data kosztu',
+            prefixIcon: const Icon(Icons.event_outlined),
+            errorText: _dateError,
+            currentDate: widget.currentDate,
           ),
           if (widget.calendarEvents.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -1528,28 +1526,18 @@ class _ServicePeriodFields extends StatelessWidget {
       title: const Text('Okres i zakres uslugi'),
       subtitle: const Text('Opcjonalnie, gdy koszt pokrywa wiecej niz zakup.'),
       children: [
-        TextField(
-          key: const Key('expense-service-start-field'),
+        KidCostDateField(
+          fieldKey: const Key('expense-service-start-field'),
           controller: startController,
-          keyboardType: TextInputType.datetime,
-          textInputAction: TextInputAction.next,
-          decoration: const InputDecoration(
-            labelText: 'Poczatek uslugi',
-            hintText: 'RRRR-MM-DD',
-            prefixIcon: Icon(Icons.event_available_outlined),
-          ),
+          labelText: 'Poczatek uslugi',
+          prefixIcon: const Icon(Icons.event_available_outlined),
         ),
         const SizedBox(height: 12),
-        TextField(
-          key: const Key('expense-service-end-field'),
+        KidCostDateField(
+          fieldKey: const Key('expense-service-end-field'),
           controller: endController,
-          keyboardType: TextInputType.datetime,
-          textInputAction: TextInputAction.next,
-          decoration: const InputDecoration(
-            labelText: 'Koniec uslugi',
-            hintText: 'RRRR-MM-DD',
-            prefixIcon: Icon(Icons.event_busy_outlined),
-          ),
+          labelText: 'Koniec uslugi',
+          prefixIcon: const Icon(Icons.event_busy_outlined),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -1796,28 +1784,18 @@ class _ExpenseVerificationFields extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          TextField(
-            key: const Key('expense-service-date-field'),
+          KidCostDateField(
+            fieldKey: const Key('expense-service-date-field'),
             controller: serviceDateController,
-            keyboardType: TextInputType.datetime,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Data uslugi',
-              hintText: 'RRRR-MM-DD',
-              prefixIcon: Icon(Icons.event_available_outlined),
-            ),
+            labelText: 'Data uslugi',
+            prefixIcon: const Icon(Icons.event_available_outlined),
           ),
           const SizedBox(height: 12),
-          TextField(
-            key: const Key('expense-document-date-field'),
+          KidCostDateField(
+            fieldKey: const Key('expense-document-date-field'),
             controller: documentDateController,
-            keyboardType: TextInputType.datetime,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(
-              labelText: 'Data dokumentu',
-              hintText: 'RRRR-MM-DD',
-              prefixIcon: Icon(Icons.event_note_outlined),
-            ),
+            labelText: 'Data dokumentu',
+            prefixIcon: const Icon(Icons.event_note_outlined),
           ),
           const SizedBox(height: 12),
           TextField(
@@ -1949,48 +1927,32 @@ class _ReimbursementDeadlineFields extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
-              TextField(
-                key: const Key('expense-submitted-at-field'),
+              KidCostDateField(
+                fieldKey: const Key('expense-submitted-at-field'),
                 controller: submittedAtController,
-                keyboardType: TextInputType.datetime,
-                decoration: const InputDecoration(
-                  labelText: 'Data zgloszenia',
-                  hintText: 'RRRR-MM-DD',
-                  prefixIcon: Icon(Icons.send_outlined),
-                ),
+                labelText: 'Data zgloszenia',
+                prefixIcon: const Icon(Icons.send_outlined),
               ),
               const SizedBox(height: 12),
-              TextField(
-                key: const Key('expense-notice-due-at-field'),
+              KidCostDateField(
+                fieldKey: const Key('expense-notice-due-at-field'),
                 controller: noticeDueAtController,
-                keyboardType: TextInputType.datetime,
-                decoration: const InputDecoration(
-                  labelText: 'Termin przekazania dokumentow',
-                  hintText: 'RRRR-MM-DD',
-                  prefixIcon: Icon(Icons.event_note_outlined),
-                ),
+                labelText: 'Termin przekazania dokumentow',
+                prefixIcon: const Icon(Icons.event_note_outlined),
               ),
               const SizedBox(height: 12),
-              TextField(
-                key: const Key('expense-payment-due-at-field'),
+              KidCostDateField(
+                fieldKey: const Key('expense-payment-due-at-field'),
                 controller: paymentDueAtController,
-                keyboardType: TextInputType.datetime,
-                decoration: const InputDecoration(
-                  labelText: 'Termin platnosci',
-                  hintText: 'RRRR-MM-DD',
-                  prefixIcon: Icon(Icons.event_available_outlined),
-                ),
+                labelText: 'Termin platnosci',
+                prefixIcon: const Icon(Icons.event_available_outlined),
               ),
               const SizedBox(height: 12),
-              TextField(
-                key: const Key('expense-paid-at-field'),
+              KidCostDateField(
+                fieldKey: const Key('expense-paid-at-field'),
                 controller: paidAtController,
-                keyboardType: TextInputType.datetime,
-                decoration: const InputDecoration(
-                  labelText: 'Data zaplaty',
-                  hintText: 'RRRR-MM-DD',
-                  prefixIcon: Icon(Icons.payments_outlined),
-                ),
+                labelText: 'Data zaplaty',
+                prefixIcon: const Icon(Icons.payments_outlined),
               ),
               if (errorText != null) ...[
                 const SizedBox(height: 8),
@@ -2095,15 +2057,11 @@ class _ProviderPaymentFields extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  key: const Key('provider-due-date-field'),
+                KidCostDateField(
+                  fieldKey: const Key('provider-due-date-field'),
                   controller: providerDueDateController,
-                  keyboardType: TextInputType.datetime,
-                  decoration: const InputDecoration(
-                    labelText: 'Termin platnosci do dostawcy',
-                    hintText: 'RRRR-MM-DD',
-                    prefixIcon: Icon(Icons.event_available_outlined),
-                  ),
+                  labelText: 'Termin platnosci do dostawcy',
+                  prefixIcon: const Icon(Icons.event_available_outlined),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<ProviderPaymentStatus>(
@@ -2483,15 +2441,11 @@ class _MedicalExpensePacketFields extends StatelessWidget {
                 'Udostepniaj tylko dokumenty potrzebne do rozliczenia. KidCost nie ocenia ubezpieczenia ani uprawnien prawnych.',
           ),
           const SizedBox(height: 12),
-          TextField(
-            key: const Key('medical-service-date-field'),
+          KidCostDateField(
+            fieldKey: const Key('medical-service-date-field'),
             controller: serviceDateController,
-            keyboardType: TextInputType.datetime,
-            decoration: const InputDecoration(
-              labelText: 'Data uslugi medycznej',
-              hintText: 'RRRR-MM-DD',
-              prefixIcon: Icon(Icons.event_available_outlined),
-            ),
+            labelText: 'Data uslugi medycznej',
+            prefixIcon: const Icon(Icons.event_available_outlined),
           ),
           const SizedBox(height: 12),
           TextField(
