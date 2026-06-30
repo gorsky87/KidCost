@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../expenses/expense_models.dart';
 import '../../onboarding/onboarding_profile.dart';
 import '../../planned_purchases/planned_purchase_models.dart';
+import '../widgets/date_picker_field.dart';
 
 class PlannedPurchasesScreen extends StatefulWidget {
   const PlannedPurchasesScreen({
@@ -73,6 +74,7 @@ class _PlannedPurchasesScreenState extends State<PlannedPurchasesScreen> {
           deadlineController: _deadlineController,
           category: _category,
           splitPercent: _splitPercent,
+          currentDate: widget.currentDate,
           onCategoryChanged: (category) {
             if (category == null) return;
             setState(() => _category = category);
@@ -191,6 +193,7 @@ class _PlannedPurchaseForm extends StatelessWidget {
     required this.deadlineController,
     required this.category,
     required this.splitPercent,
+    this.currentDate,
     required this.onCategoryChanged,
     required this.onSplitChanged,
     required this.onSubmit,
@@ -203,6 +206,7 @@ class _PlannedPurchaseForm extends StatelessWidget {
   final TextEditingController deadlineController;
   final ExpenseCategory category;
   final int splitPercent;
+  final DateTime? currentDate;
   final ValueChanged<ExpenseCategory?> onCategoryChanged;
   final ValueChanged<int> onSplitChanged;
   final VoidCallback onSubmit;
@@ -272,25 +276,23 @@ class _PlannedPurchaseForm extends StatelessWidget {
                 onChanged: onCategoryChanged,
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                key: const Key('planned-purchase-target-date-field'),
+              KidCostDateField(
+                fieldKey: const Key('planned-purchase-target-date-field'),
                 controller: targetDateController,
-                decoration: const InputDecoration(
-                  labelText: 'Planowany zakup',
-                  hintText: '2026-09-01',
-                  prefixIcon: Icon(Icons.event_outlined),
-                ),
+                labelText: 'Planowany zakup',
+                hintText: '2026-09-01',
+                prefixIcon: const Icon(Icons.event_outlined),
+                currentDate: currentDate,
                 validator: _dateValidator,
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                key: const Key('planned-purchase-deadline-field'),
+              KidCostDateField(
+                fieldKey: const Key('planned-purchase-deadline-field'),
                 controller: deadlineController,
-                decoration: const InputDecoration(
-                  labelText: 'Termin odpowiedzi',
-                  hintText: '2026-08-25',
-                  prefixIcon: Icon(Icons.hourglass_bottom_outlined),
-                ),
+                labelText: 'Termin odpowiedzi',
+                hintText: '2026-08-25',
+                prefixIcon: const Icon(Icons.hourglass_bottom_outlined),
+                currentDate: currentDate,
                 validator: _dateValidator,
               ),
               const SizedBox(height: 12),

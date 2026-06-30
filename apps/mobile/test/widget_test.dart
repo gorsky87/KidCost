@@ -29,6 +29,7 @@ import 'package:kidcost_mobile/src/features/shell/screens/planned_purchases_scre
 import 'package:kidcost_mobile/src/features/shell/screens/proof_library_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/reports_screen.dart';
 import 'package:kidcost_mobile/src/features/shell/screens/settings_screen.dart';
+import 'package:kidcost_mobile/src/features/shell/widgets/date_picker_field.dart';
 import 'package:kidcost_mobile/src/telemetry/app_telemetry.dart';
 import 'package:kidcost_mobile/src/theme/kidcost_theme.dart';
 
@@ -44,6 +45,15 @@ Future<void> dragUntilPresent(
     await tester.pumpAndSettle();
   }
   expect(finder, findsOneWidget);
+}
+
+Future<void> openShellDestination(WidgetTester tester, String label) async {
+  if (find.text(label).evaluate().isEmpty) {
+    await tester.tap(find.text('Wiecej'));
+    await tester.pumpAndSettle();
+  }
+  await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
 }
 
 Finder editableTextByKey(Key key) {
@@ -80,6 +90,36 @@ void main() {
       Theme.of(tester.element(find.byType(Text))).scaffoldBackgroundColor,
       KidCostTheme.surface,
     );
+  });
+
+  testWidgets('date field opens a picker and stores the chosen date', (
+    WidgetTester tester,
+  ) async {
+    final controller = TextEditingController(text: '2026-06-24');
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: KidCostDateField(
+            controller: controller,
+            labelText: 'Data testowa',
+            currentDate: DateTime.utc(2026, 6, 24),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Wybierz date'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await tester.tap(find.text('25').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(controller.text, '2026-06-25');
   });
 
   testWidgets('core MVP screens stay usable with large text and tap targets', (
@@ -525,7 +565,7 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget);
   });
 
-  testWidgets('bottom navigation exposes the MVP demo sections', (
+  testWidgets('bottom navigation groups secondary MVP sections under more', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
@@ -541,6 +581,28 @@ void main() {
     await tester.pumpAndSettle();
     await completeOnboarding(tester);
 
+    final bottomNavigation = find.byType(NavigationBar);
+    expect(
+      find.descendant(of: bottomNavigation, matching: find.text('Start')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: bottomNavigation, matching: find.text('Koszty')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: bottomNavigation, matching: find.text('Dodaj')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: bottomNavigation, matching: find.text('Raporty')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: bottomNavigation, matching: find.text('Wiecej')),
+      findsOneWidget,
+    );
+
     await tester.tap(find.text('Dodaj'));
     await tester.pump();
 
@@ -551,8 +613,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(FilledButton, 'Zapisz koszt'), findsOneWidget);
 
-    await tester.tap(find.text('Kosztorys'));
-    await tester.pumpAndSettle();
+    await openShellDestination(tester, 'Kosztorys');
 
     expect(find.text('Miesieczny kosztorys dziecka'), findsOneWidget);
   });
@@ -586,8 +647,7 @@ void main() {
 
     expect(find.text('KidCost ukrywa szczegoly'), findsNothing);
 
-    await tester.tap(find.text('Ustawienia'));
-    await tester.pumpAndSettle();
+    await openShellDestination(tester, 'Ustawienia');
     expect(find.text('Powiadomienia'), findsOneWidget);
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
@@ -651,8 +711,7 @@ void main() {
     final telemetry = RecordingTelemetry();
 
     await pumpSignedInOnboardedApp(tester, telemetry: telemetry);
-    await tester.tap(find.text('Plany'));
-    await tester.pumpAndSettle();
+    await openShellDestination(tester, 'Plany');
 
     await tester.enterText(
       find.byKey(const Key('planned-purchase-title-field')),
@@ -813,8 +872,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Zakoncz'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Rodzina'));
-    await tester.pumpAndSettle();
+    await openShellDestination(tester, 'Rodzina');
 
     await tester.scrollUntilVisible(
       find.text('coparent@example.com'),
@@ -842,8 +900,7 @@ void main() {
     await tester.pumpAndSettle();
     await completeOnboarding(tester);
 
-    await tester.tap(find.text('Ustawienia'));
-    await tester.pumpAndSettle();
+    await openShellDestination(tester, 'Ustawienia');
     expect(find.text('Powiadomienia'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Eksport danych rodziny'), 120);
     expect(find.text('Eksport danych rodziny'), findsOneWidget);
@@ -2421,8 +2478,7 @@ void main() {
   ) async {
     await pumpSignedInOnboardedApp(tester);
 
-    await tester.tap(find.text('Szablony'));
-    await tester.pumpAndSettle();
+    await openShellDestination(tester, 'Szablony');
 
     expect(find.text('Brak szablonow'), findsOneWidget);
     await tester.tap(find.text('Dodaj szablon'));
@@ -4495,8 +4551,7 @@ void main() {
   ) async {
     await pumpSignedInOnboardedApp(tester);
 
-    await tester.tap(find.text('Opieka'));
-    await tester.pumpAndSettle();
+    await openShellDestination(tester, 'Opieka');
 
     expect(find.text('Kalendarz opieki'), findsOneWidget);
 

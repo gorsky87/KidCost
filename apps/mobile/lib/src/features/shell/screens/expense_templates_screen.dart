@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../expenses/expense_models.dart';
 import '../../expenses/expense_visuals.dart';
 import '../../onboarding/onboarding_profile.dart';
+import '../widgets/date_picker_field.dart';
 
 class ExpenseTemplatesScreen extends StatelessWidget {
   const ExpenseTemplatesScreen({
@@ -297,15 +298,12 @@ class _TemplateFormSheetState extends State<_TemplateFormSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            KidCostDateField(
+              fieldKey: const Key('expense-template-next-due-date-field'),
               controller: _dateController,
-              keyboardType: TextInputType.datetime,
-              decoration: InputDecoration(
-                labelText: 'Nastepny termin',
-                hintText: 'RRRR-MM-DD',
-                prefixIcon: const Icon(Icons.event_outlined),
-                errorText: _dateError,
-              ),
+              labelText: 'Nastepny termin',
+              prefixIcon: const Icon(Icons.event_outlined),
+              errorText: _dateError,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<ExpenseRecurrence>(
