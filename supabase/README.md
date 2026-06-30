@@ -47,6 +47,28 @@ KIDCOST_SUPABASE_RESET_TIMEOUT=300 \
 scripts/verify_supabase_local.sh
 ```
 
+To verify the clean reset and then immediately run the full SQL regression pack:
+
+```sh
+scripts/verify_supabase_local.sh --run-manual-checks
+```
+
+After a clean reset, run the full SQL regression pack with:
+
+```sh
+DATABASE_URL="$DATABASE_URL" scripts/run_supabase_manual_checks.sh
+```
+
+The manual check runner first verifies database connectivity, then executes
+every `supabase/tests/*_manual_check.sql` file with `psql -v ON_ERROR_STOP=1`.
+It prints a compact `PASS`/`FAIL` summary by filename, stops on the first
+failing SQL check, and suppresses successful SQL output so normal release
+evidence does not include family fixture details. List the current pack with:
+
+```sh
+scripts/run_supabase_manual_checks.sh --list
+```
+
 The seed creates a fake family with two parents, one child, sample expenses, a settlement, and a pending invitation. The demo users are:
 
 - `demo.parent.one@example.test`

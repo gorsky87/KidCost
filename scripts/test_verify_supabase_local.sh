@@ -81,6 +81,27 @@ if [[ "${1:-}" == "--version" ]]; then
   exit 0
 fi
 
+for arg in "$@"; do
+  if [[ "$arg" == *"to_regclass('public.families')"* ]]; then
+    echo "families"
+    exit 0
+  fi
+
+  if [[ "$arg" == "select 1" ]]; then
+    echo "1"
+    exit 0
+  fi
+done
+
+previous=""
+for arg in "$@"; do
+  if [[ "$previous" == "-f" ]]; then
+    echo "checked ${arg}"
+    exit 0
+  fi
+  previous="$arg"
+done
+
 echo "unexpected psql invocation: $*" >&2
 exit 2
 STUB
@@ -96,7 +117,7 @@ assert_contains() {
   local file="$1"
   local expected="$2"
 
-  if ! grep -Fq "$expected" "$file"; then
+  if ! grep -Fq -- "$expected" "$file"; then
     echo "Expected ${file} to contain: ${expected}" >&2
     echo "--- ${file} ---" >&2
     cat "$file" >&2
@@ -108,7 +129,7 @@ assert_not_contains() {
   local file="$1"
   local unexpected="$2"
 
-  if grep -Fq "$unexpected" "$file"; then
+  if grep -Fq -- "$unexpected" "$file"; then
     echo "Expected ${file} not to contain: ${unexpected}" >&2
     echo "--- ${file} ---" >&2
     cat "$file" >&2
@@ -130,6 +151,54 @@ assert_not_contains "$log_file" "supabase db reset"
 bash "$script" >"$output_file" 2>&1
 assert_contains "$log_file" "supabase start"
 assert_contains "$log_file" "supabase db reset"
+
+>"$log_file"
+bash "$script" --run-manual-checks >"$output_file" 2>&1
+assert_contains "$output_file" "Waiting for local Supabase database readiness"
+assert_contains "$output_file" "Running 14 Supabase manual SQL checks."
+assert_contains "$output_file" "PASS supabase/tests/family_expense_categories_manual_check.sql"
+assert_contains "$output_file" "Supabase manual SQL checks passed."
+assert_contains "$log_file" "supabase start"
+assert_contains "$log_file" "supabase db reset"
+assert_contains "$log_file" "to_regclass('public.families')"
+assert_contains "$log_file" "-qAtc select 1"
+
+>"$log_file"
+cat >"${bin_dir}/supabase" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+echo "supabase $*" >>"${KIDCOST_TEST_LOG}"
+
+case "${1:-}" in
+  --version)
+    echo "2.107.0"
+    ;;
+  start)
+    echo "started"
+    ;;
+  db)
+    if [[ "${2:-}" == "reset" ]]; then
+      echo "reset failed" >&2
+      exit 7
+    fi
+    echo "unexpected supabase db invocation: $*" >&2
+    exit 2
+    ;;
+  *)
+    echo "unexpected supabase invocation: $*" >&2
+    exit 2
+    ;;
+esac
+STUB
+chmod +x "${bin_dir}/supabase"
+
+if bash "$script" --run-manual-checks >"$output_file" 2>&1; then
+  echo "Expected reset failure to stop before manual SQL checks." >&2
+  exit 1
+fi
+assert_contains "$output_file" "Local Supabase reset failed before manual SQL checks."
+assert_not_contains "$output_file" "Running Supabase manual SQL checks."
+assert_not_contains "$log_file" "-qAtc select 1"
 
 >"$log_file"
 make_stubs 0 "$log_file"
