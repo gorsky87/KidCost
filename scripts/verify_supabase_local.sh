@@ -6,7 +6,7 @@ usage() {
 Verify the local KidCost Supabase stack from a clean database.
 
 Usage:
-  scripts/verify_supabase_local.sh [--preflight-only] [--skip-image-pull]
+  scripts/verify_supabase_local.sh [--preflight-only] [--skip-image-pull] [--run-manual-checks]
 
 Environment:
   KIDCOST_SUPABASE_POSTGRES_IMAGE  Postgres image required by Supabase CLI.
@@ -17,6 +17,11 @@ Environment:
                                    Default: 300
   KIDCOST_SUPABASE_RESET_TIMEOUT   Seconds to wait for `supabase db reset`.
                                    Default: 300
+  KIDCOST_SUPABASE_DB_READY_TIMEOUT
+                                   Seconds to wait for Postgres after reset.
+                                   Default: 60
+  DATABASE_URL                     Database URL used by --run-manual-checks.
+                                   Default: postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
 The script fails before `supabase start` when the required Postgres image cannot
 be pulled in time. It also bounds `supabase start` and `supabase db reset`, so
@@ -27,11 +32,14 @@ Options:
   --preflight-only     Stop after prerequisite and Postgres image checks.
   --skip-image-pull    Fail when the Postgres image is missing instead of
                        attempting to pull it.
+  --run-manual-checks  After a clean reset, execute every
+                       supabase/tests/*_manual_check.sql file.
 USAGE
 }
 
 preflight_only=0
 skip_image_pull=0
+run_manual_checks=0
 
 while (($#)); do
   case "$1" in
@@ -44,6 +52,9 @@ while (($#)); do
       ;;
     --skip-image-pull)
       skip_image_pull=1
+      ;;
+    --run-manual-checks)
+      run_manual_checks=1
       ;;
     *)
       echo "Unknown argument: $1" >&2
@@ -58,6 +69,7 @@ postgres_image="${KIDCOST_SUPABASE_POSTGRES_IMAGE:-public.ecr.aws/supabase/postg
 pull_timeout="${KIDCOST_SUPABASE_PULL_TIMEOUT:-180}"
 start_timeout="${KIDCOST_SUPABASE_START_TIMEOUT:-300}"
 reset_timeout="${KIDCOST_SUPABASE_RESET_TIMEOUT:-300}"
+db_ready_timeout="${KIDCOST_SUPABASE_DB_READY_TIMEOUT:-60}"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -119,6 +131,24 @@ require_command supabase
 require_positive_integer KIDCOST_SUPABASE_PULL_TIMEOUT "$pull_timeout"
 require_positive_integer KIDCOST_SUPABASE_START_TIMEOUT "$start_timeout"
 require_positive_integer KIDCOST_SUPABASE_RESET_TIMEOUT "$reset_timeout"
+require_positive_integer KIDCOST_SUPABASE_DB_READY_TIMEOUT "$db_ready_timeout"
+
+wait_for_database() {
+  local database_url="$1"
+  local timeout_seconds="$2"
+  local elapsed=0
+  local ready_table
+
+  until ready_table="$(psql "$database_url" -v ON_ERROR_STOP=1 -tAc "select coalesce(to_regclass('public.families')::text, '')" 2>/dev/null)" \
+    && [[ "$ready_table" == "families" || "$ready_table" == "public.families" ]]; do
+    if ((elapsed >= timeout_seconds)); then
+      echo "Database did not become ready within ${timeout_seconds}s: ${database_url}" >&2
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+}
 
 if ! docker info >/dev/null 2>&1; then
   echo "Docker is not running or is not reachable." >&2
@@ -150,6 +180,24 @@ echo "Starting local Supabase stack (timeout: ${start_timeout}s)."
 run_with_timeout "$start_timeout" supabase start
 
 echo "Resetting local Supabase database (timeout: ${reset_timeout}s)."
-run_with_timeout "$reset_timeout" supabase db reset
+if run_with_timeout "$reset_timeout" supabase db reset; then
+  echo "Local Supabase reset completed."
+else
+  status=$?
+  echo "Local Supabase reset failed before manual SQL checks." >&2
+  exit "$status"
+fi
 
-echo "Local Supabase reset completed."
+if [[ "$run_manual_checks" == "1" ]]; then
+  export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}"
+  echo "Waiting for local Supabase database readiness (timeout: ${db_ready_timeout}s)."
+  wait_for_database "$DATABASE_URL" "$db_ready_timeout"
+  echo "Running Supabase manual SQL checks."
+  if scripts/run_supabase_manual_checks.sh; then
+    :
+  else
+    status=$?
+    echo "Supabase manual SQL checks failed after clean reset." >&2
+    exit "$status"
+  fi
+fi
