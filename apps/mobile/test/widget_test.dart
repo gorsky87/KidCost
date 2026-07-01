@@ -2525,6 +2525,7 @@ void main() {
       KidCostApp(
         authRepository: InMemoryAuthRepository(),
         attachmentStorage: InMemoryAttachmentStorage(),
+        currentDate: DateTime.utc(2026, 6, 24),
       ),
     );
     await tester.pump();
