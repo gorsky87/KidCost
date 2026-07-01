@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="KidCost pomaga rodzicom spokojnie rozliczać koszty dziecka, paragony, opiekę i raporty."
+    />
+    <title>KidCost - spokojne rozliczenia kosztów dziecka</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='20' cy='18' r='10' fill='%23ff6f61'/%3E%3Ccircle cx='42' cy='28' r='12' fill='%2316a9a5'/%3E%3Ccircle cx='26' cy='44' r='10' fill='%239ccfbd'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header" data-reveal>
+      <a class="brand" href="#top" aria-label="KidCost">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span>KidCost</span>
+      </a>
+      <nav class="nav-links" aria-label="Główna nawigacja">
+        <a href="#workflow">Jak działa</a>
+        <a href="#scenarios">Scenariusze</a>
+        <a href="#reports">Raporty</a>
+        <a href="#security">Bezpieczeństwo</a>
+      </nav>
+      <a class="header-cta" href="#demo">Otwórz demo strony</a>
+    </header>
+
+    <main id="top">
+      <section class="hero section-shell">
+        <div class="hero-copy" data-reveal>
+          <h1>Spokojne rozliczenia kosztów dziecka</h1>
+          <p>
+            KidCost pomaga wspólnie śledzić wydatki na dziecko, dodawać
+            paragony, uzgadniać kontekst opieki i generować czytelne raporty.
+            Mniej konfliktów. Więcej jasności.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#scenarios">Zobacz scenariusze</a>
+            <a class="button secondary" href="#demo">Otwórz demo strony</a>
+          </div>
+          <ul class="trust-list" aria-label="Najważniejsze korzyści">
+            <li>Przejrzyste saldo i kto komu ile oddaje</li>
+            <li>Dowody w postaci paragonów zawsze pod ręką</li>
+            <li>Dane tylko Wasze, z prywatnym podglądem</li>
+          </ul>
+        </div>
+        <div class="hero-visual" data-reveal>
+          <img
+            src="./assets/kidcost-hero-product.png"
+            alt="Telefon z dashboardem KidCost obok paragonu i raportu"
+          />
+          <div class="balance-card" aria-label="Przykładowe saldo">
+            <span>Saldo</span>
+            <strong>+ 812,40 zł</strong>
+            <small>Alicja jest winna Tobie</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="benefits section-shell" aria-labelledby="benefits-title">
+        <h2 id="benefits-title" data-reveal>Co zyskujecie?</h2>
+        <div class="benefit-grid">
+          <article data-reveal>
+            <span class="icon">✓</span>
+            <h3>Pełna przejrzystość</h3>
+            <p>Każdy wydatek, dowód i status są w jednym miejscu.</p>
+          </article>
+          <article data-reveal>
+            <span class="icon coral">↔</span>
+            <h3>Mniej napięcia</h3>
+            <p>Fakty zamiast emocji: kwota, termin, status i kontekst.</p>
+          </article>
+          <article data-reveal>
+            <span class="icon navy">◆</span>
+            <h3>Prywatnie i bezpiecznie</h3>
+            <p>Powiadomienia i raporty projektowane bez wrażliwych skrótów.</p>
+          </article>
+          <article data-reveal>
+            <span class="icon">↗</span>
+            <h3>Raporty, które pomagają</h3>
+            <p>Zestawienia gotowe dla Was, mediatora lub prawnika.</p>
+          </article>
+        </div>
+      </section>
+
+      <section
+        class="scenario-band section-shell"
+        id="scenarios"
+        aria-labelledby="scenario-title"
+      >
+        <div class="section-intro" data-reveal>
+          <h2 id="scenario-title">Scenariusze „kto / co / kiedy”</h2>
+          <p>
+            Różne sytuacje, jedno spokojne narzędzie. Wybierz moment dnia i
+            zobacz, co KidCost porządkuje za Was.
+          </p>
+        </div>
+        <div class="scenario-layout">
+          <div class="scenario-tabs" role="tablist" aria-label="Scenariusze">
+            <button class="scenario-tab active" type="button" data-scenario="0">
+              Zakupy codzienne
+            </button>
+            <button class="scenario-tab" type="button" data-scenario="1">
+              Wizyty i zdrowie
+            </button>
+            <button class="scenario-tab" type="button" data-scenario="2">
+              Wyjazdy i wakacje
+            </button>
+            <button class="scenario-tab" type="button" data-scenario="3">
+              Edukacja i zajęcia
+            </button>
+          </div>
+          <article class="scenario-card" data-reveal>
+            <p class="scenario-label">Kto</p>
+            <h3 id="scenario-who">Rodzic po zakupach</h3>
+            <p class="scenario-label">Co może zrobić</p>
+            <p id="scenario-what">
+              Dodać koszt, przypiąć paragon i od razu zobaczyć wpływ na saldo.
+            </p>
+            <p class="scenario-label">Kiedy</p>
+            <p id="scenario-when">
+              Kiedy wraca z zakupów i chce zamknąć temat zanim zniknie paragon.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="workflow section-shell" id="workflow">
+        <div class="section-intro" data-reveal>
+          <h2>Jak działa KidCost?</h2>
+          <p>Cztery kroki, które zmieniają chaos paragonów w spokojny ledger.</p>
+        </div>
+        <div class="workflow-grid">
+          <article data-step="1" data-reveal>
+            <h3>Dodaj wydatek</h3>
+            <p>Kwota, data, kategoria, kto zapłacił i opcjonalny dowód.</p>
+          </article>
+          <article data-step="2" data-reveal>
+            <h3>Dodaj kontekst</h3>
+            <p>Opieka, dziecko, planowany zakup, terminy zwrotu albo EOB.</p>
+          </article>
+          <article data-step="3" data-reveal>
+            <h3>Śledź saldo</h3>
+            <p>Od razu wiesz, kto komu ile jest winien i za co.</p>
+          </article>
+          <article data-step="4" data-reveal>
+            <h3>Generuj raporty</h3>
+            <p>Eksportuj koszty, dowody i kontekst bez mieszania z saldem.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="security-strip" id="security" data-reveal>
+        <div>
+          <h2>Wasze dane są tylko Wasze.</h2>
+          <p>
+            Prywatne podglądy, neutralny język, sanitizacja załączników i
+            raporty bez zbędnych danych wrażliwych.
+          </p>
+        </div>
+        <ul>
+          <li>Dane w UE</li>
+          <li>RODO-ready</li>
+          <li>Bez reklam</li>
+          <li>Tylko rodzina</li>
+        </ul>
+      </section>
+
+      <section class="reports section-shell" id="reports">
+        <div class="report-copy" data-reveal>
+          <h2>Raporty, które dają jasność</h2>
+          <p>
+            Miesięczne i roczne zestawienia kosztów, dowodów, opieki i
+            kontekstu. Czytelne dla Was, gotowe do rozmowy z mediatorem.
+          </p>
+          <ul>
+            <li>Zestawienie wg kategorii i okresów</li>
+            <li>Saldo i kto komu jest winien</li>
+            <li>Paragony i szczegóły do wglądu</li>
+            <li>Kontekst świadczeń i opieki poza ledgerem</li>
+          </ul>
+        </div>
+        <div class="report-panel" data-reveal>
+          <div class="panel-header">
+            <span>Raport miesięczny</span>
+            <strong>Kwiecień 2026</strong>
+          </div>
+          <div class="report-stats">
+            <span><b>1 924,30 zł</b> Ty</span>
+            <span><b>1 111,90 zł</b> Drugi rodzic</span>
+            <span><b>+812,40 zł</b> Saldo</span>
+          </div>
+          <div class="donut" aria-label="Wydatki wg kategorii"></div>
+          <div class="proof-list">
+            <span>Paragon: buty sportowe</span>
+            <span>Faktura: lekarz pediatra</span>
+            <span>PDF: zajęcia dodatkowe</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo section-shell" id="demo">
+        <div data-reveal>
+          <h2>Sprawdź mini-demo salda</h2>
+          <p>
+            Wpisz dwie sumy zapłacone przez rodziców. KidCost pokazuje prosty
+            kierunek rozliczenia bez prawniczego tonu.
+          </p>
+        </div>
+        <form class="demo-card" data-reveal>
+          <label>
+            Ty zapłaciłeś/zapłaciłaś
+            <input id="paid-you" type="number" min="0" value="1924.30" step="0.01" />
+          </label>
+          <label>
+            Drugi rodzic zapłacił
+            <input id="paid-other" type="number" min="0" value="1111.90" step="0.01" />
+          </label>
+          <output id="demo-result">Drugi rodzic oddaje Tobie 406,20 zł</output>
+        </form>
+      </section>
+
+      <section class="final-cta" data-reveal>
+        <h2>Więcej spokoju. Więcej jasności. Dla dobra dziecka.</h2>
+        <p>Zacznijcie od jednego kosztu. Reszta porządkuje się krok po kroku.</p>
+        <a class="button primary" href="#scenarios">Zobacz scenariusze</a>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>KidCost</span>
+      <span>© 2026 KidCost</span>
+      <a href="mailto:support@kidcost.app">support@kidcost.app</a>
+    </footer>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

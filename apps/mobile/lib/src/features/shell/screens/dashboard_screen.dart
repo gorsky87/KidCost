@@ -45,8 +45,9 @@ class DashboardScreen extends StatelessWidget {
         .where((expense) => !expense.isPrivateDraft)
         .toList();
     final summary = _DashboardSummary.fromExpenses(
-      submittedMonthExpenses,
+      profile.isSoloFamily ? monthExpenses : submittedMonthExpenses,
       settlementSplitRule: settlementSplitRule,
+      includePrivateDraftsInBalance: profile.isSoloFamily,
     );
     final recentExpenses = [...submittedMonthExpenses]
       ..sort((first, second) {
@@ -609,6 +610,7 @@ class _DashboardSummary {
   factory _DashboardSummary.fromExpenses(
     List<ExpenseEntry> expenses, {
     required SettlementSplitRule settlementSplitRule,
+    bool includePrivateDraftsInBalance = false,
   }) {
     final totalCents = expenses.fold<int>(
       0,
@@ -626,7 +628,9 @@ class _DashboardSummary {
         for (final expense in expenses)
           domain.ExpenseInput(
             id: expense.id,
-            amountCents: expense.settlementBalanceAmountCents,
+            amountCents: includePrivateDraftsInBalance && expense.isPrivateDraft
+                ? expense.amountCents
+                : expense.settlementBalanceAmountCents,
             paidBy: expense.paidBy.isCurrentUser
                 ? _currentUserParticipantId
                 : _coParentParticipantId,
